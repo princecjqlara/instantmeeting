@@ -1,0 +1,256 @@
+.main {
+    min-height: 100vh;
+}
+
+/* Hero Section */
+.hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 60px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.heroContent {
+    animation: fadeIn 0.8s ease-out;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: rgba(255, 51, 102, 0.1);
+    border: 1px solid rgba(255, 51, 102, 0.3);
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--accent-primary);
+    margin-bottom: 24px;
+}
+
+.title {
+    font-size: 56px;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 24px;
+}
+
+.gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    font-size: 20px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 40px;
+    max-width: 500px;
+}
+
+.cta {
+    display: flex;
+    gap: 16px;
+}
+
+/* Hero Visual */
+.heroVisual {
+    display: flex;
+    justify-content: center;
+    animation: slideUp 1s ease-out;
+}
+
+.phoneFrame {
+    width: 300px;
+    height: 600px;
+    background: #1a1a25;
+    border-radius: 40px;
+    padding: 10px;
+    box-shadow:
+        0 0 0 2px rgba(255, 255, 255, 0.1),
+        0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.phoneScreen {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #2a2a3a 0%, #1a1a25 100%);
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+}
+
+.mockReel {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mockVideo {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #3a3a4a 0%, #2a2a35 100%);
+    animation: float 4s ease-in-out infinite;
+}
+
+.mockControls {
+    position: relative;
+    z-index: 1;
+    width: 70px;
+    height: 70px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+}
+
+.mockStatus {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    border-radius: 50px;
+    font-size: 14px;
+    color: var(--accent-warning);
+}
+
+/* Features */
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    padding: 80px 60px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.feature {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.feature:hover {
+    transform: translateY(-4px);
+    border-color: rgba(255, 51, 102, 0.3);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.featureIcon {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.feature h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.feature p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Guest Section */
+.guestSection {
+    padding: 80px 60px;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+}
+
+.guestSection h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.guestSection>p {
+    color: var(--text-secondary);
+    margin-bottom: 32px;
+}
+
+.guestForm {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.guestForm .input {
+    flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: 60px 24px;
+    }
+
+    .subtitle {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .cta {
+        justify-content: center;
+    }
+
+    .heroVisual {
+        order: -1;
+    }
+
+    .phoneFrame {
+        width: 240px;
+        height: 480px;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+        padding: 60px 24px;
+    }
+
+    .guestSection {
+        padding: 60px 24px;
+    }
+
+    .guestForm {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .title {
+        font-size: 36px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+}
