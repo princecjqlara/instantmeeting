@@ -18,17 +18,30 @@ export async function GET(
     const supabase = getSupabaseClient()
     const { username } = await params
 
-    // Get user by username
+    console.log('Join route - looking up username:', username)
+
+    if (!username) {
+        return NextResponse.redirect(new URL(`/?error=no_username`, req.url))
+    }
+
+    // Get user by username (case-insensitive)
     const { data: user, error: userError } = await supabase
         .from('users')
         .select('id, availability_mode, available_from, available_to, timezone, name')
-        .eq('username', username)
+        .ilike('username', username)
         .single()
 
-    if (userError || !user) {
-        // Redirect to 404 or profile page with error
+    if (userError) {
+        console.error('Database error in join route:', userError)
         return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
     }
+
+    if (!user) {
+        console.log('User not found in join route for username:', username)
+        return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
+    }
+
+    console.log('Join route - found user:', user.id)
 
     // Check availability
     let isAvailable = false

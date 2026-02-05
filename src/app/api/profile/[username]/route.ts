@@ -18,16 +18,30 @@ export async function GET(
     const supabase = getSupabaseClient()
     const { username } = await params
 
-    // Get user profile
+    console.log('Fetching profile for username:', username)
+
+    if (!username) {
+        return NextResponse.json({ error: 'Username is required' }, { status: 400 })
+    }
+
+    // Get user profile - try case-insensitive match
     const { data: user, error: userError } = await supabase
         .from('users')
         .select('id, name, username, bio, avatar_url, followers, following, availability_mode, available_from, available_to, timezone, created_at')
-        .eq('username', username)
+        .ilike('username', username)
         .single()
 
-    if (userError || !user) {
+    if (userError) {
+        console.error('Database error fetching user:', userError)
+        return NextResponse.json({ error: 'User not found', details: userError.message }, { status: 404 })
+    }
+
+    if (!user) {
+        console.log('User not found for username:', username)
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
+
+    console.log('Found user:', user.id, user.username)
 
     // Get user's content
     const { data: content } = await supabase
