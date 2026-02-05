@@ -17,22 +17,37 @@ export async function GET(
 ) {
     const supabase = getSupabaseClient()
     const resolvedParams = await params
-    const username = resolvedParams.username
+    const rawUsername = resolvedParams.username
+    const normalizedUsername = decodeURIComponent(rawUsername || '')
+        .trim()
+        .replace(/^@+/, '')
+        .toLowerCase()
 
-    console.log('=== PROFILE API === Fetching for username:', username)
+    console.log('=== PROFILE API === Fetching for username:', rawUsername)
     console.log('Full URL:', req.url)
 
-    if (!username) {
+    if (!normalizedUsername) {
         console.log('ERROR: No username provided')
         return NextResponse.json({ error: 'Username is required' }, { status: 400 })
     }
 
     // Get user profile - try case-insensitive match
-    const { data: user, error: userError } = await supabase
+    let { data: user, error: userError } = await supabase
         .from('users')
         .select('id, name, username, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, created_at')
-        .ilike('username', username)
-        .single()
+        .ilike('username', normalizedUsername)
+        .maybeSingle()
+
+    if (!user) {
+        const altUsername = `@${normalizedUsername}`
+        const { data: altUser, error: altError } = await supabase
+            .from('users')
+            .select('id, name, username, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, created_at')
+            .ilike('username', altUsername)
+            .maybeSingle()
+        user = altUser || null
+        userError = altError
+    }
 
     if (userError) {
         console.error('Database error:', userError.code, userError.message)
@@ -40,7 +55,7 @@ export async function GET(
     }
 
     if (!user) {
-        console.log('User not found for:', username)
+        console.log('User not found for:', normalizedUsername)
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
