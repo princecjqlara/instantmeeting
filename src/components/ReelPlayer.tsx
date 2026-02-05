@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
 import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash, FaPlay, FaMusic } from 'react-icons/fa'
 import BookingModal from './BookingModal'
@@ -9,13 +10,15 @@ import styles from './ReelPlayer.module.css'
 interface ReelPlayerProps {
     reels: Content[]
     hostName?: string
+    hostUsername?: string
     hostAvatar?: string | null
     isHost?: boolean
     onEdit?: (reel: Content) => void
     onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit, onDelete }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, isHost, onEdit, onDelete }: ReelPlayerProps) {
+    const router = useRouter()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
     const [isMuted, setIsMuted] = useState(true)
@@ -25,6 +28,12 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
     const [localAvatar, setLocalAvatar] = useState<string | null>(hostAvatar || null)
     const videoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
+
+    const handleProfileClick = () => {
+        if (hostUsername) {
+            router.push(`/profile/${hostUsername}`)
+        }
+    }
 
     // Update local avatar when prop changes
     useEffect(() => {
@@ -331,7 +340,11 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
             <div className={styles.sidebar}>
                 {/* Profile Avatar */}
                 <div className={styles.profileSection}>
-                    <div className={styles.avatarWrapper}>
+                    <div 
+                        className={styles.avatarWrapper}
+                        onClick={handleProfileClick}
+                        style={{ cursor: hostUsername ? 'pointer' : 'default' }}
+                    >
                         {localAvatar ? (
                             <img src={localAvatar} alt={hostName} className={styles.avatar} />
                         ) : (

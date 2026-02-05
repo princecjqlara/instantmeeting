@@ -227,6 +227,8 @@ export default function ProfilePage() {
                         <ReelPlayer
                             reels={content.slice(selectedReel)}
                             hostName={user.name || user.username}
+                            hostUsername={user.username}
+                            hostAvatar={user.avatar_url}
                         />
                     </div>
                 </div>
