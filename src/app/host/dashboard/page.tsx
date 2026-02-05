@@ -8,10 +8,11 @@ import { createClient } from '@/lib/supabase/client'
 import Calendar from '@/components/Calendar'
 import WaitingRoomTable from '@/components/WaitingRoomTable'
 import ContentPreview from '@/components/ContentPreview'
+import ReelPlayer from '@/components/ReelPlayer'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
-    FaUserCheck, FaVideo, FaUpload, FaUsers
+    FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes
 } from 'react-icons/fa'
 
 interface MeetingWithGuests extends Meeting {
@@ -32,6 +33,7 @@ export default function Dashboard() {
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
     const [currentMonth, setCurrentMonth] = useState(new Date())
+    const [showPreview, setShowPreview] = useState(false)
     const supabase = createClient()
 
     // Redirect if not authenticated
@@ -168,6 +170,14 @@ export default function Dashboard() {
                 </div>
 
                 <div className={styles.headerRight}>
+                    <button
+                        onClick={() => setShowPreview(true)}
+                        className="button-secondary"
+                        disabled={content.length === 0}
+                    >
+                        <FaEye />
+                        Preview
+                    </button>
                     <button
                         onClick={() => router.push('/host/upload')}
                         className="button-secondary"
@@ -316,6 +326,30 @@ export default function Dashboard() {
                     </div>
                 )}
             </section>
+
+            {/* Preview Modal */}
+            {showPreview && (
+                <div className={styles.previewModal}>
+                    <div className={styles.previewHeader}>
+                        <h2>Guest Preview</h2>
+                        <span>This is what guests see while waiting</span>
+                        <button
+                            className={styles.closePreview}
+                            onClick={() => setShowPreview(false)}
+                        >
+                            <FaTimes />
+                        </button>
+                    </div>
+                    <div className={styles.previewContainer}>
+                        <div className={styles.phoneFrame}>
+                            <ReelPlayer
+                                reels={content}
+                                hostName={session?.user?.name || 'Host'}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
