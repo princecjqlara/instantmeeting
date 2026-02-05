@@ -10,61 +10,39 @@ function getSupabaseClient() {
     )
 }
 
-// GET: Resolve username to active meeting and redirect
+// GET: Universal link - redirect to waiting room (which is the preview)
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ username: string }> }
 ) {
     const supabase = getSupabaseClient()
-    const { username } = await params
+    const resolvedParams = await params
+    const username = resolvedParams.username
 
-    console.log('Join route - looking up username:', username)
+    console.log('=== UNIVERSAL LINK === /join/' + username)
 
     if (!username) {
         return NextResponse.redirect(new URL(`/?error=no_username`, req.url))
     }
 
-    // Get user by username (case-insensitive)
+    // Get user by username
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, availability_mode, available_from, available_to, timezone, name')
+        .select('id, name, username, availability_mode')
         .ilike('username', username)
         .single()
 
-    if (userError) {
-        console.error('Database error in join route:', userError)
+    if (userError || !user) {
+        console.log('User not found:', username, userError?.message)
         return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
     }
 
-    if (!user) {
-        console.log('User not found in join route for username:', username)
-        return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
+    // If user is not available, show profile with booking option
+    if (user.availability_mode === 'never') {
+        return NextResponse.redirect(new URL(`/profile/${username}`, req.url))
     }
 
-    console.log('Join route - found user:', user.id)
-
-    // Check availability
-    let isAvailable = false
-    if (user.availability_mode === 'always') {
-        isAvailable = true
-    } else if (user.availability_mode === 'scheduled' && user.available_from && user.available_to) {
-        const now = new Date()
-        const timezone = user.timezone || 'UTC'
-        const currentTime = now.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: timezone
-        })
-        isAvailable = currentTime >= user.available_from && currentTime <= user.available_to
-    }
-
-    if (!isAvailable) {
-        // Host not available, redirect to profile with booking option
-        return NextResponse.redirect(new URL(`/profile/${username}?error=unavailable`, req.url))
-    }
-
-    // Get most recent active meeting or pending meeting
+    // Get or create active meeting
     let { data: meeting } = await supabase
         .from('meetings')
         .select('id')
@@ -74,29 +52,28 @@ export async function GET(
         .limit(1)
         .single()
 
-    // If no active meeting exists, create one automatically
+    // Auto-create meeting if none exists
     if (!meeting) {
         const { data: newMeeting, error: createError } = await supabase
             .from('meetings')
             .insert({
                 user_id: user.id,
-                title: `Meeting with ${user.name || username}`,
-                status: 'active',
-                google_meet_link: null,
-                google_event_id: null,
-                scheduled_at: null
+                title: `${user.name || username}'s Room`,
+                status: 'active'
             })
             .select('id')
             .single()
-
-        if (createError) {
-            console.error('Error creating meeting:', createError)
+        
+        if (createError || !newMeeting) {
+            console.error('Failed to create meeting:', createError)
             return NextResponse.redirect(new URL(`/profile/${username}?error=create_failed`, req.url))
         }
-
+        
         meeting = newMeeting
     }
 
-    // Redirect to waiting room
+    console.log('Redirecting to waiting room:', meeting.id)
+
+    // Redirect to waiting room - this IS the preview/live experience
     return NextResponse.redirect(new URL(`/waiting/${meeting.id}`, req.url))
 }
