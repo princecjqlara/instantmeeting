@@ -97,6 +97,100 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
         }
     }, [currentIndex, reels.length, hostSettings])
 
+    const handleCommentSubmit = (e?: React.FormEvent) => {
+        e?.preventDefault()
+        if (commentText.trim()) {
+            setLocalEngagement(eng => ({
+                ...eng,
+                [currentReel.id]: { ...eng[currentReel.id], comments: (eng[currentReel.id]?.comments || 0) + 1 }
+            }))
+            updateEngagement('comment')
+            setCommentText('')
+            setIsCommenting(false)
+        }
+    }
+
+    const getEngagement = (reel: Content) => ({
+        likes: (reel.likes || 0) + (localEngagement[reel.id]?.likes || 0),
+        comments: (reel.comments || 0) + (localEngagement[reel.id]?.comments || 0),
+        views: reel.views || 0
+    })
+
+    useEffect(() => {
+        if (reels.length > 0) {
+            const hostId = reels[0].user_id
+            fetch(`/api/users/${hostId}/public`)
+                .then(res => res.json())
+                .then(data => setHostSettings(data))
+                .catch(err => console.error("Failed to fetch host settings", err))
+        }
+    }, [reels])
+
+    useEffect(() => {
+        // Fetch latest host profile data to ensure avatar is up to date
+        const fetchProfile = async () => {
+            if (hostName) {
+                try {
+                    // Try to fetch by username if available, or just rely on passed props for now
+                    // If we are the host, we can fetch our own settings
+                    if (isHost) {
+                        const res = await fetch('/api/profile/settings')
+                        if (res.ok) {
+                            const data = await res.json()
+                            if (data.avatar_url) {
+                                setLocalAvatar(data.avatar_url)
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching profile:', e)
+                }
+            }
+        }
+        fetchProfile()
+    }, [hostName, isHost])
+
+    useEffect(() => {
+        if (videoRef.current) {
+            if (isPlaying) {
+                videoRef.current.play().catch(() => { })
+            } else {
+                videoRef.current.pause()
+            }
+        }
+    }, [isPlaying, currentIndex])
+
+    // Track views
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (isPlaying) {
+                updateEngagement('view')
+            }
+        }, 5000) // Count view after 5 seconds
+        return () => clearTimeout(timer)
+    }, [currentReel.id])
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.muted = isMuted
+        }
+    }, [isMuted])
+
+    const handleTimeUpdate = useCallback(() => {
+        if (videoRef.current) {
+            const percent = (videoRef.current.currentTime / videoRef.current.duration) * 100
+            setProgress(percent)
+        }
+    }, [])
+
+    const handleVideoEnd = useCallback(() => {
+        if (currentIndex < reels.length - 1) {
+            setCurrentIndex(prev => prev + 1)
+        } else {
+            setCurrentIndex(0)
+        }
+    }, [currentIndex, reels.length])
+
     const goToPrev = useCallback(() => {
         if (currentIndex > 0) {
             setCurrentIndex(prev => prev - 1)
