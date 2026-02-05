@@ -40,7 +40,8 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         if (hostAvatar) setLocalAvatar(hostAvatar)
     }, [hostAvatar])
 
-    const currentReel = reels[currentIndex]
+    const hasReels = reels.length > 0
+    const currentReel = hasReels ? reels[currentIndex] : null
 
     const formatNumber = (num: number) => {
         if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
@@ -49,6 +50,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     }
 
     const updateEngagement = async (type: 'view' | 'like' | 'comment') => {
+        if (!currentReel) return
         try {
             await fetch('/api/content/engagement', {
                 method: 'POST',
@@ -108,7 +110,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
     const handleCommentSubmit = (e?: React.FormEvent) => {
         e?.preventDefault()
-        if (commentText.trim()) {
+        if (commentText.trim() && currentReel) {
             setLocalEngagement(eng => ({
                 ...eng,
                 [currentReel.id]: { ...eng[currentReel.id], comments: (eng[currentReel.id]?.comments || 0) + 1 }
@@ -171,13 +173,14 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
     // Track views
     useEffect(() => {
+        if (!currentReel) return
         const timer = setTimeout(() => {
             if (isPlaying) {
                 updateEngagement('view')
             }
         }, 5000) // Count view after 5 seconds
         return () => clearTimeout(timer)
-    }, [currentReel.id])
+    }, [currentReel?.id, isPlaying])
 
     useEffect(() => {
         if (videoRef.current) {
@@ -279,7 +282,17 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [goToNext, goToPrev])
 
-    if (reels.length === 0) {
+    if (!hasReels) {
+        return (
+            <div className={styles.emptyState}>
+                <div className={styles.emptyIcon}>🎬</div>
+                <p>No content available yet</p>
+                <span>Check back later!</span>
+            </div>
+        )
+    }
+
+    if (!currentReel) {
         return (
             <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>🎬</div>

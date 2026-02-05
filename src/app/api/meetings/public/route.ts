@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     // 1. Verify host exists
     const { data: host, error: hostError } = await supabase
         .from('users')
-        .select('id, email, name')
+        .select('id, email, name, availability_mode, available_from, available_to, timezone')
         .eq('id', hostId)
         .single()
 

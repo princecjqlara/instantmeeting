@@ -23,7 +23,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
         .from('users')
-        .select('username, name, bio, avatar_url, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
         .eq('email', session.user.email)
         .single()
 
@@ -36,6 +36,12 @@ export async function GET() {
         name: user.name || '',
         bio: user.bio || '',
         avatar_url: user.avatar_url,
+        availability_mode: user.availability_mode || 'always',
+        available_from: user.available_from || null,
+        available_to: user.available_to || null,
+        timezone: user.timezone || 'UTC',
+        scroll_threshold: user.scroll_threshold || 3,
+        meeting_duration: user.meeting_duration || 30,
         followers: user.followers || 0,
         following: user.following || 0
     })
@@ -94,7 +100,7 @@ export async function PATCH(req: NextRequest) {
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({ email: session.user.email, ...updateData })
-            .select('username, name, bio, avatar_url, followers, following')
+            .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
             .single()
 
         if (createError) {
@@ -106,6 +112,12 @@ export async function PATCH(req: NextRequest) {
             name: newUser.name || '',
             bio: newUser.bio || '',
             avatar_url: newUser.avatar_url,
+            availability_mode: newUser.availability_mode || 'always',
+            available_from: newUser.available_from || null,
+            available_to: newUser.available_to || null,
+            timezone: newUser.timezone || 'UTC',
+            scroll_threshold: newUser.scroll_threshold || 3,
+            meeting_duration: newUser.meeting_duration || 30,
             followers: newUser.followers || 0,
             following: newUser.following || 0
         })
@@ -115,7 +127,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('username, name, bio, avatar_url, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
         .single()
 
     if (error) {
@@ -127,6 +139,12 @@ export async function PATCH(req: NextRequest) {
         name: user.name || '',
         bio: user.bio || '',
         avatar_url: user.avatar_url,
+        availability_mode: user.availability_mode || 'always',
+        available_from: user.available_from || null,
+        available_to: user.available_to || null,
+        timezone: user.timezone || 'UTC',
+        scroll_threshold: user.scroll_threshold || 3,
+        meeting_duration: user.meeting_duration || 30,
         followers: user.followers || 0,
         following: user.following || 0
     })

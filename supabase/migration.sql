@@ -77,31 +77,31 @@ ALTER TABLE waiting_guests ENABLE ROW LEVEL SECURITY;
 -- RLS Policies
 
 -- Users: Only the user can see their own data
-CREATE POLICY "Users can view own data" ON users
+CREATE POLICY IF NOT EXISTS "Users can view own data" ON users
   FOR SELECT USING (auth.uid()::text = id::text);
 
 -- Content: Users can manage their own content, anyone can view
-CREATE POLICY "Users can manage own content" ON content
+CREATE POLICY IF NOT EXISTS "Users can manage own content" ON content
   FOR ALL USING (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Anyone can view content" ON content
+CREATE POLICY IF NOT EXISTS "Anyone can view content" ON content
   FOR SELECT USING (true);
 
 -- Meetings: Users can manage their own meetings
-CREATE POLICY "Users can manage own meetings" ON meetings
+CREATE POLICY IF NOT EXISTS "Users can manage own meetings" ON meetings
   FOR ALL USING (auth.uid()::text = user_id::text);
 
-CREATE POLICY "Anyone can view active meetings" ON meetings
+CREATE POLICY IF NOT EXISTS "Anyone can view active meetings" ON meetings
   FOR SELECT USING (status IN ('pending', 'active'));
 
 -- Waiting Guests: Anyone can join, only host can update
-CREATE POLICY "Anyone can join waiting room" ON waiting_guests
+CREATE POLICY IF NOT EXISTS "Anyone can join waiting room" ON waiting_guests
   FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Anyone can view waiting guests" ON waiting_guests
+CREATE POLICY IF NOT EXISTS "Anyone can view waiting guests" ON waiting_guests
   FOR SELECT USING (true);
 
-CREATE POLICY "Host can admit guests" ON waiting_guests
+CREATE POLICY IF NOT EXISTS "Host can admit guests" ON waiting_guests
   FOR UPDATE USING (
     EXISTS (
       SELECT 1 FROM meetings 

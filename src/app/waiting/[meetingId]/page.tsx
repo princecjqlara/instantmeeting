@@ -63,25 +63,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         fetchData()
     }, [meetingId])
 
-    if (loading) {
-        return (
-            <div className={styles.loading}>
-                <div className={styles.spinner}></div>
-                <p>Loading waiting room...</p>
-            </div>
-        )
-    }
-
-    if (error) {
-        return (
-            <div className={styles.error}>
-                <h2>Oops!</h2>
-                <p>{error}</p>
-                <a href="/" className="button-secondary">Go Home</a>
-            </div>
-        )
-    }
-
     useEffect(() => {
         const handleScroll = () => {
             if (containerRef.current) {
@@ -104,6 +85,25 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             }
         }
     }, [])
+
+    if (loading) {
+        return (
+            <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+                <p>Loading waiting room...</p>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className={styles.error}>
+                <h2>Oops!</h2>
+                <p>{error}</p>
+                <a href="/" className="button-secondary">Go Home</a>
+            </div>
+        )
+    }
 
     const scrollToSchedule = () => {
         if (joinSectionRef.current) {

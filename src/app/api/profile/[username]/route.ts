@@ -30,7 +30,7 @@ export async function GET(
     // Get user profile - try case-insensitive match
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, name, username, bio, avatar_url, followers, following, created_at')
+        .select('id, name, username, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, created_at')
         .ilike('username', username)
         .single()
 
@@ -72,8 +72,7 @@ export async function GET(
             ...user,
             totalViews,
             totalLikes,
-            contentCount: content?.length || 0,
-            availability_mode: 'always'
+            contentCount: content?.length || 0
         },
         content: content || [],
         isAvailable: true,

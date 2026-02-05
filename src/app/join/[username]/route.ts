@@ -28,7 +28,7 @@ export async function GET(
     // Get user by username
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, name, username')
+        .select('id, name, username, availability_mode, available_from, available_to, timezone')
         .ilike('username', username)
         .single()
 
