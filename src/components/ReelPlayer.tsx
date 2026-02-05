@@ -81,7 +81,7 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
 
     // ... useEffects ...
 
-    const nextReel = useCallback(() => {
+    const goToNext = useCallback(() => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
             setScrollCount(prev => {
