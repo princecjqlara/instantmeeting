@@ -25,6 +25,15 @@ export async function GET(
         return NextResponse.redirect(new URL(`/?error=no_username`, req.url))
     }
 
+    // First, try to find any users with similar usernames for debugging
+    const { data: allUsers, error: allError } = await supabase
+        .from('users')
+        .select('id, name, username')
+        .not('username', 'is', null)
+        .limit(5)
+    
+    console.log('All users with usernames:', allUsers?.map(u => ({ name: u.name, username: u.username })))
+
     // Get user by username
     const { data: user, error: userError } = await supabase
         .from('users')
@@ -33,7 +42,8 @@ export async function GET(
         .single()
 
     if (userError || !user) {
-        console.log('User not found:', username, userError?.message)
+        console.log('User not found for:', username)
+        console.log('Error:', userError?.message, 'Code:', userError?.code)
         return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
     }
 
