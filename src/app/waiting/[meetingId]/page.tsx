@@ -5,7 +5,7 @@ import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import WaitingStatus from '@/components/WaitingStatus'
 import styles from './page.module.css'
-import { FaUser, FaArrowRight, FaVideo, FaCalendarAlt } from 'react-icons/fa'
+import { FaUser, FaArrowRight, FaVideo, FaCalendarAlt, FaPlay } from 'react-icons/fa'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -41,6 +41,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [error, setError] = useState<string | null>(null)
     const [admitted, setAdmitted] = useState(false)
     const [meetLink, setMeetLink] = useState<string | null>(null)
+    const [browsingAnonymously, setBrowsingAnonymously] = useState(false)
+    const [showNameModal, setShowNameModal] = useState(false)
     const joinSectionRef = useRef<HTMLDivElement>(null)
 
     // Fetch waiting room data
@@ -71,9 +73,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         fetchData()
     }, [meetingId, guestId])
 
-    // Join waiting room
-    const handleJoin = async (e: React.FormEvent) => {
-        e.preventDefault()
+    // Join waiting room with name
+    const handleJoin = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault()
         if (!guestName.trim()) return
 
         try {
@@ -93,15 +95,20 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             }
 
             setGuestId(result.id)
+            setShowNameModal(false)
         } catch {
             setError('Failed to join waiting room')
         }
     }
 
+    // Browse anonymously
+    const handleBrowseAnonymously = () => {
+        setBrowsingAnonymously(true)
+    }
+
     const handleAdmitted = useCallback((link: string) => {
         setMeetLink(link)
         setAdmitted(true)
-        // Scroll to join section after short delay
         setTimeout(() => {
             joinSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
         }, 500)
@@ -130,8 +137,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         )
     }
 
-    // Name entry screen
-    if (!guestId) {
+    // Name entry screen - only if not browsing anonymously and not joined
+    if (!guestId && !browsingAnonymously) {
         return (
             <div className={styles.nameEntry}>
                 <div className={styles.card}>
@@ -142,24 +149,39 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         )}
                     </div>
 
-                    <form onSubmit={handleJoin} className={styles.form}>
-                        <div className={styles.inputGroup}>
-                            <FaUser className={styles.inputIcon} />
-                            <input
-                                type="text"
-                                value={guestName}
-                                onChange={(e) => setGuestName(e.target.value)}
-                                placeholder="Enter your name"
-                                className={styles.input}
-                                autoFocus
-                            />
+                    <div className={styles.options}>
+                        <button 
+                            onClick={handleBrowseAnonymously}
+                            className={styles.browseBtn}
+                        >
+                            <FaPlay />
+                            Browse Anonymously
+                            <span>Watch content without joining</span>
+                        </button>
+
+                        <div className={styles.divider}>
+                            <span>or</span>
                         </div>
 
-                        <button type="submit" className="button-primary" disabled={!guestName.trim()}>
-                            Join Waiting Room
-                            <FaArrowRight />
-                        </button>
-                    </form>
+                        <form onSubmit={handleJoin} className={styles.form}>
+                            <div className={styles.inputGroup}>
+                                <FaUser className={styles.inputIcon} />
+                                <input
+                                    type="text"
+                                    value={guestName}
+                                    onChange={(e) => setGuestName(e.target.value)}
+                                    placeholder="Enter your name to join"
+                                    className={styles.input}
+                                    autoFocus
+                                />
+                            </div>
+
+                            <button type="submit" className="button-primary" disabled={!guestName.trim()}>
+                                Join Waiting Room
+                                <FaArrowRight />
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         )
@@ -198,13 +220,22 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
             {/* Status Overlay */}
             <div className={styles.statusOverlay}>
-                <WaitingStatus
-                    meetingId={meetingId}
-                    guestId={guestId}
-                    onAdmitted={handleAdmitted}
-                    hostAvailable={data?.hostAvailable !== false}
-                    onScrollToSchedule={scrollToJoinSection}
-                />
+                {browsingAnonymously ? (
+                    <div className={styles.anonymousBanner}>
+                        <span>Browsing anonymously</span>
+                        <button onClick={() => setShowNameModal(true)} className={styles.joinBtnSmall}>
+                            Join Meeting
+                        </button>
+                    </div>
+                ) : (
+                    <WaitingStatus
+                        meetingId={meetingId}
+                        guestId={guestId!}
+                        onAdmitted={handleAdmitted}
+                        hostAvailable={data?.hostAvailable !== false}
+                        onScrollToSchedule={scrollToJoinSection}
+                    />
+                )}
             </div>
 
             {/* Join/Schedule Section - Below the fold */}
@@ -226,13 +257,28 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <FaArrowRight />
                         </a>
                     </div>
+                ) : browsingAnonymously ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaVideo />
+                        </div>
+                        <h2>Want to Join?</h2>
+                        <p>Enter your name to join the meeting queue.</p>
+                        <button 
+                            onClick={() => setShowNameModal(true)}
+                            className="button-primary"
+                        >
+                            Enter Name to Join
+                            <FaArrowRight />
+                        </button>
+                    </div>
                 ) : (
                     <div className={styles.scheduleCard}>
                         <div className={styles.scheduleIcon}>
                             <FaCalendarAlt />
                         </div>
                         <h2>Schedule a Meeting</h2>
-                        <p>Can&apos;t wait? Schedule a meeting for later.</p>
+                        <p>Can't wait? Schedule a meeting for later.</p>
                         <form className={styles.scheduleForm} onSubmit={(e) => e.preventDefault()}>
                             <div className={styles.formRow}>
                                 <input
@@ -259,7 +305,38 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     </div>
                 )}
             </div>
+
+            {/* Name Modal for anonymous browsers */}
+            {showNameModal && (
+                <div className={styles.modal} onClick={() => setShowNameModal(false)}>
+                    <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                        <h3>Enter your name to join</h3>
+                        <div className={styles.inputGroup}>
+                            <FaUser className={styles.inputIcon} />
+                            <input
+                                type="text"
+                                value={guestName}
+                                onChange={(e) => setGuestName(e.target.value)}
+                                placeholder="Your name"
+                                className={styles.input}
+                                autoFocus
+                            />
+                        </div>
+                        <div className={styles.modalActions}>
+                            <button onClick={() => setShowNameModal(false)} className="button-secondary">
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={() => handleJoin()} 
+                                className="button-primary"
+                                disabled={!guestName.trim()}
+                            >
+                                Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
-

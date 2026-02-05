@@ -106,6 +106,136 @@
     box-shadow: 0 0 0 3px rgba(255, 51, 102, 0.1);
 }
 
+/* Browse Options */
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 32px;
+}
+
+.browseBtn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 24px 32px;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 153, 204, 0.1));
+    border: 2px solid rgba(0, 212, 255, 0.3);
+    border-radius: var(--radius-lg);
+    color: #00d4ff;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.browseBtn:hover {
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(0, 153, 204, 0.2));
+    border-color: #00d4ff;
+    transform: translateY(-2px);
+}
+
+.browseBtn svg {
+    font-size: 32px;
+}
+
+.browseBtn span {
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(0, 212, 255, 0.7);
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+}
+
+/* Anonymous Browsing Banner */
+.anonymousBanner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(12px);
+    border-radius: 50px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.anonymousBanner span {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.joinBtnSmall {
+    padding: 8px 16px;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.joinBtnSmall:hover {
+    background: var(--accent-secondary);
+    transform: scale(1.05);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.modalContent {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 400px;
+    width: 100%;
+    animation: fadeIn 0.3s ease;
+}
+
+.modalContent h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.modalActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.modalActions button {
+    flex: 1;
+}
+
 /* Waiting Room */
 .container {
     width: 100%;
