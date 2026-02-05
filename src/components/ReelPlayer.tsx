@@ -2,18 +2,19 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Content } from '@/lib/types'
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaChevronUp, FaChevronDown, FaEye, FaHeart, FaComment, FaEdit, FaTrash } from 'react-icons/fa'
+import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaHeart, FaCommentDots, FaShare, FaMusic, FaEdit, FaTrash } from 'react-icons/fa'
 import styles from './ReelPlayer.module.css'
 
 interface ReelPlayerProps {
     reels: Content[]
     hostName?: string
+    hostAvatar?: string | null
     isHost?: boolean
     onEdit?: (reel: Content) => void
     onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName, isHost, onEdit, onDelete }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit, onDelete }: ReelPlayerProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
     const [isMuted, setIsMuted] = useState(true)
@@ -185,11 +186,6 @@ export default function ReelPlayer({ reels, hostName, isHost, onEdit, onDelete }
 
     return (
         <div ref={containerRef} className={styles.container}>
-            {/* Progress bar */}
-            <div className={styles.progressBar}>
-                <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            </div>
-
             {/* Video */}
             <video
                 ref={videoRef}
@@ -205,101 +201,126 @@ export default function ReelPlayer({ reels, hostName, isHost, onEdit, onDelete }
                 onClick={() => setIsPlaying(prev => !prev)}
             />
 
-            {/* Host info overlay */}
-            {hostName && (
-                <div className={styles.hostInfo}>
-                    <span className={styles.hostName}>@{hostName}</span>
+            {/* Play/Pause Indicator */}
+            {!isPlaying && (
+                <div className={styles.playIndicator}>
+                    <FaPlay />
                 </div>
             )}
 
-            {/* Content info */}
-            <div className={styles.contentInfo}>
-                {currentReel.title && <h3 className={styles.title}>{currentReel.title}</h3>}
-                {currentReel.caption && (
-                    <p className={styles.caption}>{currentReel.caption}</p>
-                )}
-                {currentReel.description && (
-                    <p className={styles.description}>{currentReel.description}</p>
-                )}
+            {/* Progress bar */}
+            <div className={styles.progressBar}>
+                <div className={styles.progressFill} style={{ width: `${progress}%` }} />
             </div>
 
-            {/* Engagement Stats Sidebar */}
-            <div className={styles.engagementSidebar}>
-                <div className={styles.engagementItem}>
+            {/* Bottom Left - User Info */}
+            <div className={styles.bottomLeft}>
+                <div className={styles.userInfo}>
+                    <span className={styles.username}>@{hostName || 'user'}</span>
+                    {currentReel.caption && (
+                        <p className={styles.caption}>{currentReel.caption}</p>
+                    )}
+                    {currentReel.description && (
+                        <p className={styles.description}>{currentReel.description}</p>
+                    )}
+                </div>
+                {/* Music ticker */}
+                <div className={styles.musicTicker}>
+                    <FaMusic className={styles.musicIcon} />
+                    <span className={styles.musicText}>Original Sound - {hostName || 'user'}</span>
+                </div>
+            </div>
+
+            {/* Right Sidebar - TikTok Style */}
+            <div className={styles.sidebar}>
+                {/* Profile Avatar */}
+                <div className={styles.profileSection}>
+                    <div className={styles.avatarWrapper}>
+                        {hostAvatar ? (
+                            <img src={hostAvatar} alt={hostName} className={styles.avatar} />
+                        ) : (
+                            <div className={styles.avatarPlaceholder}>
+                                {hostName?.charAt(0).toUpperCase() || 'U'}
+                            </div>
+                        )}
+                        <div className={styles.followBadge}>+</div>
+                    </div>
+                </div>
+
+                {/* Like Button */}
+                <div className={styles.actionItem}>
                     <button
-                        className={`${styles.engagementButton} ${likedReels.has(currentReel.id) ? styles.liked : ''}`}
+                        className={`${styles.actionButton} ${likedReels.has(currentReel.id) ? styles.liked : ''}`}
                         onClick={() => toggleLike(currentReel.id)}
-                        aria-label="Like"
                     >
                         <FaHeart />
                     </button>
-                    <span>{formatNumber(getEngagement(currentReel).likes)}</span>
+                    <span className={styles.actionCount}>{formatNumber(getEngagement(currentReel).likes)}</span>
                 </div>
-                <div className={styles.engagementItem}>
-                    <button className={styles.engagementButton} aria-label="Comment">
-                        <FaComment />
+
+                {/* Comment Button */}
+                <div className={styles.actionItem}>
+                    <button className={styles.actionButton}>
+                        <FaCommentDots />
                     </button>
-                    <span>{formatNumber(getEngagement(currentReel).comments)}</span>
+                    <span className={styles.actionCount}>{formatNumber(getEngagement(currentReel).comments)}</span>
                 </div>
-                <div className={styles.engagementItem}>
-                    <button className={styles.engagementButton} aria-label="Views">
-                        <FaEye />
+
+                {/* Share Button */}
+                <div className={styles.actionItem}>
+                    <button className={styles.actionButton}>
+                        <FaShare />
                     </button>
-                    <span>{formatNumber(getEngagement(currentReel).views)}</span>
+                    <span className={styles.actionCount}>{formatNumber(getEngagement(currentReel).views)}</span>
                 </div>
 
                 {/* Host Actions */}
                 {isHost && (
                     <>
-                        <div className={styles.engagementItem}>
+                        <div className={styles.actionItem}>
                             <button
-                                className={`${styles.engagementButton} ${styles.editButton}`}
+                                className={`${styles.actionButton} ${styles.editButton}`}
                                 onClick={() => onEdit?.(currentReel)}
-                                aria-label="Edit"
                             >
                                 <FaEdit />
                             </button>
                         </div>
-                        <div className={styles.engagementItem}>
+                        <div className={styles.actionItem}>
                             <button
-                                className={`${styles.engagementButton} ${styles.deleteButton}`}
+                                className={`${styles.actionButton} ${styles.deleteButton}`}
                                 onClick={() => onDelete?.(currentReel.id)}
-                                aria-label="Delete"
                             >
                                 <FaTrash />
                             </button>
                         </div>
                     </>
                 )}
+
+                {/* Spinning Record */}
+                <div className={styles.spinningRecord}>
+                    {hostAvatar ? (
+                        <img src={hostAvatar} alt="" className={styles.recordImage} />
+                    ) : (
+                        <div className={styles.recordPlaceholder} />
+                    )}
+                </div>
             </div>
 
-            {/* Controls */}
-            <div className={styles.controls}>
-                <button
-                    className={styles.controlButton}
-                    onClick={() => setIsPlaying(prev => !prev)}
-                    aria-label={isPlaying ? 'Pause' : 'Play'}
-                >
-                    {isPlaying ? <FaPause /> : <FaPlay />}
-                </button>
+            {/* Volume Control */}
+            <button
+                className={styles.volumeButton}
+                onClick={() => setIsMuted(prev => !prev)}
+            >
+                {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+            </button>
 
-                <button
-                    className={styles.controlButton}
-                    onClick={() => setIsMuted(prev => !prev)}
-                    aria-label={isMuted ? 'Unmute' : 'Mute'}
-                >
-                    {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
-                </button>
-            </div>
-
-            {/* Navigation Indicator */}
+            {/* Reel Counter */}
             {reels.length > 1 && (
-                <div className={styles.navigation}>
-                    <div className={styles.counter}>
-                        {currentIndex + 1} / {reels.length}
-                    </div>
+                <div className={styles.reelCounter}>
+                    {currentIndex + 1}/{reels.length}
                 </div>
             )}
         </div>
     )
 }
+

@@ -173,6 +173,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 <ReelPlayer
                     reels={data?.content || []}
                     hostName={data?.host?.name || undefined}
+                    hostAvatar={data?.host?.avatar_url}
                 />
             </div>
 
