@@ -4,7 +4,7 @@ import { useState, useEffect, use, useRef } from 'react'
 import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import styles from './page.module.css'
-import { FaUser, FaArrowRight, FaCalendarAlt } from 'react-icons/fa'
+import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaArrowUp } from 'react-icons/fa'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -36,7 +36,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [data, setData] = useState<WaitingData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [showScrollIndicator, setShowScrollIndicator] = useState(false)
     const joinSectionRef = useRef<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
 
     // Fetch waiting room data
     useEffect(() => {
@@ -80,9 +82,44 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         )
     }
 
+    useEffect(() => {
+        const handleScroll = () => {
+            if (containerRef.current) {
+                const scrollTop = containerRef.current.scrollTop
+                const windowHeight = window.innerHeight
+                setShowScrollIndicator(scrollTop < windowHeight / 2)
+            }
+        }
+
+        const container = containerRef.current
+        if (container) {
+            container.addEventListener('scroll', handleScroll)
+            // Initial check
+            handleScroll()
+        }
+
+        return () => {
+            if (container) {
+                container.removeEventListener('scroll', handleScroll)
+            }
+        }
+    }, [])
+
+    const scrollToSchedule = () => {
+        if (joinSectionRef.current) {
+            joinSectionRef.current.scrollIntoView({ behavior: 'smooth' })
+        }
+    }
+
+    const scrollToReels = () => {
+        if (containerRef.current) {
+            containerRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    }
+
     // Waiting room with reels
     return (
-        <div className={styles.container}>
+        <div ref={containerRef} className={styles.container}>
             {/* Reel Player */}
             <div className={styles.reelSection}>
                 <ReelPlayer
@@ -145,6 +182,25 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     </form>
                 </div>
             </div>
+
+            {/* Scroll Indicator */}
+            {showScrollIndicator ? (
+                <div 
+                    className={styles.scrollIndicator}
+                    onClick={scrollToSchedule}
+                    title="Scroll down to schedule"
+                >
+                    <FaArrowDown />
+                </div>
+            ) : (
+                <div 
+                    className={styles.scrollIndicator}
+                    onClick={scrollToReels}
+                    title="Scroll up to reels"
+                >
+                    <FaArrowUp />
+                </div>
+            )}
         </div>
     )
 }
