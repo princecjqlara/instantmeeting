@@ -416,3 +416,55 @@
         display: none;
     }
 }
+
+/* Universal Link Section */
+.universalLinkSection {
+    margin-bottom: 24px;
+}
+
+.universalLinkCard {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(255, 51, 102, 0.1), rgba(0, 255, 136, 0.1));
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.universalLinkInfo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.universalLinkInfo>svg {
+    font-size: 24px;
+    color: var(--accent-primary);
+}
+
+.universalLinkInfo h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.universalLinkInfo code {
+    font-size: 13px;
+    color: var(--accent-secondary);
+    word-break: break-all;
+}
+
+.copied {
+    background: var(--accent-success) !important;
+    border-color: var(--accent-success) !important;
+}
+
+@media (max-width: 640px) {
+    .universalLinkCard {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

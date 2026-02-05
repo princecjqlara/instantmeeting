@@ -32,6 +32,8 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [copiedId, setCopiedId] = useState<string | null>(null)
+    const [copiedUniversal, setCopiedUniversal] = useState(false)
+    const [username, setUsername] = useState<string | null>(null)
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [showPreview, setShowPreview] = useState(false)
@@ -61,6 +63,15 @@ export default function Dashboard() {
                 if (contentRes.ok) {
                     const contentData = await contentRes.json()
                     setContent(contentData)
+                }
+
+                // Fetch username for universal link
+                const profileRes = await fetch('/api/profile/settings')
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json()
+                    if (profileData.username) {
+                        setUsername(profileData.username)
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching data:', error)
@@ -204,6 +215,31 @@ export default function Dashboard() {
 
             {/* Availability Settings */}
             <AvailabilitySettings />
+
+            {/* Universal Link */}
+            {username && (
+                <section className={styles.universalLinkSection}>
+                    <div className={styles.universalLinkCard}>
+                        <div className={styles.universalLinkInfo}>
+                            <FaLink />
+                            <div>
+                                <h3>Your Universal Link</h3>
+                                <code>{typeof window !== 'undefined' ? window.location.origin : ''}/join/{username}</code>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(`${window.location.origin}/join/${username}`)
+                                setCopiedUniversal(true)
+                                setTimeout(() => setCopiedUniversal(false), 2000)
+                            }}
+                            className={`button-secondary ${copiedUniversal ? styles.copied : ''}`}
+                        >
+                            {copiedUniversal ? <><FaCheck /> Copied</> : <><FaCopy /> Copy</>}
+                        </button>
+                    </div>
+                </section>
+            )}
 
             {/* Create Meeting */}
             <section className={styles.createSection}>

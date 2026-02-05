@@ -2,15 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Content } from '@/lib/types'
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaChevronUp, FaChevronDown, FaEye, FaHeart, FaComment } from 'react-icons/fa'
+import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaChevronUp, FaChevronDown, FaEye, FaHeart, FaComment, FaEdit, FaTrash } from 'react-icons/fa'
 import styles from './ReelPlayer.module.css'
 
 interface ReelPlayerProps {
     reels: Content[]
     hostName?: string
+    isHost?: boolean
+    onEdit?: (reel: Content) => void
+    onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, isHost, onEdit, onDelete }: ReelPlayerProps) {
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
     const [isMuted, setIsMuted] = useState(true)
@@ -104,6 +107,8 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
 
         let startY = 0
         let isDragging = false
+        let lastScrollTime = 0
+        const scrollDebounce = 300 // ms between scroll events
 
         const handleTouchStart = (e: TouchEvent) => {
             startY = e.touches[0].clientY
@@ -127,6 +132,10 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
 
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault()
+            const now = Date.now()
+            if (now - lastScrollTime < scrollDebounce) return
+            lastScrollTime = now
+
             if (e.deltaY > 0) {
                 goToNext()
             } else {
@@ -238,6 +247,30 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
                     </button>
                     <span>{formatNumber(getEngagement(currentReel).views)}</span>
                 </div>
+
+                {/* Host Actions */}
+                {isHost && (
+                    <>
+                        <div className={styles.engagementItem}>
+                            <button
+                                className={`${styles.engagementButton} ${styles.editButton}`}
+                                onClick={() => onEdit?.(currentReel)}
+                                aria-label="Edit"
+                            >
+                                <FaEdit />
+                            </button>
+                        </div>
+                        <div className={styles.engagementItem}>
+                            <button
+                                className={`${styles.engagementButton} ${styles.deleteButton}`}
+                                onClick={() => onDelete?.(currentReel.id)}
+                                aria-label="Delete"
+                            >
+                                <FaTrash />
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Controls */}
