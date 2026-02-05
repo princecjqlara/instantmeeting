@@ -222,8 +222,8 @@
     border-radius: var(--radius-lg);
     padding: 20px;
     display: grid;
-    grid-template-columns: 120px 1fr 2fr;
-    gap: 20px;
+    grid-template-columns: 100px 1fr auto;
+    gap: 16px;
     align-items: center;
     transition: all 0.3s ease;
 }
@@ -235,9 +235,9 @@
 
 .contentPreview {
     position: relative;
-    width: 120px;
-    height: 80px;
-    border-radius: 12px;
+    width: 100px;
+    height: 70px;
+    border-radius: 10px;
     overflow: hidden;
     background: rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
@@ -277,14 +277,14 @@
 }
 
 .contentTitle {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
     margin: 0;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    line-height: 1.3;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 .contentDate {
@@ -293,15 +293,17 @@
 }
 
 .engagementGrid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    display: flex;
+    gap: 24px;
+    justify-content: flex-end;
+    min-width: 280px;
 }
 
 .engagementItem {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    min-width: 80px;
 }
 
 .engagementHeader {
@@ -316,7 +318,7 @@
 }
 
 .engagementTotal {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
 }
 
