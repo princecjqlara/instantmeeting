@@ -4,15 +4,17 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { WaitingGuest } from '@/lib/types'
 import styles from './WaitingStatus.module.css'
-import { FaClock, FaCheckCircle, FaVideo } from 'react-icons/fa'
+import { FaClock, FaCheckCircle, FaVideo, FaCalendarAlt, FaChevronDown } from 'react-icons/fa'
 
 interface WaitingStatusProps {
     meetingId: string
     guestId: string
     onAdmitted: (meetLink: string) => void
+    hostAvailable?: boolean
+    onScrollToSchedule?: () => void
 }
 
-export default function WaitingStatus({ meetingId, guestId, onAdmitted }: WaitingStatusProps) {
+export default function WaitingStatus({ meetingId, guestId, onAdmitted, hostAvailable = true, onScrollToSchedule }: WaitingStatusProps) {
     const [status, setStatus] = useState<'waiting' | 'admitted' | 'left'>('waiting')
     const [meetLink, setMeetLink] = useState<string | null>(null)
     const supabase = createClient()
@@ -69,7 +71,27 @@ export default function WaitingStatus({ meetingId, guestId, onAdmitted }: Waitin
 
     return (
         <div className={styles.container}>
-            {status === 'waiting' && (
+            {/* Host Unavailable - Prompt to schedule */}
+            {!hostAvailable && status === 'waiting' && (
+                <>
+                    <div className={styles.unavailableAnimation}>
+                        <FaCalendarAlt className={styles.iconUnavailable} />
+                    </div>
+                    <h3 className={styles.titleUnavailable}>Host is currently unavailable</h3>
+                    <p className={styles.subtitle}>
+                        Scroll down to schedule a meeting for later
+                    </p>
+                    {onScrollToSchedule && (
+                        <button className={styles.scrollButton} onClick={onScrollToSchedule}>
+                            <FaChevronDown className={styles.bounceIcon} />
+                            Schedule Meeting
+                        </button>
+                    )}
+                </>
+            )}
+
+            {/* Waiting - Host available */}
+            {hostAvailable && status === 'waiting' && (
                 <>
                     <div className={styles.waitingAnimation}>
                         <FaClock className={styles.icon} />
@@ -82,6 +104,7 @@ export default function WaitingStatus({ meetingId, guestId, onAdmitted }: Waitin
                 </>
             )}
 
+            {/* Admitted - Scroll down to join */}
             {status === 'admitted' && (
                 <>
                     <div className={styles.admittedAnimation}>
@@ -89,21 +112,15 @@ export default function WaitingStatus({ meetingId, guestId, onAdmitted }: Waitin
                     </div>
                     <h3 className={styles.titleSuccess}>You&apos;re in!</h3>
                     <p className={styles.subtitle}>
-                        The host has admitted you to the meeting.
+                        Scroll down to join the meeting
                     </p>
-                    {meetLink && (
-                        <a
-                            href={meetLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={styles.joinButton}
-                        >
-                            <FaVideo />
-                            Join Meeting Now
-                        </a>
-                    )}
+                    <button className={styles.scrollButton} onClick={onScrollToSchedule}>
+                        <FaChevronDown className={styles.bounceIcon} />
+                        Join Meeting
+                    </button>
                 </>
             )}
         </div>
     )
 }
+

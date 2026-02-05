@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, use } from 'react'
+import { useState, useEffect, useCallback, use, useRef } from 'react'
 import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import WaitingStatus from '@/components/WaitingStatus'
 import styles from './page.module.css'
-import { FaUser, FaArrowRight } from 'react-icons/fa'
+import { FaUser, FaArrowRight, FaVideo, FaCalendarAlt } from 'react-icons/fa'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -27,6 +27,7 @@ interface WaitingData {
         status: string
     } | null
     meetLink: string | null
+    hostAvailable?: boolean
 }
 
 export default function WaitingRoom({ params }: WaitingPageProps) {
@@ -38,6 +39,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [error, setError] = useState<string | null>(null)
     const [admitted, setAdmitted] = useState(false)
     const [meetLink, setMeetLink] = useState<string | null>(null)
+    const joinSectionRef = useRef<HTMLDivElement>(null)
 
     // Fetch waiting room data
     useEffect(() => {
@@ -97,6 +99,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const handleAdmitted = useCallback((link: string) => {
         setMeetLink(link)
         setAdmitted(true)
+        // Scroll to join section after short delay
+        setTimeout(() => {
+            joinSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 500)
+    }, [])
+
+    const scrollToJoinSection = useCallback(() => {
+        joinSectionRef.current?.scrollIntoView({ behavior: 'smooth' })
     }, [])
 
     if (loading) {
@@ -170,16 +180,20 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     meetingId={meetingId}
                     guestId={guestId}
                     onAdmitted={handleAdmitted}
+                    hostAvailable={data?.hostAvailable !== false}
+                    onScrollToSchedule={scrollToJoinSection}
                 />
             </div>
 
-            {/* Admitted Modal */}
-            {admitted && meetLink && (
-                <div className={styles.admittedModal}>
-                    <div className={styles.modalContent}>
-                        <div className={styles.successIcon}>🎉</div>
-                        <h2>You&apos;re In!</h2>
-                        <p>The host has admitted you. Click below to join the meeting.</p>
+            {/* Join/Schedule Section - Below the fold */}
+            <div ref={joinSectionRef} className={styles.joinSection}>
+                {admitted && meetLink ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaVideo />
+                        </div>
+                        <h2>Ready to Join!</h2>
+                        <p>The host has admitted you to the meeting.</p>
                         <a
                             href={meetLink}
                             target="_blank"
@@ -190,8 +204,40 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <FaArrowRight />
                         </a>
                     </div>
-                </div>
-            )}
+                ) : (
+                    <div className={styles.scheduleCard}>
+                        <div className={styles.scheduleIcon}>
+                            <FaCalendarAlt />
+                        </div>
+                        <h2>Schedule a Meeting</h2>
+                        <p>Can&apos;t wait? Schedule a meeting for later.</p>
+                        <form className={styles.scheduleForm} onSubmit={(e) => e.preventDefault()}>
+                            <div className={styles.formRow}>
+                                <input
+                                    type="date"
+                                    className={styles.formInput}
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
+                                <input
+                                    type="time"
+                                    className={styles.formInput}
+                                    defaultValue="10:00"
+                                />
+                            </div>
+                            <textarea
+                                className={styles.formTextarea}
+                                placeholder="What would you like to discuss? (optional)"
+                                rows={3}
+                            />
+                            <button type="submit" className="button-primary">
+                                Request Meeting
+                                <FaArrowRight />
+                            </button>
+                        </form>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }
+

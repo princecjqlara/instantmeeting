@@ -122,3 +122,73 @@
     transform: translateY(-2px);
     box-shadow: 0 6px 30px rgba(0, 255, 136, 0.4);
 }
+
+/* Unavailable State */
+.unavailableAnimation {
+    margin-bottom: 20px;
+}
+
+.iconUnavailable {
+    font-size: 50px;
+    color: #ff9800;
+    animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+.titleUnavailable {
+    color: #ff9800;
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+/* Scroll Button */
+.scrollButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(255, 51, 102, 0.3);
+}
+
+.scrollButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 30px rgba(255, 51, 102, 0.4);
+}
+
+.bounceIcon {
+    animation: bounce-down 1.5s ease-in-out infinite;
+}
+
+@keyframes bounce-down {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(5px);
+    }
+}
