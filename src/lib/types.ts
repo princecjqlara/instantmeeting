@@ -46,6 +46,7 @@ export interface Meeting {
     status: 'pending' | 'active' | 'completed'
     scheduled_at: string | null
     created_at: string
+    waiting_guests?: WaitingGuest[]
 }
 
 export interface WaitingGuest {

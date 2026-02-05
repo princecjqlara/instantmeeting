@@ -10,10 +10,12 @@ import WaitingRoomTable from '@/components/WaitingRoomTable'
 import ContentPreview from '@/components/ContentPreview'
 import ReelPlayer from '@/components/ReelPlayer'
 import AvailabilitySettings from '@/components/AvailabilitySettings'
+import CalendarDayModal from '@/components/CalendarDayModal'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
-    FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser
+    FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser,
+    FaChartLine, FaUsers as FaUsersIcon
 } from 'react-icons/fa'
 
 interface MeetingWithGuests extends Meeting {
@@ -37,6 +39,8 @@ export default function Dashboard() {
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
     const [currentMonth, setCurrentMonth] = useState(new Date())
     const [showPreview, setShowPreview] = useState(false)
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+    const [selectedDateMeetings, setSelectedDateMeetings] = useState<Meeting[]>([])
     const supabase = createClient()
 
     // Redirect if not authenticated
@@ -183,6 +187,20 @@ export default function Dashboard() {
 
                 <div className={styles.headerRight}>
                     <button
+                        onClick={() => router.push('/host/metrics')}
+                        className="button-secondary"
+                    >
+                        <FaChartLine />
+                        Analytics
+                    </button>
+                    <button
+                        onClick={() => router.push('/host/leads')}
+                        className="button-secondary"
+                    >
+                        <FaUsersIcon />
+                        Leads
+                    </button>
+                    <button
                         onClick={() => setShowPreview(true)}
                         className="button-secondary"
                         disabled={content.length === 0}
@@ -202,7 +220,7 @@ export default function Dashboard() {
                         className="button-secondary"
                     >
                         <FaUpload />
-                        Upload Content
+                        Upload
                     </button>
                     <button
                         onClick={() => signOut({ callbackUrl: '/' })}
@@ -276,6 +294,10 @@ export default function Dashboard() {
                         meetings={meetings}
                         currentMonth={currentMonth}
                         onMonthChange={setCurrentMonth}
+                        onDateClick={(date, dateMeetings) => {
+                            setSelectedDate(date)
+                            setSelectedDateMeetings(dateMeetings)
+                        }}
                     />
                 </div>
                 <div className={styles.tableWrapper}>
@@ -396,6 +418,46 @@ export default function Dashboard() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Calendar Day Modal */}
+            {selectedDate && (
+                <CalendarDayModal
+                    date={selectedDate}
+                    meetings={selectedDateMeetings}
+                    onClose={() => {
+                        setSelectedDate(null)
+                        setSelectedDateMeetings([])
+                    }}
+                    onPrevDay={() => {
+                        const prevDate = new Date(selectedDate)
+                        prevDate.setDate(prevDate.getDate() - 1)
+                        setSelectedDate(prevDate)
+                        const prevMeetings = meetings.filter(meeting => {
+                            const meetingDate = new Date(meeting.created_at)
+                            return (
+                                meetingDate.getFullYear() === prevDate.getFullYear() &&
+                                meetingDate.getMonth() === prevDate.getMonth() &&
+                                meetingDate.getDate() === prevDate.getDate()
+                            )
+                        })
+                        setSelectedDateMeetings(prevMeetings)
+                    }}
+                    onNextDay={() => {
+                        const nextDate = new Date(selectedDate)
+                        nextDate.setDate(nextDate.getDate() + 1)
+                        setSelectedDate(nextDate)
+                        const nextMeetings = meetings.filter(meeting => {
+                            const meetingDate = new Date(meeting.created_at)
+                            return (
+                                meetingDate.getFullYear() === nextDate.getFullYear() &&
+                                meetingDate.getMonth() === nextDate.getMonth() &&
+                                meetingDate.getDate() === nextDate.getDate()
+                            )
+                        })
+                        setSelectedDateMeetings(nextMeetings)
+                    }}
+                />
             )}
         </div>
     )
