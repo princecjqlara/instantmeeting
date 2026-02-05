@@ -80,6 +80,9 @@ export async function POST(req: NextRequest) {
         const file = formData.get('file') as File
         const title = formData.get('title') as string
         const description = formData.get('description') as string
+        const views = parseInt(formData.get('views') as string) || 0
+        const likes = parseInt(formData.get('likes') as string) || 0
+        const comments = parseInt(formData.get('comments') as string) || 0
 
         if (!file) {
             return NextResponse.json({ error: 'File required' }, { status: 400 })
@@ -120,6 +123,9 @@ export async function POST(req: NextRequest) {
                 thumbnail_url: uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg'),
                 duration_seconds: Math.round(uploadResult.duration || 0),
                 order_index: nextOrder,
+                views,
+                likes,
+                comments,
             })
             .select()
             .single()
@@ -136,6 +142,54 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         )
     }
+}
+
+// PATCH: Update content engagement metrics
+export async function PATCH(req: NextRequest) {
+    const supabase = getSupabaseClient()
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.email) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await req.json()
+    const { id, views, likes, comments, title, description } = body
+
+    if (!id) {
+        return NextResponse.json({ error: 'Content ID required' }, { status: 400 })
+    }
+
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+    if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const updateData: Record<string, unknown> = {}
+    if (views !== undefined) updateData.views = views
+    if (likes !== undefined) updateData.likes = likes
+    if (comments !== undefined) updateData.comments = comments
+    if (title !== undefined) updateData.title = title
+    if (description !== undefined) updateData.description = description
+
+    const { data: content, error } = await supabase
+        .from('content')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(content)
 }
 
 // DELETE: Remove content

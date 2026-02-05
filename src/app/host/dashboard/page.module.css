@@ -76,7 +76,30 @@
 
 /* Create Section */
 .createSection {
-    margin-bottom: 48px;
+    margin-bottom: 32px;
+}
+
+/* Grid Section - Calendar and Waiting Table */
+.gridSection {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.calendarWrapper,
+.tableWrapper {
+    min-width: 0;
+}
+
+/* Content Section */
+.contentSection {
+    margin-bottom: 32px;
+}
+
+/* Meetings Section */
+.meetingsSection {
+    margin-bottom: 32px;
 }
 
 .createCard {
@@ -269,6 +292,12 @@
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+    .gridSection {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 768px) {
     .header {
         flex-direction: column;

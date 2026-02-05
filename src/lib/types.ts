@@ -20,6 +20,9 @@ export interface Content {
     thumbnail_url: string | null
     duration_seconds: number | null
     order_index: number
+    views: number
+    likes: number
+    comments: number
     created_at: string
 }
 

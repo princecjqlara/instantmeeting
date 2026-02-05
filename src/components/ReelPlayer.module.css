@@ -175,3 +175,39 @@
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
+
+/* Engagement Sidebar */
+.engagementSidebar {
+  position: absolute;
+  right: 20px;
+  bottom: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 10;
+}
+
+.engagementItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.engagementItem svg {
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.engagementItem svg:hover {
+  transform: scale(1.2);
+}
+
+.engagementItem span {
+  font-size: 12px;
+  font-weight: 600;
+}

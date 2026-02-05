@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Content } from '@/lib/types'
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaChevronUp, FaChevronDown } from 'react-icons/fa'
+import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaChevronUp, FaChevronDown, FaEye, FaHeart, FaComment } from 'react-icons/fa'
 import styles from './ReelPlayer.module.css'
 
 interface ReelPlayerProps {
@@ -19,6 +19,12 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
     const containerRef = useRef<HTMLDivElement>(null)
 
     const currentReel = reels[currentIndex]
+
+    const formatNumber = (num: number) => {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+        return num.toString()
+    }
 
     useEffect(() => {
         if (videoRef.current) {
@@ -175,6 +181,22 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
                 {currentReel.description && (
                     <p className={styles.description}>{currentReel.description}</p>
                 )}
+            </div>
+
+            {/* Engagement Stats Sidebar */}
+            <div className={styles.engagementSidebar}>
+                <div className={styles.engagementItem}>
+                    <FaHeart />
+                    <span>{formatNumber(currentReel.likes || 0)}</span>
+                </div>
+                <div className={styles.engagementItem}>
+                    <FaComment />
+                    <span>{formatNumber(currentReel.comments || 0)}</span>
+                </div>
+                <div className={styles.engagementItem}>
+                    <FaEye />
+                    <span>{formatNumber(currentReel.views || 0)}</span>
+                </div>
             </div>
 
             {/* Controls */}

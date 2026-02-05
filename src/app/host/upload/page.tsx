@@ -7,7 +7,7 @@ import { Content } from '@/lib/types'
 import styles from './page.module.css'
 import {
     FaUpload, FaArrowLeft, FaTrash, FaPlay,
-    FaSpinner, FaCheck, FaGripVertical
+    FaSpinner, FaCheck, FaEye, FaHeart, FaComment, FaEdit, FaSave
 } from 'react-icons/fa'
 
 export default function UploadPage() {
@@ -17,6 +17,8 @@ export default function UploadPage() {
     const [loading, setLoading] = useState(true)
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0 })
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -57,6 +59,9 @@ export default function UploadPage() {
             const formData = new FormData()
             formData.append('file', file)
             formData.append('title', file.name.replace(/\.[^/.]+$/, ''))
+            formData.append('views', '0')
+            formData.append('likes', '0')
+            formData.append('comments', '0')
 
             try {
                 const response = await fetch('/api/content', {
@@ -93,6 +98,44 @@ export default function UploadPage() {
         } catch (error) {
             console.error('Error deleting:', error)
         }
+    }
+
+    const startEditing = (item: Content) => {
+        setEditingId(item.id)
+        setEditForm({
+            views: item.views || 0,
+            likes: item.likes || 0,
+            comments: item.comments || 0
+        })
+    }
+
+    const saveEngagement = async () => {
+        if (!editingId) return
+
+        try {
+            const response = await fetch('/api/content', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: editingId,
+                    ...editForm
+                })
+            })
+
+            if (response.ok) {
+                const updated = await response.json()
+                setContent(prev => prev.map(c => c.id === editingId ? updated : c))
+                setEditingId(null)
+            }
+        } catch (error) {
+            console.error('Error saving:', error)
+        }
+    }
+
+    const formatNumber = (num: number) => {
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
+        if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
+        return num.toString()
     }
 
     if (status === 'loading' || loading) {
@@ -182,10 +225,52 @@ export default function UploadPage() {
                                 </div>
 
                                 <div className={styles.cardContent}>
-                                    <div className={styles.cardInfo}>
-                                        <FaGripVertical className={styles.dragHandle} />
-                                        <span className={styles.title}>{item.title || 'Untitled'}</span>
-                                    </div>
+                                    <span className={styles.title}>{item.title || 'Untitled'}</span>
+
+                                    {/* Engagement Stats */}
+                                    {editingId === item.id ? (
+                                        <div className={styles.editForm}>
+                                            <div className={styles.inputGroup}>
+                                                <FaEye />
+                                                <input
+                                                    type="number"
+                                                    value={editForm.views}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, views: parseInt(e.target.value) || 0 }))}
+                                                    min="0"
+                                                />
+                                            </div>
+                                            <div className={styles.inputGroup}>
+                                                <FaHeart />
+                                                <input
+                                                    type="number"
+                                                    value={editForm.likes}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, likes: parseInt(e.target.value) || 0 }))}
+                                                    min="0"
+                                                />
+                                            </div>
+                                            <div className={styles.inputGroup}>
+                                                <FaComment />
+                                                <input
+                                                    type="number"
+                                                    value={editForm.comments}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, comments: parseInt(e.target.value) || 0 }))}
+                                                    min="0"
+                                                />
+                                            </div>
+                                            <button onClick={saveEngagement} className={styles.saveBtn}>
+                                                <FaSave />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className={styles.engagementStats}>
+                                            <span><FaEye /> {formatNumber(item.views || 0)}</span>
+                                            <span><FaHeart /> {formatNumber(item.likes || 0)}</span>
+                                            <span><FaComment /> {formatNumber(item.comments || 0)}</span>
+                                            <button onClick={() => startEditing(item)} className={styles.editBtn}>
+                                                <FaEdit />
+                                            </button>
+                                        </div>
+                                    )}
 
                                     <button
                                         onClick={() => deleteContent(item.id)}
@@ -209,6 +294,7 @@ export default function UploadPage() {
                         <p>
                             Videos you upload here will be shown to guests in your waiting rooms.
                             They&apos;ll swipe through your content like TikTok while waiting to be admitted.
+                            Edit the engagement numbers to display custom views, likes, and comments.
                         </p>
                     </div>
                 </div>

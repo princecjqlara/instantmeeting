@@ -224,22 +224,9 @@
 
 .cardContent {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-}
-
-.cardInfo {
-    display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
-    flex: 1;
-    min-width: 0;
-}
-
-.dragHandle {
-    color: var(--text-muted);
-    cursor: grab;
+    padding: 12px;
 }
 
 .title {
@@ -250,9 +237,103 @@
     text-overflow: ellipsis;
 }
 
+/* Engagement Stats */
+.engagementStats {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.engagementStats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.engagementStats svg {
+    font-size: 10px;
+}
+
+.editBtn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.contentCard:hover .editBtn {
+    opacity: 1;
+}
+
+.editBtn:hover {
+    color: var(--primary);
+}
+
+/* Edit Form */
+.editForm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.inputGroup {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+.inputGroup svg {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.inputGroup input {
+    width: 60px;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+}
+
+.inputGroup input::-webkit-inner-spin-button,
+.inputGroup input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.saveBtn {
+    background: var(--success);
+    border: none;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.saveBtn:hover {
+    background: #059669;
+}
+
 .deleteBtn {
-    width: 32px;
-    height: 32px;
+    align-self: flex-end;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;

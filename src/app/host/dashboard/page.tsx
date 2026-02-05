@@ -3,8 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Meeting, WaitingGuest } from '@/lib/types'
+import { Meeting, WaitingGuest, Content } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
+import Calendar from '@/components/Calendar'
+import WaitingRoomTable from '@/components/WaitingRoomTable'
+import ContentPreview from '@/components/ContentPreview'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
@@ -15,14 +18,20 @@ interface MeetingWithGuests extends Meeting {
     waiting_guests: WaitingGuest[]
 }
 
+interface WaitingGuestWithMeeting extends WaitingGuest {
+    meeting_title?: string
+}
+
 export default function Dashboard() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const [meetings, setMeetings] = useState<MeetingWithGuests[]>([])
+    const [content, setContent] = useState<Content[]>([])
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
+    const [currentMonth, setCurrentMonth] = useState(new Date())
     const supabase = createClient()
 
     // Redirect if not authenticated
@@ -32,24 +41,33 @@ export default function Dashboard() {
         }
     }, [status, router])
 
-    // Fetch meetings
+    // Fetch meetings and content
     useEffect(() => {
-        const fetchMeetings = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('/api/meetings')
-                if (response.ok) {
-                    const data = await response.json()
-                    setMeetings(data)
+                const [meetingsRes, contentRes] = await Promise.all([
+                    fetch('/api/meetings'),
+                    fetch('/api/content')
+                ])
+
+                if (meetingsRes.ok) {
+                    const meetingsData = await meetingsRes.json()
+                    setMeetings(meetingsData)
+                }
+
+                if (contentRes.ok) {
+                    const contentData = await contentRes.json()
+                    setContent(contentData)
                 }
             } catch (error) {
-                console.error('Error fetching meetings:', error)
+                console.error('Error fetching data:', error)
             } finally {
                 setLoading(false)
             }
         }
 
         if (session) {
-            fetchMeetings()
+            fetchData()
         }
     }, [session])
 
@@ -79,6 +97,14 @@ export default function Dashboard() {
             supabase.removeChannel(channel)
         }
     }, [session, supabase])
+
+    // Get all waiting guests with meeting titles
+    const allWaitingGuests: WaitingGuestWithMeeting[] = meetings.flatMap(meeting =>
+        (meeting.waiting_guests || []).map(guest => ({
+            ...guest,
+            meeting_title: meeting.title
+        }))
+    )
 
     const createMeeting = async () => {
         if (creating) return
@@ -184,6 +210,31 @@ export default function Dashboard() {
                         </button>
                     </div>
                 </div>
+            </section>
+
+            {/* Calendar and Waiting Room Grid */}
+            <section className={styles.gridSection}>
+                <div className={styles.calendarWrapper}>
+                    <Calendar
+                        meetings={meetings}
+                        currentMonth={currentMonth}
+                        onMonthChange={setCurrentMonth}
+                    />
+                </div>
+                <div className={styles.tableWrapper}>
+                    <WaitingRoomTable
+                        guests={allWaitingGuests}
+                        onAdmit={admitGuest}
+                    />
+                </div>
+            </section>
+
+            {/* Content Preview */}
+            <section className={styles.contentSection}>
+                <ContentPreview
+                    content={content}
+                    onUploadClick={() => router.push('/host/upload')}
+                />
             </section>
 
             {/* Meetings List */}

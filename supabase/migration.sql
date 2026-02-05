@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS content (
   thumbnail_url TEXT,
   duration_seconds INTEGER,
   order_index INTEGER DEFAULT 0,
+  views INTEGER DEFAULT 0,
+  likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

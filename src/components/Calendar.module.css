@@ -1,0 +1,107 @@
+.calendar {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.25rem;
+    border: 1px solid var(--border-color);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.header h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.navBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.navBtn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.weekDays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 0.5rem;
+}
+
+.weekDay {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: 0.5rem 0;
+    font-weight: 500;
+}
+
+.days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+}
+
+.day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    gap: 2px;
+}
+
+.day:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.emptyDay {
+    aspect-ratio: 1;
+}
+
+.dayNumber {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.today {
+    background: rgba(139, 92, 246, 0.2);
+}
+
+.today .dayNumber {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.hasMeetings {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.hasMeetings .dayNumber {
+    color: var(--success);
+}
+
+.meetingCount {
+    font-size: 0.65rem;
+    background: var(--success);
+    color: white;
+    padding: 1px 5px;
+    border-radius: 10px;
+    font-weight: 600;
+}
