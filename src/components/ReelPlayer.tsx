@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Content } from '@/lib/types'
-import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash } from 'react-icons/fa'
+import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash, FaPlay } from 'react-icons/fa'
 import BookingModal from './BookingModal'
 import styles from './ReelPlayer.module.css'
 
