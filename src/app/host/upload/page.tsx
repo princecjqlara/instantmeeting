@@ -19,7 +19,7 @@ export default function UploadPage() {
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '', title: '' })
+    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '', title: '', description: '' })
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -108,7 +108,8 @@ export default function UploadPage() {
             likes: item.likes || 0,
             comments: item.comments || 0,
             caption: item.caption || '',
-            title: item.title || ''
+            title: item.title || '',
+            description: item.description || ''
         })
     }
 
@@ -295,8 +296,16 @@ export default function UploadPage() {
                                                 <textarea
                                                     value={editForm.caption}
                                                     onChange={(e) => setEditForm(prev => ({ ...prev, caption: e.target.value }))}
-                                                    placeholder="Add caption..."
+                                                    placeholder="Short caption (shown on video)..."
                                                     rows={2}
+                                                />
+                                            </div>
+                                            <div className={styles.descriptionInput}>
+                                                <textarea
+                                                    value={editForm.description}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                                                    placeholder="Longer description (optional)..."
+                                                    rows={3}
                                                 />
                                             </div>
                                             <div className={styles.metricsRow}>

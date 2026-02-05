@@ -177,51 +177,74 @@ export async function POST(req: NextRequest) {
 
 // PATCH: Update content engagement metrics
 export async function PATCH(req: NextRequest) {
-    const supabase = getSupabaseClient()
-    const session = await getServerSession(authOptions)
+    console.log('=== CONTENT PATCH === Starting update')
+    
+    try {
+        const supabase = getSupabaseClient()
+        const session = await getServerSession(authOptions)
 
-    if (!session?.user?.email) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        console.log('Session email:', session?.user?.email)
+
+        if (!session?.user?.email) {
+            console.log('ERROR: No session email')
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const body = await req.json()
+        console.log('PATCH Body:', body)
+        const { id, views, likes, comments, title, description, caption } = body
+
+        if (!id) {
+            console.log('ERROR: No ID provided')
+            return NextResponse.json({ error: 'Content ID required' }, { status: 400 })
+        }
+
+        const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', session.user.email)
+            .single()
+
+        if (userError) {
+            console.error('User lookup error:', userError)
+            return NextResponse.json({ error: userError.message }, { status: 500 })
+        }
+
+        if (!user) {
+            console.log('ERROR: User not found')
+            return NextResponse.json({ error: 'User not found' }, { status: 404 })
+        }
+
+        const updateData: Record<string, unknown> = {}
+        if (views !== undefined) updateData.views = views
+        if (likes !== undefined) updateData.likes = likes
+        if (comments !== undefined) updateData.comments = comments
+        if (title !== undefined) updateData.title = title
+        if (description !== undefined) updateData.description = description
+        if (caption !== undefined) updateData.caption = caption
+
+        console.log('Update data:', updateData)
+        console.log('Updating content ID:', id, 'for user ID:', user.id)
+
+        const { data: content, error } = await supabase
+            .from('content')
+            .update(updateData)
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Supabase update error:', error)
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        console.log('Successfully updated content:', content.id)
+        return NextResponse.json(content)
+    } catch (err) {
+        console.error('Unexpected error in PATCH:', err)
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-
-    const body = await req.json()
-    const { id, views, likes, comments, title, description, caption } = body
-
-    if (!id) {
-        return NextResponse.json({ error: 'Content ID required' }, { status: 400 })
-    }
-
-    const { data: user } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', session.user.email)
-        .single()
-
-    if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
-    }
-
-    const updateData: Record<string, unknown> = {}
-    if (views !== undefined) updateData.views = views
-    if (likes !== undefined) updateData.likes = likes
-    if (comments !== undefined) updateData.comments = comments
-    if (title !== undefined) updateData.title = title
-    if (description !== undefined) updateData.description = description
-    if (caption !== undefined) updateData.caption = caption
-
-    const { data: content, error } = await supabase
-        .from('content')
-        .update(updateData)
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .select()
-        .single()
-
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json(content)
 }
 
 // DELETE: Remove content
