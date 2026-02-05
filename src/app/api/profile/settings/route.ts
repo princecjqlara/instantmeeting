@@ -49,8 +49,8 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const { username, name, bio } = body
 
-    // Validate username
-    if (username) {
+    // Validate username only if it's a non-empty string
+    if (username && username.length > 0) {
         // Check if username is already taken by another user
         const { data: existing } = await supabase
             .from('users')
@@ -72,9 +72,36 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updateData: Record<string, unknown> = {}
-    if (username !== undefined) updateData.username = username
-    if (name !== undefined) updateData.name = name
-    if (bio !== undefined) updateData.bio = bio
+    if (username !== undefined) updateData.username = username || null
+    if (name !== undefined) updateData.name = name || null
+    if (bio !== undefined) updateData.bio = bio || null
+
+    // First check if user exists
+    const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+    if (!existingUser) {
+        // Create user if doesn't exist
+        const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({ email: session.user.email, ...updateData })
+            .select('username, name, bio, avatar_url')
+            .single()
+
+        if (createError) {
+            return NextResponse.json({ error: createError.message }, { status: 500 })
+        }
+
+        return NextResponse.json({
+            username: newUser.username || '',
+            name: newUser.name || '',
+            bio: newUser.bio || '',
+            avatar_url: newUser.avatar_url
+        })
+    }
 
     const { data: user, error } = await supabase
         .from('users')

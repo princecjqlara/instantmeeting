@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { Content } from '@/lib/types'
 import styles from './page.module.css'
 import {
-    FaArrowLeft, FaCamera, FaUser, FaLink, FaCopy, FaCheck, FaSave
+    FaArrowLeft, FaCamera, FaUser, FaLink, FaCopy, FaCheck, FaSave, FaPlay
 } from 'react-icons/fa'
 
 interface ProfileSettings {
@@ -29,6 +30,8 @@ export default function ProfileSettingsPage() {
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
+    const [content, setContent] = useState<Content[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -40,10 +43,19 @@ export default function ProfileSettingsPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const response = await fetch('/api/profile/settings')
-                if (response.ok) {
-                    const data = await response.json()
+                const [settingsRes, contentRes] = await Promise.all([
+                    fetch('/api/profile/settings'),
+                    fetch('/api/content')
+                ])
+
+                if (settingsRes.ok) {
+                    const data = await settingsRes.json()
                     setSettings(data)
+                }
+
+                if (contentRes.ok) {
+                    const contentData = await contentRes.json()
+                    setContent(contentData)
                 }
             } catch (err) {
                 console.error('Error fetching settings:', err)
@@ -91,6 +103,36 @@ export default function ProfileSettingsPage() {
         }
     }
 
+    const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploadingAvatar(true)
+        setError(null)
+
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const response = await fetch('/api/profile/avatar', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setSettings(prev => ({ ...prev, avatar_url: data.avatar_url }))
+            } else {
+                const data = await response.json()
+                setError(data.error || 'Failed to upload avatar')
+            }
+        } catch {
+            setError('Failed to upload avatar')
+        } finally {
+            setUploadingAvatar(false)
+        }
+    }
+
     if (status === 'loading' || loading) {
         return (
             <div className={styles.loading}>
@@ -133,14 +175,16 @@ export default function ProfileSettingsPage() {
                         <button
                             className={styles.changeAvatar}
                             onClick={() => fileInputRef.current?.click()}
+                            disabled={uploadingAvatar}
                         >
-                            <FaCamera />
+                            {uploadingAvatar ? <div className={styles.miniSpinner}></div> : <FaCamera />}
                         </button>
                     </div>
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
+                        onChange={handleAvatarChange}
                         className={styles.hiddenInput}
                     />
                 </div>
@@ -194,10 +238,32 @@ export default function ProfileSettingsPage() {
                         <h2><FaLink /> Your Universal Link</h2>
                         <p>Share this link - guests will be directed to your active meeting</p>
                         <div className={styles.linkPreview}>
-                            <code>{window.location.origin}/join/{settings.username}</code>
+                            <code>{typeof window !== 'undefined' ? window.location.origin : ''}/join/{settings.username}</code>
                             <button onClick={copyProfileLink}>
                                 {copied ? <FaCheck /> : <FaCopy />}
                             </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Content Grid */}
+                {content.length > 0 && (
+                    <div className={styles.contentSection}>
+                        <h2>Your Content</h2>
+                        <div className={styles.contentGrid}>
+                            {content.map((item) => (
+                                <div key={item.id} className={styles.contentItem}>
+                                    <video
+                                        src={item.cloudinary_url}
+                                        className={styles.contentThumb}
+                                        muted
+                                        playsInline
+                                    />
+                                    <div className={styles.contentOverlay}>
+                                        <FaPlay />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

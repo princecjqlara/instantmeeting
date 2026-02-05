@@ -292,30 +292,14 @@ export default function ReelPlayer({ reels, hostName, isHost, onEdit, onDelete }
                 </button>
             </div>
 
-            {/* Navigation */}
-            <div className={styles.navigation}>
-                <button
-                    className={`${styles.navButton} ${currentIndex === 0 ? styles.disabled : ''}`}
-                    onClick={goToPrev}
-                    disabled={currentIndex === 0}
-                    aria-label="Previous"
-                >
-                    <FaChevronUp />
-                </button>
-
-                <div className={styles.counter}>
-                    {currentIndex + 1} / {reels.length}
+            {/* Navigation Indicator */}
+            {reels.length > 1 && (
+                <div className={styles.navigation}>
+                    <div className={styles.counter}>
+                        {currentIndex + 1} / {reels.length}
+                    </div>
                 </div>
-
-                <button
-                    className={`${styles.navButton} ${currentIndex === reels.length - 1 ? styles.disabled : ''}`}
-                    onClick={goToNext}
-                    disabled={currentIndex === reels.length - 1}
-                    aria-label="Next"
-                >
-                    <FaChevronDown />
-                </button>
-            </div>
+            )}
         </div>
     )
 }

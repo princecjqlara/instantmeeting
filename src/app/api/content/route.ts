@@ -71,8 +71,21 @@ export async function POST(req: NextRequest) {
         .eq('email', session.user.email)
         .single()
 
-    if (!user) {
-        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    let userId = user?.id
+
+    // Create user if doesn't exist
+    if (!userId) {
+        const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({ email: session.user.email, name: session.user.name })
+            .select('id')
+            .single()
+
+        if (createError) {
+            console.error('Error creating user:', createError)
+            return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+        }
+        userId = newUser.id
     }
 
     try {
@@ -104,7 +117,7 @@ export async function POST(req: NextRequest) {
         const { data: maxOrder } = await supabase
             .from('content')
             .select('order_index')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .order('order_index', { ascending: false })
             .limit(1)
             .single()
@@ -115,7 +128,7 @@ export async function POST(req: NextRequest) {
         const { data: content, error } = await supabase
             .from('content')
             .insert({
-                user_id: user.id,
+                user_id: userId,
                 title,
                 description,
                 cloudinary_url: uploadResult.secure_url,
