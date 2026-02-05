@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { v2 as cloudinary } from 'cloudinary'
 
+export const dynamic = 'force-dynamic'
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -22,13 +24,24 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabaseClient()
     const session = await getServerSession(authOptions)
 
+    console.log('=== AVATAR UPLOAD === Starting upload process')
+    console.log('Session email:', session?.user?.email)
+    console.log('Cloudinary config:', {
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'SET' : 'NOT SET',
+        api_key: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET',
+        api_secret: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET'
+    })
+
     if (!session?.user?.email) {
+        console.log('ERROR: No session email')
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     try {
         const formData = await req.formData()
         const file = formData.get('file') as File
+
+        console.log('File received:', file?.name, 'Type:', file?.type, 'Size:', file?.size)
 
         if (!file) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -48,6 +61,8 @@ export async function POST(req: NextRequest) {
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
 
+        console.log('Uploading to Cloudinary...')
+
         // Upload to Cloudinary
         const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
             cloudinary.uploader.upload_stream(
@@ -59,27 +74,36 @@ export async function POST(req: NextRequest) {
                     ]
                 },
                 (error, result) => {
-                    if (error) reject(error)
-                    else resolve(result as { secure_url: string })
+                    if (error) {
+                        console.error('Cloudinary upload error:', error)
+                        reject(error)
+                    } else {
+                        console.log('Cloudinary upload success:', (result as any).secure_url)
+                        resolve(result as { secure_url: string })
+                    }
                 }
             ).end(buffer)
         })
 
+        console.log('Updating database with avatar_url:', uploadResult.secure_url)
+
         // Update user's avatar_url in database
-        // Update user's avatar_url in database, creating user if needed
         const { error: updateError } = await supabase
             .from('users')
             .upsert({
                 email: session.user.email,
                 avatar_url: uploadResult.secure_url,
-                name: session.user.name // Ensure name is preserved on create
+                name: session.user.name,
+                updated_at: new Date().toISOString()
             }, { onConflict: 'email' })
             .select()
 
         if (updateError) {
+            console.error('Database update error:', updateError)
             return NextResponse.json({ error: updateError.message }, { status: 500 })
         }
 
+        console.log('Avatar upload complete!')
         return NextResponse.json({ avatar_url: uploadResult.secure_url })
 
     } catch (error) {

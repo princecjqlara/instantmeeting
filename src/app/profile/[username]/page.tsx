@@ -40,15 +40,24 @@ export default function ProfilePage() {
 
     useEffect(() => {
         const fetchProfile = async () => {
+            console.log('=== FRONTEND === Fetching profile for username:', username)
             try {
-                const response = await fetch(`/api/profile/${username}`)
+                const apiUrl = `/api/profile/${username}`
+                console.log('Calling API:', apiUrl)
+                const response = await fetch(apiUrl)
+                console.log('API Response status:', response.status)
+                
                 if (response.ok) {
                     const data = await response.json()
+                    console.log('Profile data received:', data.user?.username)
                     setProfile(data)
                 } else {
-                    setError('Profile not found')
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+                    console.error('API Error:', errorData)
+                    setError(`Profile not found: ${errorData.error || response.status}`)
                 }
-            } catch {
+            } catch (err) {
+                console.error('Fetch error:', err)
                 setError('Failed to load profile')
             } finally {
                 setLoading(false)

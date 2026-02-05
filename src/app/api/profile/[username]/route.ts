@@ -16,11 +16,14 @@ export async function GET(
     { params }: { params: Promise<{ username: string }> }
 ) {
     const supabase = getSupabaseClient()
-    const { username } = await params
+    const resolvedParams = await params
+    const username = resolvedParams.username
 
-    console.log('Fetching profile for username:', username)
+    console.log('=== PROFILE API === Fetching for username:', username)
+    console.log('Full URL:', req.url)
 
     if (!username) {
+        console.log('ERROR: No username provided')
         return NextResponse.json({ error: 'Username is required' }, { status: 400 })
     }
 
@@ -32,16 +35,16 @@ export async function GET(
         .single()
 
     if (userError) {
-        console.error('Database error fetching user:', userError)
-        return NextResponse.json({ error: 'User not found', details: userError.message }, { status: 404 })
-    }
-
-    if (!user) {
-        console.log('User not found for username:', username)
+        console.error('Database error:', userError.code, userError.message)
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    console.log('Found user:', user.id, user.username)
+    if (!user) {
+        console.log('User not found for:', username)
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    console.log('SUCCESS: Found user', user.username, user.id)
 
     // Get user's content
     const { data: content } = await supabase
