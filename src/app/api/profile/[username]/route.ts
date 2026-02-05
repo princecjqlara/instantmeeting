@@ -30,7 +30,7 @@ export async function GET(
     // Get user profile - try case-insensitive match
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, name, username, bio, avatar_url, followers, following, availability_mode, available_from, available_to, timezone, created_at')
+        .select('id, name, username, bio, avatar_url, followers, following, created_at')
         .ilike('username', username)
         .single()
 
@@ -57,45 +57,26 @@ export async function GET(
     const totalViews = content?.reduce((sum, c) => sum + (c.views || 0), 0) || 0
     const totalLikes = content?.reduce((sum, c) => sum + (c.likes || 0), 0) || 0
 
-    // Check if host is currently available
-    let isAvailable = false
-    if (user.availability_mode === 'always') {
-        isAvailable = true
-    } else if (user.availability_mode === 'scheduled' && user.available_from && user.available_to) {
-        const now = new Date()
-        const timezone = user.timezone || 'UTC'
-        const currentTime = now.toLocaleTimeString('en-US', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: timezone
-        })
-        isAvailable = currentTime >= user.available_from && currentTime <= user.available_to
-    }
-
-    // Get active meeting if available
-    let activeMeeting = null
-    if (isAvailable) {
-        const { data: meeting } = await supabase
-            .from('meetings')
-            .select('id, title')
-            .eq('user_id', user.id)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
-        activeMeeting = meeting
-    }
+    // Get active meeting
+    const { data: meeting } = await supabase
+        .from('meetings')
+        .select('id, title')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
 
     return NextResponse.json({
         user: {
             ...user,
             totalViews,
             totalLikes,
-            contentCount: content?.length || 0
+            contentCount: content?.length || 0,
+            availability_mode: 'always'
         },
         content: content || [],
-        isAvailable,
-        activeMeeting
+        isAvailable: true,
+        activeMeeting: meeting
     })
 }

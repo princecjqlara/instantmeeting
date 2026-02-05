@@ -25,19 +25,10 @@ export async function GET(
         return NextResponse.redirect(new URL(`/?error=no_username`, req.url))
     }
 
-    // First, try to find any users with similar usernames for debugging
-    const { data: allUsers, error: allError } = await supabase
-        .from('users')
-        .select('id, name, username')
-        .not('username', 'is', null)
-        .limit(5)
-    
-    console.log('All users with usernames:', allUsers?.map(u => ({ name: u.name, username: u.username })))
-
     // Get user by username
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, name, username, availability_mode')
+        .select('id, name, username')
         .ilike('username', username)
         .single()
 
@@ -47,10 +38,7 @@ export async function GET(
         return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
     }
 
-    // If user is not available, show profile with booking option
-    if (user.availability_mode === 'never') {
-        return NextResponse.redirect(new URL(`/profile/${username}`, req.url))
-    }
+    console.log('Found user:', user.name, user.username, user.id)
 
     // Get or create active meeting
     let { data: meeting } = await supabase
