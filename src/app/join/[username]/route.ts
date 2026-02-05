@@ -17,25 +17,40 @@ export async function GET(
 ) {
     const supabase = getSupabaseClient()
     const resolvedParams = await params
-    const username = resolvedParams.username
+    const rawUsername = resolvedParams.username
+    const normalizedUsername = decodeURIComponent(rawUsername || '')
+        .trim()
+        .replace(/^@+/, '')
+        .toLowerCase()
 
-    console.log('=== UNIVERSAL LINK === /join/' + username)
+    console.log('=== UNIVERSAL LINK === /join/' + rawUsername)
 
-    if (!username) {
+    if (!normalizedUsername) {
         return NextResponse.redirect(new URL(`/?error=no_username`, req.url))
     }
 
     // Get user by username
-    const { data: user, error: userError } = await supabase
+    let { data: user, error: userError } = await supabase
         .from('users')
         .select('id, name, username, availability_mode, available_from, available_to, timezone')
-        .ilike('username', username)
+        .ilike('username', normalizedUsername)
         .single()
 
+    if (!user) {
+        const altUsername = `@${normalizedUsername}`
+        const { data: altUser, error: altError } = await supabase
+            .from('users')
+            .select('id, name, username, availability_mode, available_from, available_to, timezone')
+            .ilike('username', altUsername)
+            .single()
+        user = altUser || null
+        userError = altError
+    }
+
     if (userError || !user) {
-        console.log('User not found for:', username)
+        console.log('User not found for:', normalizedUsername)
         console.log('Error:', userError?.message, 'Code:', userError?.code)
-        return NextResponse.redirect(new URL(`/profile/${username}?error=not_found`, req.url))
+        return NextResponse.redirect(new URL(`/?error=not_found&username=${encodeURIComponent(normalizedUsername)}`, req.url))
     }
 
     console.log('Found user:', user.name, user.username, user.id)
