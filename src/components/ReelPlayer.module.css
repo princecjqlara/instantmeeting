@@ -187,35 +187,63 @@
 /* Engagement Sidebar */
 .engagementSidebar {
   position: absolute;
-  right: 20px;
-  bottom: 180px;
+  right: 12px;
+  bottom: 120px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  z-index: 10;
+  gap: 16px;
+  z-index: 15;
 }
 
 .engagementItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   color: white;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
-.engagementItem svg {
-  font-size: 28px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  transition: transform 0.2s;
+.engagementButton {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  transition: all 0.2s;
+  font-size: 22px;
 }
 
-.engagementItem svg:hover {
-  transform: scale(1.2);
+.engagementButton:hover {
+  background: rgba(0, 0, 0, 0.5);
+  transform: scale(1.1);
+}
+
+.engagementButton.liked {
+  color: #ff2d55;
+  animation: likeAnimation 0.3s ease;
+}
+
+@keyframes likeAnimation {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.3);
+  }
 }
 
 .engagementItem span {
   font-size: 12px;
   font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }

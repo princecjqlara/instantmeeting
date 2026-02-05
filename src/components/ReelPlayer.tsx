@@ -15,6 +15,8 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
     const [isPlaying, setIsPlaying] = useState(true)
     const [isMuted, setIsMuted] = useState(true)
     const [progress, setProgress] = useState(0)
+    const [likedReels, setLikedReels] = useState<Set<string>>(new Set())
+    const [localEngagement, setLocalEngagement] = useState<Record<string, { likes: number; comments: number }>>({})
     const videoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -25,6 +27,32 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
         if (num >= 1000) return (num / 1000).toFixed(1) + 'K'
         return num.toString()
     }
+
+    const toggleLike = (reelId: string) => {
+        setLikedReels(prev => {
+            const newSet = new Set(prev)
+            if (newSet.has(reelId)) {
+                newSet.delete(reelId)
+                setLocalEngagement(eng => ({
+                    ...eng,
+                    [reelId]: { ...eng[reelId], likes: (eng[reelId]?.likes || 0) - 1 }
+                }))
+            } else {
+                newSet.add(reelId)
+                setLocalEngagement(eng => ({
+                    ...eng,
+                    [reelId]: { ...eng[reelId], likes: (eng[reelId]?.likes || 0) + 1 }
+                }))
+            }
+            return newSet
+        })
+    }
+
+    const getEngagement = (reel: Content) => ({
+        likes: (reel.likes || 0) + (localEngagement[reel.id]?.likes || 0),
+        comments: (reel.comments || 0) + (localEngagement[reel.id]?.comments || 0),
+        views: reel.views || 0
+    })
 
     useEffect(() => {
         if (videoRef.current) {
@@ -189,16 +217,26 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
             {/* Engagement Stats Sidebar */}
             <div className={styles.engagementSidebar}>
                 <div className={styles.engagementItem}>
-                    <FaHeart />
-                    <span>{formatNumber(currentReel.likes || 0)}</span>
+                    <button
+                        className={`${styles.engagementButton} ${likedReels.has(currentReel.id) ? styles.liked : ''}`}
+                        onClick={() => toggleLike(currentReel.id)}
+                        aria-label="Like"
+                    >
+                        <FaHeart />
+                    </button>
+                    <span>{formatNumber(getEngagement(currentReel).likes)}</span>
                 </div>
                 <div className={styles.engagementItem}>
-                    <FaComment />
-                    <span>{formatNumber(currentReel.comments || 0)}</span>
+                    <button className={styles.engagementButton} aria-label="Comment">
+                        <FaComment />
+                    </button>
+                    <span>{formatNumber(getEngagement(currentReel).comments)}</span>
                 </div>
                 <div className={styles.engagementItem}>
-                    <FaEye />
-                    <span>{formatNumber(currentReel.views || 0)}</span>
+                    <button className={styles.engagementButton} aria-label="Views">
+                        <FaEye />
+                    </button>
+                    <span>{formatNumber(getEngagement(currentReel).views)}</span>
                 </div>
             </div>
 
