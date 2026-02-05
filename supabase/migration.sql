@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   name TEXT,
+  username TEXT UNIQUE,
+  bio TEXT,
   avatar_url TEXT,
   google_access_token TEXT,
   google_refresh_token TEXT,
@@ -13,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
   available_from TIME,
   available_to TIME,
   timezone TEXT DEFAULT 'UTC',
+  followers INTEGER DEFAULT 0,
+  following INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

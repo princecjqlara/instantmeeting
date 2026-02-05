@@ -13,7 +13,7 @@ import AvailabilitySettings from '@/components/AvailabilitySettings'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
-    FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes
+    FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser
 } from 'react-icons/fa'
 
 interface MeetingWithGuests extends Meeting {
@@ -178,6 +178,13 @@ export default function Dashboard() {
                     >
                         <FaEye />
                         Preview
+                    </button>
+                    <button
+                        onClick={() => router.push('/host/profile')}
+                        className="button-secondary"
+                    >
+                        <FaUser />
+                        Profile
                     </button>
                     <button
                         onClick={() => router.push('/host/upload')}

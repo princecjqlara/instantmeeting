@@ -4,6 +4,8 @@ export interface User {
     id: string
     email: string
     name: string | null
+    username: string | null
+    bio: string | null
     avatar_url: string | null
     google_access_token: string | null
     google_refresh_token: string | null
@@ -11,6 +13,8 @@ export interface User {
     available_from: string | null  // HH:MM format
     available_to: string | null    // HH:MM format
     timezone: string | null
+    followers: number
+    following: number
     created_at: string
 }
 
