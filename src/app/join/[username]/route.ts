@@ -19,7 +19,7 @@ export async function GET(
     // Get user by username
     const { data: user, error: userError } = await supabase
         .from('users')
-        .select('id, availability_mode, available_from, available_to, timezone')
+        .select('id, availability_mode, available_from, available_to, timezone, name')
         .eq('username', username)
         .single()
 
@@ -45,12 +45,12 @@ export async function GET(
     }
 
     if (!isAvailable) {
-        // Host not available, redirect to profile
+        // Host not available, redirect to profile with booking option
         return NextResponse.redirect(new URL(`/profile/${username}?error=unavailable`, req.url))
     }
 
     // Get most recent active meeting or pending meeting
-    const { data: meeting } = await supabase
+    let { data: meeting } = await supabase
         .from('meetings')
         .select('id')
         .eq('user_id', user.id)
@@ -59,9 +59,27 @@ export async function GET(
         .limit(1)
         .single()
 
+    // If no active meeting exists, create one automatically
     if (!meeting) {
-        // No active meeting, redirect to profile
-        return NextResponse.redirect(new URL(`/profile/${username}?error=no_meeting`, req.url))
+        const { data: newMeeting, error: createError } = await supabase
+            .from('meetings')
+            .insert({
+                user_id: user.id,
+                title: `Meeting with ${user.name || username}`,
+                status: 'active',
+                google_meet_link: null,
+                google_event_id: null,
+                scheduled_at: null
+            })
+            .select('id')
+            .single()
+
+        if (createError) {
+            console.error('Error creating meeting:', createError)
+            return NextResponse.redirect(new URL(`/profile/${username}?error=create_failed`, req.url))
+        }
+
+        meeting = newMeeting
     }
 
     // Redirect to waiting room
