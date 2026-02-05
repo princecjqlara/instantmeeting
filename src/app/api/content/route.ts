@@ -154,7 +154,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { id, views, likes, comments, title, description } = body
+    const { id, views, likes, comments, title, description, caption } = body
 
     if (!id) {
         return NextResponse.json({ error: 'Content ID required' }, { status: 400 })
@@ -176,6 +176,7 @@ export async function PATCH(req: NextRequest) {
     if (comments !== undefined) updateData.comments = comments
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
+    if (caption !== undefined) updateData.caption = caption
 
     const { data: content, error } = await supabase
         .from('content')

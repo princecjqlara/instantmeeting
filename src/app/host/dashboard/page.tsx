@@ -9,6 +9,7 @@ import Calendar from '@/components/Calendar'
 import WaitingRoomTable from '@/components/WaitingRoomTable'
 import ContentPreview from '@/components/ContentPreview'
 import ReelPlayer from '@/components/ReelPlayer'
+import AvailabilitySettings from '@/components/AvailabilitySettings'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
@@ -193,6 +194,9 @@ export default function Dashboard() {
                     </button>
                 </div>
             </header>
+
+            {/* Availability Settings */}
+            <AvailabilitySettings />
 
             {/* Create Meeting */}
             <section className={styles.createSection}>

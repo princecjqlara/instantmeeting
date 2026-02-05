@@ -9,6 +9,10 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_url TEXT,
   google_access_token TEXT,
   google_refresh_token TEXT,
+  availability_mode TEXT DEFAULT 'always' CHECK (availability_mode IN ('always', 'never', 'scheduled')),
+  available_from TIME,
+  available_to TIME,
+  timezone TEXT DEFAULT 'UTC',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -18,6 +22,7 @@ CREATE TABLE IF NOT EXISTS content (
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   title TEXT,
   description TEXT,
+  caption TEXT,
   cloudinary_url TEXT NOT NULL,
   cloudinary_public_id TEXT NOT NULL,
   thumbnail_url TEXT,

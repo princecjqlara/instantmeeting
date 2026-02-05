@@ -1,0 +1,172 @@
+.container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.icon {
+    font-size: 24px;
+    color: var(--accent-primary);
+}
+
+.header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+
+.header span {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.savedBadge {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--accent-success);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.modes {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.modeBtn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.modeBtn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.modeBtn.active {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: var(--accent-success);
+    color: var(--accent-success);
+}
+
+.modeBtn.never.active {
+    background: rgba(255, 51, 102, 0.1);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.scheduleForm {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius-md);
+    padding: 20px;
+}
+
+.timeRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.timeInput {
+    flex: 1;
+}
+
+.timeInput label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.timeInput input {
+    width: 100%;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.timeInput input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.to {
+    color: var(--text-muted);
+    padding-bottom: 12px;
+}
+
+.timezone {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
+.saveScheduleBtn {
+    width: 100%;
+    padding: 12px;
+    background: var(--gradient-primary);
+    border: none;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.saveScheduleBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 51, 102, 0.3);
+}
+
+.saveScheduleBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+@media (max-width: 640px) {
+    .modes {
+        flex-direction: column;
+    }
+
+    .timeRow {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .to {
+        display: none;
+    }
+}

@@ -7,7 +7,7 @@ import { Content } from '@/lib/types'
 import styles from './page.module.css'
 import {
     FaUpload, FaArrowLeft, FaTrash, FaPlay,
-    FaSpinner, FaCheck, FaEye, FaHeart, FaComment, FaEdit, FaSave
+    FaSpinner, FaCheck, FaEye, FaHeart, FaComment, FaEdit, FaSave, FaClosedCaptioning
 } from 'react-icons/fa'
 
 export default function UploadPage() {
@@ -18,7 +18,7 @@ export default function UploadPage() {
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0 })
+    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '' })
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -105,7 +105,8 @@ export default function UploadPage() {
         setEditForm({
             views: item.views || 0,
             likes: item.likes || 0,
-            comments: item.comments || 0
+            comments: item.comments || 0,
+            caption: item.caption || ''
         })
     }
 
@@ -230,42 +231,56 @@ export default function UploadPage() {
                                     {/* Engagement Stats */}
                                     {editingId === item.id ? (
                                         <div className={styles.editForm}>
-                                            <div className={styles.inputGroup}>
-                                                <FaEye />
-                                                <input
-                                                    type="number"
-                                                    value={editForm.views}
-                                                    onChange={(e) => setEditForm(prev => ({ ...prev, views: parseInt(e.target.value) || 0 }))}
-                                                    min="0"
+                                            <div className={styles.captionInput}>
+                                                <FaClosedCaptioning />
+                                                <textarea
+                                                    value={editForm.caption}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, caption: e.target.value }))}
+                                                    placeholder="Add caption..."
+                                                    rows={2}
                                                 />
                                             </div>
-                                            <div className={styles.inputGroup}>
-                                                <FaHeart />
-                                                <input
-                                                    type="number"
-                                                    value={editForm.likes}
-                                                    onChange={(e) => setEditForm(prev => ({ ...prev, likes: parseInt(e.target.value) || 0 }))}
-                                                    min="0"
-                                                />
+                                            <div className={styles.metricsRow}>
+                                                <div className={styles.inputGroup}>
+                                                    <FaEye />
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.views}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, views: parseInt(e.target.value) || 0 }))}
+                                                        min="0"
+                                                    />
+                                                </div>
+                                                <div className={styles.inputGroup}>
+                                                    <FaHeart />
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.likes}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, likes: parseInt(e.target.value) || 0 }))}
+                                                        min="0"
+                                                    />
+                                                </div>
+                                                <div className={styles.inputGroup}>
+                                                    <FaComment />
+                                                    <input
+                                                        type="number"
+                                                        value={editForm.comments}
+                                                        onChange={(e) => setEditForm(prev => ({ ...prev, comments: parseInt(e.target.value) || 0 }))}
+                                                        min="0"
+                                                    />
+                                                </div>
+                                                <button onClick={saveEngagement} className={styles.saveBtn}>
+                                                    <FaSave />
+                                                </button>
                                             </div>
-                                            <div className={styles.inputGroup}>
-                                                <FaComment />
-                                                <input
-                                                    type="number"
-                                                    value={editForm.comments}
-                                                    onChange={(e) => setEditForm(prev => ({ ...prev, comments: parseInt(e.target.value) || 0 }))}
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <button onClick={saveEngagement} className={styles.saveBtn}>
-                                                <FaSave />
-                                            </button>
                                         </div>
                                     ) : (
                                         <div className={styles.engagementStats}>
-                                            <span><FaEye /> {formatNumber(item.views || 0)}</span>
-                                            <span><FaHeart /> {formatNumber(item.likes || 0)}</span>
-                                            <span><FaComment /> {formatNumber(item.comments || 0)}</span>
+                                            {item.caption && <span className={styles.caption}>{item.caption}</span>}
+                                            <div className={styles.metricsDisplay}>
+                                                <span><FaEye /> {formatNumber(item.views || 0)}</span>
+                                                <span><FaHeart /> {formatNumber(item.likes || 0)}</span>
+                                                <span><FaComment /> {formatNumber(item.comments || 0)}</span>
+                                            </div>
                                             <button onClick={() => startEditing(item)} className={styles.editBtn}>
                                                 <FaEdit />
                                             </button>

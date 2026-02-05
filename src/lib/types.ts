@@ -7,6 +7,10 @@ export interface User {
     avatar_url: string | null
     google_access_token: string | null
     google_refresh_token: string | null
+    availability_mode: 'always' | 'never' | 'scheduled'
+    available_from: string | null  // HH:MM format
+    available_to: string | null    // HH:MM format
+    timezone: string | null
     created_at: string
 }
 
@@ -15,6 +19,7 @@ export interface Content {
     user_id: string
     title: string | null
     description: string | null
+    caption: string | null
     cloudinary_url: string
     cloudinary_public_id: string
     thumbnail_url: string | null

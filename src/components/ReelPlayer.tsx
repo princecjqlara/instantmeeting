@@ -178,6 +178,9 @@ export default function ReelPlayer({ reels, hostName }: ReelPlayerProps) {
             {/* Content info */}
             <div className={styles.contentInfo}>
                 {currentReel.title && <h3 className={styles.title}>{currentReel.title}</h3>}
+                {currentReel.caption && (
+                    <p className={styles.caption}>{currentReel.caption}</p>
+                )}
                 {currentReel.description && (
                     <p className={styles.description}>{currentReel.description}</p>
                 )}

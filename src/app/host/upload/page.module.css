@@ -278,9 +278,72 @@
 /* Edit Form */
 .editForm {
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.captionInput {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.captionInput svg {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+.captionInput textarea {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    color: var(--text-primary);
+    font-size: 12px;
+    resize: none;
+    outline: none;
+}
+
+.captionInput textarea:focus {
+    border-color: var(--accent-primary);
+}
+
+.metricsRow {
+    display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.metricsDisplay {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.metricsDisplay span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.metricsDisplay svg {
+    font-size: 10px;
+}
+
+.caption {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+    display: block;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .inputGroup {
