@@ -32,6 +32,18 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
         return num.toString()
     }
 
+    const updateEngagement = async (type: 'view' | 'like' | 'comment') => {
+        try {
+            await fetch('/api/content/engagement', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currentReel.id, type })
+            })
+        } catch (error) {
+            console.error(`Error updating ${type}:`, error)
+        }
+    }
+
     const toggleLike = (reelId: string) => {
         setLikedReels(prev => {
             const newSet = new Set(prev)
@@ -41,15 +53,29 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
                     ...eng,
                     [reelId]: { ...eng[reelId], likes: (eng[reelId]?.likes || 0) - 1 }
                 }))
+                // Note: We don't decrement on backend for anonymous likes to prevent abuse
             } else {
                 newSet.add(reelId)
                 setLocalEngagement(eng => ({
                     ...eng,
                     [reelId]: { ...eng[reelId], likes: (eng[reelId]?.likes || 0) + 1 }
                 }))
+                updateEngagement('like')
             }
             return newSet
         })
+    }
+
+    const handleComment = () => {
+        // Simple prompt for now to simulate commenting
+        const text = prompt('Add a comment:')
+        if (text && text.trim()) {
+            setLocalEngagement(eng => ({
+                ...eng,
+                [currentReel.id]: { ...eng[currentReel.id], comments: (eng[currentReel.id]?.comments || 0) + 1 }
+            }))
+            updateEngagement('comment')
+        }
     }
 
     const getEngagement = (reel: Content) => ({
@@ -67,6 +93,16 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
             }
         }
     }, [isPlaying, currentIndex])
+
+    // Track views
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (isPlaying) {
+                updateEngagement('view')
+            }
+        }, 5000) // Count view after 5 seconds
+        return () => clearTimeout(timer)
+    }, [currentReel.id])
 
     useEffect(() => {
         if (videoRef.current) {
@@ -260,7 +296,10 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
 
                 {/* Comment Button */}
                 <div className={styles.actionItem}>
-                    <button className={styles.actionButton}>
+                    <button
+                        className={styles.actionButton}
+                        onClick={handleComment}
+                    >
                         <FaCommentDots />
                     </button>
                     <span className={styles.actionCount}>{formatNumber(getEngagement(currentReel).comments)}</span>

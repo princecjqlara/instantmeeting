@@ -139,6 +139,14 @@ export default function ProfileSettingsPage() {
     const totalLikes = content.reduce((sum, item) => sum + (item.likes || 0), 0)
     const totalViews = content.reduce((sum, item) => sum + (item.views || 0), 0)
 
+    if (status === 'loading' || loading) {
+        return (
+            <div className={styles.loading}>
+                <div className={styles.spinner}></div>
+            </div>
+        )
+    }
+
     return (
         <div className={styles.container}>
             {/* Header */}

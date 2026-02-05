@@ -299,8 +299,7 @@
 .reelCounter {
   position: absolute;
   top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 12px;
   color: white;
   font-size: 13px;
   font-weight: 600;

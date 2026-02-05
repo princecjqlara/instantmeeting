@@ -220,6 +220,7 @@ export default function UploadPage() {
                     accept="video/*"
                     multiple
                     onChange={handleFileSelect}
+                    onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                     className={styles.hiddenInput}
                 />
             </section>

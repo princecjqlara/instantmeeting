@@ -44,16 +44,18 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const { availability_mode, available_from, available_to, timezone } = body
 
-    const updateData: Record<string, unknown> = {}
+    const updateData: Record<string, unknown> = {
+        email: session.user.email
+    }
     if (availability_mode !== undefined) updateData.availability_mode = availability_mode
     if (available_from !== undefined) updateData.available_from = available_from
     if (available_to !== undefined) updateData.available_to = available_to
     if (timezone !== undefined) updateData.timezone = timezone
 
+    // Use upsert to create user if they don't exist
     const { data: user, error } = await supabase
         .from('users')
-        .update(updateData)
-        .eq('email', session.user.email)
+        .upsert(updateData, { onConflict: 'email' })
         .select('availability_mode, available_from, available_to, timezone')
         .single()
 
