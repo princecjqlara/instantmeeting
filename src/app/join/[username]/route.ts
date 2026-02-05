@@ -71,7 +71,7 @@ export async function GET(
             .from('meetings')
             .insert({
                 user_id: user.id,
-                title: `${user.name || username}'s Room`,
+                title: `${user.name || normalizedUsername}'s Room`,
                 status: 'active'
             })
             .select('id')
@@ -79,7 +79,7 @@ export async function GET(
         
         if (createError || !newMeeting) {
             console.error('Failed to create meeting:', createError)
-            return NextResponse.redirect(new URL(`/profile/${username}?error=create_failed`, req.url))
+            return NextResponse.redirect(new URL(`/?error=create_failed&username=${encodeURIComponent(normalizedUsername)}`, req.url))
         }
         
         meeting = newMeeting
