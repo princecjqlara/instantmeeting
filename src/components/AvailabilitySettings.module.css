@@ -42,6 +42,33 @@
     font-weight: 500;
 }
 
+.settingsRow {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.settingGroup {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settingGroup label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.settingGroup input,
+.settingGroup select {
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
 .modes {
     display: flex;
     gap: 12px;

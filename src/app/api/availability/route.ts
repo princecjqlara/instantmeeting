@@ -51,6 +51,8 @@ export async function PATCH(req: NextRequest) {
     if (available_from !== undefined) updateData.available_from = available_from
     if (available_to !== undefined) updateData.available_to = available_to
     if (timezone !== undefined) updateData.timezone = timezone
+    if (body.scroll_threshold !== undefined) updateData.scroll_threshold = body.scroll_threshold
+    if (body.meeting_duration !== undefined) updateData.meeting_duration = body.meeting_duration
 
     // Use upsert to create user if they don't exist
     const { data: user, error } = await supabase

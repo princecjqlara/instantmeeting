@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Content } from '@/lib/types'
-import { FaPlay, FaPause, FaVolumeUp, FaVolumeMute, FaHeart, FaCommentDots, FaShare, FaMusic, FaEdit, FaTrash } from 'react-icons/fa'
+import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash } from 'react-icons/fa'
+import BookingModal from './BookingModal'
 import styles from './ReelPlayer.module.css'
 
 interface ReelPlayerProps {
@@ -21,8 +22,14 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
     const [progress, setProgress] = useState(0)
     const [likedReels, setLikedReels] = useState<Set<string>>(new Set())
     const [localEngagement, setLocalEngagement] = useState<Record<string, { likes: number; comments: number }>>({})
+    const [localAvatar, setLocalAvatar] = useState<string | null>(hostAvatar || null)
     const videoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
+
+    // Update local avatar when prop changes
+    useEffect(() => {
+        if (hostAvatar) setLocalAvatar(hostAvatar)
+    }, [hostAvatar])
 
     const currentReel = reels[currentIndex]
 
@@ -66,15 +73,19 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
         })
     }
 
-    const handleComment = () => {
-        // Simple prompt for now to simulate commenting
-        const text = prompt('Add a comment:')
-        if (text && text.trim()) {
+    const [isCommenting, setIsCommenting] = useState(false)
+    const [commentText, setCommentText] = useState('')
+
+    const handleCommentSubmit = (e?: React.FormEvent) => {
+        e?.preventDefault()
+        if (commentText.trim()) {
             setLocalEngagement(eng => ({
                 ...eng,
                 [currentReel.id]: { ...eng[currentReel.id], comments: (eng[currentReel.id]?.comments || 0) + 1 }
             }))
             updateEngagement('comment')
+            setCommentText('')
+            setIsCommenting(false)
         }
     }
 
@@ -83,6 +94,42 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
         comments: (reel.comments || 0) + (localEngagement[reel.id]?.comments || 0),
         views: reel.views || 0
     })
+
+    useEffect(() => {
+        if (reels.length > 0) {
+            const hostId = reels[0].user_id
+            fetch(`/api/users/${hostId}/public`)
+                .then(res => res.json())
+                .then(data => setHostSettings(data))
+                .catch(err => console.error("Failed to fetch host settings", err))
+        }
+    }, [reels])
+
+    useEffect(() => {
+        // Fetch latest host profile data to ensure avatar is up to date
+        const fetchProfile = async () => {
+            if (hostName) {
+                try {
+                    // Try to fetch by username if available, or just rely on passed props for now
+                    // If we are the host, we can fetch our own settings
+                    if (isHost) {
+                        const res = await fetch('/api/profile/settings')
+                        if (res.ok) {
+                            const data = await res.json()
+                            if (data.avatar_url) {
+                                // Update local avatar state if we had one
+                                // But props are read-only, so we might need a local state for avatar
+                                setLocalAvatar(data.avatar_url)
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error fetching profile:', e)
+                }
+            }
+        }
+        fetchProfile()
+    }, [hostName, isHost])
 
     useEffect(() => {
         if (videoRef.current) {
@@ -125,11 +172,27 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
         }
     }, [currentIndex, reels.length])
 
-    const goToNext = useCallback(() => {
+    const nextReel = useCallback(() => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
+            setScrollCount(prev => {
+                const newCount = prev + 1
+                if (hostSettings && hostSettings.scroll_threshold && newCount >= hostSettings.scroll_threshold) {
+                    // Trigger if host is not "always" available (meaning they might be offline or scheduled)
+                    // Or simply always trigger if that's the desired "lead capture" behavior?
+                    // Prompt says "if their not online non user will book".
+                    // Let's check availability_mode.
+                    if (hostSettings.availability_mode !== 'always') {
+                        setShowBookingModal(true)
+                        return 0 // Reset count after showing? Or keep it high so it doesn't show again immediately?
+                        // Better UX: Show once per session? Or every X scrolls.
+                        // Let's reset to 0.
+                    }
+                }
+                return newCount
+            })
         }
-    }, [currentIndex, reels.length])
+    }, [currentIndex, reels.length, hostSettings])
 
     const goToPrev = useCallback(() => {
         if (currentIndex > 0) {
@@ -227,7 +290,7 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
                 ref={videoRef}
                 key={currentReel.id}
                 src={currentReel.cloudinary_url}
-                className={styles.video}
+                className={`${styles.video} ${styles.slideAnimation}`}
                 playsInline
                 loop={false}
                 autoPlay
@@ -272,8 +335,8 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
                 {/* Profile Avatar */}
                 <div className={styles.profileSection}>
                     <div className={styles.avatarWrapper}>
-                        {hostAvatar ? (
-                            <img src={hostAvatar} alt={hostName} className={styles.avatar} />
+                        {localAvatar ? (
+                            <img src={localAvatar} alt={hostName} className={styles.avatar} />
                         ) : (
                             <div className={styles.avatarPlaceholder}>
                                 {hostName?.charAt(0).toUpperCase() || 'U'}
@@ -298,7 +361,7 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
                 <div className={styles.actionItem}>
                     <button
                         className={styles.actionButton}
-                        onClick={handleComment}
+                        onClick={() => setIsCommenting(true)}
                     >
                         <FaCommentDots />
                     </button>
@@ -337,13 +400,45 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
 
                 {/* Spinning Record */}
                 <div className={styles.spinningRecord}>
-                    {hostAvatar ? (
-                        <img src={hostAvatar} alt="" className={styles.recordImage} />
+                    {localAvatar ? (
+                        <img src={localAvatar} alt="" className={styles.recordImage} />
                     ) : (
                         <div className={styles.recordPlaceholder} />
                     )}
                 </div>
             </div>
+
+            {/* Comment Overlay */}
+            {isCommenting && (
+                <div className={styles.commentOverlay}>
+                    <div className={styles.commentHeader}>
+                        <span>Add Comment</span>
+                        <button
+                            className={styles.closeCommentBtn}
+                            onClick={() => setIsCommenting(false)}
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <form onSubmit={handleCommentSubmit} className={styles.commentInputWrapper}>
+                        <input
+                            type="text"
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            placeholder="Say something nice..."
+                            className={styles.commentInput}
+                            autoFocus
+                        />
+                        <button
+                            type="submit"
+                            className={styles.sendButton}
+                            disabled={!commentText.trim()}
+                        >
+                            Send
+                        </button>
+                    </form>
+                </div>
+            )}
 
             {/* Volume Control */}
             <button
@@ -358,6 +453,13 @@ export default function ReelPlayer({ reels, hostName, hostAvatar, isHost, onEdit
                 <div className={styles.reelCounter}>
                     {currentIndex + 1}/{reels.length}
                 </div>
+            )}
+
+            {showBookingModal && hostSettings && (
+                <BookingModal
+                    host={hostSettings}
+                    onClose={() => setShowBookingModal(false)}
+                />
             )}
         </div>
     )

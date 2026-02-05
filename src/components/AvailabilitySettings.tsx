@@ -9,6 +9,8 @@ interface AvailabilityData {
     available_from: string | null
     available_to: string | null
     timezone: string | null
+    scroll_threshold?: number
+    meeting_duration?: number
 }
 
 export default function AvailabilitySettings() {
@@ -70,7 +72,9 @@ export default function AvailabilitySettings() {
         updateAvailability({
             availability_mode: 'scheduled',
             available_from: settings.available_from,
-            available_to: settings.available_to
+            available_to: settings.available_to,
+            scroll_threshold: settings.scroll_threshold,
+            meeting_duration: settings.meeting_duration
         })
     }
 
@@ -111,6 +115,31 @@ export default function AvailabilitySettings() {
 
             {settings.availability_mode === 'scheduled' && (
                 <div className={styles.scheduleForm}>
+                    <div className={styles.settingsRow}>
+                        <div className={styles.settingGroup}>
+                            <label>Scrolls before prompt</label>
+                            <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={settings.scroll_threshold || 3}
+                                onChange={(e) => setSettings(prev => ({ ...prev, scroll_threshold: parseInt(e.target.value) || 3 }))}
+                            />
+                        </div>
+                        <div className={styles.settingGroup}>
+                            <label>Meeting Duration (min)</label>
+                            <select
+                                value={settings.meeting_duration || 30}
+                                onChange={(e) => setSettings(prev => ({ ...prev, meeting_duration: parseInt(e.target.value) || 30 }))}
+                            >
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                                <option value="45">45 minutes</option>
+                                <option value="60">1 hour</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div className={styles.timeRow}>
                         <div className={styles.timeInput}>
                             <label>Available from</label>

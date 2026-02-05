@@ -66,10 +66,15 @@ export async function POST(req: NextRequest) {
         })
 
         // Update user's avatar_url in database
+        // Update user's avatar_url in database, creating user if needed
         const { error: updateError } = await supabase
             .from('users')
-            .update({ avatar_url: uploadResult.secure_url })
-            .eq('email', session.user.email)
+            .upsert({
+                email: session.user.email,
+                avatar_url: uploadResult.secure_url,
+                name: session.user.name // Ensure name is preserved on create
+            }, { onConflict: 'email' })
+            .select()
 
         if (updateError) {
             return NextResponse.json({ error: updateError.message }, { status: 500 })

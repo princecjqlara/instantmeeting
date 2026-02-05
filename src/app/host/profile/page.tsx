@@ -15,6 +15,8 @@ interface ProfileSettings {
     name: string
     bio: string
     avatar_url: string | null
+    followers?: number
+    following?: number
 }
 
 export default function ProfileSettingsPage() {
@@ -80,7 +82,13 @@ export default function ProfileSettingsPage() {
             const response = await fetch('/api/profile/settings', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
+                body: JSON.stringify({
+                    username: settings.username,
+                    name: settings.name,
+                    bio: settings.bio,
+                    followers: settings.followers,
+                    following: settings.following
+                })
             })
 
             if (response.ok) {
@@ -194,11 +202,11 @@ export default function ProfileSettingsPage() {
                 {/* Stats Row */}
                 <div className={styles.statsRow}>
                     <div className={styles.statItem}>
-                        <span className={styles.statNumber}>{content.length}</span>
+                        <span className={styles.statNumber}>{settings.following || 0}</span>
                         <span className={styles.statLabel}>Following</span>
                     </div>
                     <div className={styles.statItem}>
-                        <span className={styles.statNumber}>{totalViews}</span>
+                        <span className={styles.statNumber}>{settings.followers || 0}</span>
                         <span className={styles.statLabel}>Followers</span>
                     </div>
                     <div className={styles.statItem}>
@@ -250,7 +258,25 @@ export default function ProfileSettingsPage() {
                                 type="text"
                                 value={settings.name}
                                 onChange={(e) => setSettings(prev => ({ ...prev, name: e.target.value }))}
-                                placeholder="Your name"
+                                placeholder="Display Name"
+                            />
+                        </div>
+                        <div className={styles.editField}>
+                            <label>Followers (Fake)</label>
+                            <input
+                                type="number"
+                                value={settings.followers || 0}
+                                onChange={(e) => setSettings(prev => ({ ...prev, followers: parseInt(e.target.value) || 0 }))}
+                                placeholder="0"
+                            />
+                        </div>
+                        <div className={styles.editField}>
+                            <label>Following (Fake)</label>
+                            <input
+                                type="number"
+                                value={settings.following || 0}
+                                onChange={(e) => setSettings(prev => ({ ...prev, following: parseInt(e.target.value) || 0 }))}
+                                placeholder="0"
                             />
                         </div>
                         <div className={styles.editField}>

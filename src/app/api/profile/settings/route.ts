@@ -21,7 +21,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
         .from('users')
-        .select('username, name, bio, avatar_url')
+        .select('username, name, bio, avatar_url, followers, following')
         .eq('email', session.user.email)
         .single()
 
@@ -33,7 +33,9 @@ export async function GET() {
         username: user.username || '',
         name: user.name || '',
         bio: user.bio || '',
-        avatar_url: user.avatar_url
+        avatar_url: user.avatar_url,
+        followers: user.followers || 0,
+        following: user.following || 0
     })
 }
 
@@ -47,7 +49,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { username, name, bio } = body
+    const { username, name, bio, followers, following } = body
 
     // Validate username only if it's a non-empty string
     if (username && username.length > 0) {
@@ -75,6 +77,8 @@ export async function PATCH(req: NextRequest) {
     if (username !== undefined) updateData.username = username || null
     if (name !== undefined) updateData.name = name || null
     if (bio !== undefined) updateData.bio = bio || null
+    if (followers !== undefined) updateData.followers = followers
+    if (following !== undefined) updateData.following = following
 
     // First check if user exists
     const { data: existingUser } = await supabase
@@ -88,7 +92,7 @@ export async function PATCH(req: NextRequest) {
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({ email: session.user.email, ...updateData })
-            .select('username, name, bio, avatar_url')
+            .select('username, name, bio, avatar_url, followers, following')
             .single()
 
         if (createError) {
@@ -99,7 +103,9 @@ export async function PATCH(req: NextRequest) {
             username: newUser.username || '',
             name: newUser.name || '',
             bio: newUser.bio || '',
-            avatar_url: newUser.avatar_url
+            avatar_url: newUser.avatar_url,
+            followers: newUser.followers || 0,
+            following: newUser.following || 0
         })
     }
 
@@ -107,7 +113,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('username, name, bio, avatar_url')
+        .select('username, name, bio, avatar_url, followers, following')
         .single()
 
     if (error) {
@@ -118,6 +124,8 @@ export async function PATCH(req: NextRequest) {
         username: user.username || '',
         name: user.name || '',
         bio: user.bio || '',
-        avatar_url: user.avatar_url
+        avatar_url: user.avatar_url,
+        followers: user.followers || 0,
+        following: user.following || 0
     })
 }

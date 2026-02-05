@@ -337,3 +337,100 @@
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
+
+/* Comment Overlay */
+.commentOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a2e;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  padding: 16px;
+  z-index: 50;
+  animation: slideUp 0.3s ease-out;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.commentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.closeCommentBtn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.commentInputWrapper {
+  display: flex;
+  gap: 8px;
+}
+
+.commentInput {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 20px;
+  padding: 10px 16px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.commentInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.sendButton {
+  background: #fe2c55;
+  border: none;
+  border-radius: 20px;
+  padding: 0 16px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sendButton:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  cursor: not-allowed;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Slide Animation for Video */
+.slideAnimation {
+  animation: slideIn 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

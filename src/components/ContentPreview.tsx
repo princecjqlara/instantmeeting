@@ -61,9 +61,9 @@ export default function ContentPreview({ content, onUploadClick }: ContentPrevie
                                     {formatDuration(item.duration_seconds)}
                                 </span>
                             )}
-                            {item.title && (
-                                <span className={styles.title}>{item.title}</span>
-                            )}
+                            {item.title || item.caption ? (
+                                <span className={styles.title}>{item.title || item.caption}</span>
+                            ) : null}
                         </div>
                     ))}
                 </div>
