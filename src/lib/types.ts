@@ -15,6 +15,8 @@ export interface User {
     timezone: string | null
     followers: number
     following: number
+    scroll_threshold: number
+    meeting_duration: number
     created_at: string
 }
 
