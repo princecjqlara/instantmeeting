@@ -19,7 +19,9 @@ interface WaitingData {
     }
     host: {
         name: string
+        username: string | null
         avatar_url: string | null
+        bio: string | null
     } | null
     content: Content[]
     guest: {
@@ -173,6 +175,25 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostName={data?.host?.name || undefined}
                 />
             </div>
+
+            {/* Host Profile Overlay */}
+            {data?.host && (
+                <div className={styles.hostProfile}>
+                    <div className={styles.hostAvatar}>
+                        {data.host.avatar_url ? (
+                            <img src={data.host.avatar_url} alt={data.host.name} />
+                        ) : (
+                            <FaUser />
+                        )}
+                    </div>
+                    <div className={styles.hostInfo}>
+                        <span className={styles.hostName}>{data.host.name}</span>
+                        {data.host.username && (
+                            <span className={styles.hostUsername}>@{data.host.username}</span>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Status Overlay */}
             <div className={styles.statusOverlay}>

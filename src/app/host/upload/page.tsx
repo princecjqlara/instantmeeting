@@ -7,7 +7,8 @@ import { Content } from '@/lib/types'
 import styles from './page.module.css'
 import {
     FaUpload, FaArrowLeft, FaTrash, FaPlay,
-    FaSpinner, FaCheck, FaEye, FaHeart, FaComment, FaEdit, FaSave, FaClosedCaptioning
+    FaSpinner, FaCheck, FaEye, FaHeart, FaComment, FaEdit, FaSave, FaClosedCaptioning,
+    FaArrowUp, FaArrowDown, FaGripVertical
 } from 'react-icons/fa'
 
 export default function UploadPage() {
@@ -139,6 +140,32 @@ export default function UploadPage() {
         return num.toString()
     }
 
+    const moveContent = async (index: number, direction: 'up' | 'down') => {
+        const newIndex = direction === 'up' ? index - 1 : index + 1
+        if (newIndex < 0 || newIndex >= content.length) return
+
+        const newContent = [...content]
+        const temp = newContent[index]
+        newContent[index] = newContent[newIndex]
+        newContent[newIndex] = temp
+        setContent(newContent)
+
+        // Update order in database
+        try {
+            await fetch('/api/content/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: newContent.map((item, i) => ({ id: item.id, order_index: i }))
+                })
+            })
+        } catch (error) {
+            console.error('Error reordering:', error)
+            // Revert on error
+            setContent(content)
+        }
+    }
+
     if (status === 'loading' || loading) {
         return (
             <div className={styles.loading}>
@@ -206,8 +233,29 @@ export default function UploadPage() {
                     </div>
                 ) : (
                     <div className={styles.contentGrid}>
-                        {content.map((item) => (
+                        {content.map((item, index) => (
                             <div key={item.id} className={styles.contentCard}>
+                                {/* Reorder Controls */}
+                                <div className={styles.reorderControls}>
+                                    <button
+                                        onClick={() => moveContent(index, 'up')}
+                                        disabled={index === 0}
+                                        className={styles.reorderBtn}
+                                        title="Move up"
+                                    >
+                                        <FaArrowUp />
+                                    </button>
+                                    <FaGripVertical className={styles.gripIcon} />
+                                    <button
+                                        onClick={() => moveContent(index, 'down')}
+                                        disabled={index === content.length - 1}
+                                        className={styles.reorderBtn}
+                                        title="Move down"
+                                    >
+                                        <FaArrowDown />
+                                    </button>
+                                </div>
+
                                 <div className={styles.thumbnail}>
                                     <video
                                         src={item.cloudinary_url}

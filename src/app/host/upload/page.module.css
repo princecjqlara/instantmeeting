@@ -178,6 +178,52 @@
     transform: translateY(-2px);
 }
 
+/* Reorder Controls */
+.reorderControls {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 5;
+}
+
+.reorderBtn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+}
+
+.reorderBtn:hover:not(:disabled) {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.reorderBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.gripIcon {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 12px;
+}
+
+.contentCard {
+    position: relative;
+}
+
 .thumbnail {
     position: relative;
     aspect-ratio: 9/16;
