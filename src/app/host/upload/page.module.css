@@ -356,6 +356,33 @@
     border-color: var(--accent-primary);
 }
 
+.titleInput {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.titleField {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 500;
+    outline: none;
+    width: 100%;
+}
+
+.titleField:focus {
+    border-color: var(--accent-primary);
+}
+
+.titleField::placeholder {
+    color: var(--text-muted);
+}
+
 .metricsRow {
     display: flex;
     align-items: center;

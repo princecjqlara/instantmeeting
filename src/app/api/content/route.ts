@@ -61,7 +61,11 @@ export async function POST(req: NextRequest) {
     const cloud = getCloudinary()
     const session = await getServerSession(authOptions)
 
+    console.log('=== CONTENT UPLOAD === Starting upload process')
+    console.log('Session email:', session?.user?.email)
+
     if (!session?.user?.email) {
+        console.log('ERROR: No session email')
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -75,6 +79,7 @@ export async function POST(req: NextRequest) {
 
     // Create user if doesn't exist
     if (!userId) {
+        console.log('Creating new user...')
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({ email: session.user.email, name: session.user.name })
@@ -86,6 +91,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
         }
         userId = newUser.id
+        console.log('Created user with ID:', userId)
     }
 
     try {
@@ -97,7 +103,11 @@ export async function POST(req: NextRequest) {
         const likes = parseInt(formData.get('likes') as string) || 0
         const comments = parseInt(formData.get('comments') as string) || 0
 
+        console.log('File received:', file?.name, 'Type:', file?.type, 'Size:', file?.size)
+        console.log('Title:', title)
+
         if (!file) {
+            console.log('ERROR: No file provided')
             return NextResponse.json({ error: 'File required' }, { status: 400 })
         }
 
@@ -107,11 +117,15 @@ export async function POST(req: NextRequest) {
         const base64 = buffer.toString('base64')
         const dataUri = `data:${file.type};base64,${base64}`
 
+        console.log('Uploading to Cloudinary...')
+
         // Upload to Cloudinary
         const uploadResult = await cloud.uploader.upload(dataUri, {
             resource_type: 'video',
             folder: 'instantmeeting/reels',
         })
+
+        console.log('Cloudinary upload success:', uploadResult.public_id)
 
         // Get current max order
         const { data: maxOrder } = await supabase
@@ -123,8 +137,10 @@ export async function POST(req: NextRequest) {
             .single()
 
         const nextOrder = (maxOrder?.order_index ?? -1) + 1
+        console.log('Next order index:', nextOrder)
 
         // Save to Supabase
+        console.log('Saving to database...')
         const { data: content, error } = await supabase
             .from('content')
             .insert({
@@ -144,9 +160,11 @@ export async function POST(req: NextRequest) {
             .single()
 
         if (error) {
+            console.error('Database error:', error)
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
+        console.log('Content saved successfully:', content.id)
         return NextResponse.json(content)
     } catch (err) {
         console.error('Upload error:', err)

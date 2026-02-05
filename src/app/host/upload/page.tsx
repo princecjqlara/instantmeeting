@@ -19,7 +19,7 @@ export default function UploadPage() {
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
     const [editingId, setEditingId] = useState<string | null>(null)
-    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '' })
+    const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '', title: '' })
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -107,7 +107,8 @@ export default function UploadPage() {
             views: item.views || 0,
             likes: item.likes || 0,
             comments: item.comments || 0,
-            caption: item.caption || ''
+            caption: item.caption || '',
+            title: item.title || ''
         })
     }
 
@@ -280,6 +281,15 @@ export default function UploadPage() {
                                     {/* Engagement Stats */}
                                     {editingId === item.id ? (
                                         <div className={styles.editForm}>
+                                            <div className={styles.titleInput}>
+                                                <input
+                                                    type="text"
+                                                    value={editForm.title}
+                                                    onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                                                    placeholder="Video title..."
+                                                    className={styles.titleField}
+                                                />
+                                            </div>
                                             <div className={styles.captionInput}>
                                                 <FaClosedCaptioning />
                                                 <textarea
