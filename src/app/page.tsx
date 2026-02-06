@@ -3,11 +3,59 @@
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { FaGoogle, FaVideo, FaClock, FaPlay } from 'react-icons/fa'
+import { useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY
+      const windowHeight = window.innerHeight
+      
+      // Parallax effect for phone frame
+      const phoneFrame = document.querySelector(`.${styles.phoneFrame}`) as HTMLElement
+      if (phoneFrame) {
+        const phoneSpeed = 0.3
+        const phoneOffset = scrollPosition * phoneSpeed
+        phoneFrame.style.transform = `translateY(${phoneOffset}px)`
+      }
+      
+      // Parallax effect for features
+      const features = document.querySelectorAll(`.${styles.feature}`)
+      features.forEach((feature, index) => {
+        const element = feature as HTMLElement
+        const rect = element.getBoundingClientRect()
+        const elementTop = rect.top + scrollPosition
+        const elementCenter = elementTop + rect.height / 2
+        
+        // Only animate when element is in viewport
+        if (elementCenter < scrollPosition + windowHeight && elementTop > scrollPosition) {
+          const featureSpeed = 0.2 + (index * 0.1)
+          const featureOffset = (scrollPosition - elementTop + windowHeight) * featureSpeed
+          element.style.transform = `translateY(${featureOffset}px)`
+        }
+      })
+      
+      // Floating particles parallax
+      const particles = document.querySelectorAll(`.${styles.parallaxParticle}`)
+      particles.forEach((particle, index) => {
+        const element = particle as HTMLElement
+        const particleSpeed = 0.5 + (index * 0.2)
+        const particleOffset = scrollPosition * particleSpeed
+        element.style.transform = `translateY(${particleOffset}px)`
+      })
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Initial call
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
 
   // Redirect logged in users to dashboard
   if (status === 'authenticated') {
@@ -17,6 +65,14 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      {/* Parallax Background Particles */}
+      <div className={styles.parallaxContainer}>
+        <div className={`${styles.parallaxParticle} ${styles.particle1}`}></div>
+        <div className={`${styles.parallaxParticle} ${styles.particle2}`}></div>
+        <div className={`${styles.parallaxParticle} ${styles.particle3}`}></div>
+        <div className={`${styles.parallaxParticle} ${styles.particle4}`}></div>
+      </div>
+
       {/* Hero Section */}
       <section className={styles.hero}>
         <div className={styles.heroContent}>
