@@ -40,6 +40,9 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     const [likedReels, setLikedReels] = useState<Set<string>>(new Set())
     const [localEngagement, setLocalEngagement] = useState<Record<string, { likes: number; comments: number }>>({})
     const [localAvatar, setLocalAvatar] = useState<string | null>(hostAvatar || null)
+    const [guestName, setGuestName] = useState('')
+    const [showNamePrompt, setShowNamePrompt] = useState(false)
+    const [pendingAction, setPendingAction] = useState<'like' | 'comment' | null>(null)
     const videoRef = useRef<HTMLVideoElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -53,6 +56,14 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     useEffect(() => {
         if (hostAvatar) setLocalAvatar(hostAvatar)
     }, [hostAvatar])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const stored = window.localStorage.getItem('guestName')
+        if (stored) {
+            setGuestName(stored)
+        }
+    }, [])
 
     const hasReels = reels.length > 0
     const currentReel = hasReels ? reels[currentIndex] : null
@@ -82,7 +93,15 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         }
     }
 
-    const toggleLike = (reelId: string) => {
+    const ensureGuestName = (action: 'like' | 'comment') => {
+        if (isHost) return true
+        if (guestName.trim()) return true
+        setPendingAction(action)
+        setShowNamePrompt(true)
+        return false
+    }
+
+    const applyLike = (reelId: string) => {
         setLikedReels(prev => {
             const newSet = new Set(prev)
             if (newSet.has(reelId)) {
@@ -102,6 +121,12 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
             }
             return newSet
         })
+    }
+
+    const handleLike = () => {
+        if (!currentReel) return
+        if (!ensureGuestName('like')) return
+        applyLike(currentReel.id)
     }
 
     const [isCommenting, setIsCommenting] = useState(false)
@@ -138,6 +163,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
     const handleCommentSubmit = (e?: React.FormEvent) => {
         e?.preventDefault()
+        if (!ensureGuestName('comment')) return
         if (commentText.trim() && currentReel) {
             setLocalEngagement(eng => ({
                 ...eng,
@@ -418,7 +444,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 <div className={styles.actionItem}>
                     <button
                         className={`${styles.actionButton} ${likedReels.has(currentReel.id) ? styles.liked : ''}`}
-                        onClick={() => toggleLike(currentReel.id)}
+                        onClick={handleLike}
                     >
                         <FaHeart />
                     </button>
@@ -429,7 +455,10 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 <div className={styles.actionItem}>
                     <button
                         className={styles.actionButton}
-                        onClick={() => setIsCommenting(true)}
+                        onClick={() => {
+                            if (!ensureGuestName('comment')) return
+                            setIsCommenting(true)
+                        }}
                     >
                         <FaCommentDots />
                     </button>
@@ -516,6 +545,52 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 >
                     {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
                 </button>
+            )}
+
+            {showNamePrompt && (
+                <div className={styles.nameOverlay}>
+                    <div className={styles.nameModal}>
+                        <h3>What&apos;s your name?</h3>
+                        <p>We&apos;ll show it when you like or comment.</p>
+                        <input
+                            className={styles.nameInput}
+                            value={guestName}
+                            onChange={(e) => setGuestName(e.target.value)}
+                            placeholder="Your name"
+                            autoFocus
+                        />
+                        <div className={styles.nameActions}>
+                            <button
+                                className={styles.namePrimary}
+                                onClick={() => {
+                                    if (!guestName.trim()) return
+                                    if (typeof window !== 'undefined') {
+                                        window.localStorage.setItem('guestName', guestName.trim())
+                                    }
+                                    setShowNamePrompt(false)
+                                    if (pendingAction === 'like' && currentReel) {
+                                        applyLike(currentReel.id)
+                                    }
+                                    if (pendingAction === 'comment') {
+                                        setIsCommenting(true)
+                                    }
+                                    setPendingAction(null)
+                                }}
+                            >
+                                Continue
+                            </button>
+                            <button
+                                className={styles.nameSecondary}
+                                onClick={() => {
+                                    setShowNamePrompt(false)
+                                    setPendingAction(null)
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Reel Counter */}
