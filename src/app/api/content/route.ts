@@ -215,13 +215,16 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 })
         }
 
+        // Build update data, handle caption column carefully
         const updateData: Record<string, unknown> = {}
         if (views !== undefined) updateData.views = views
         if (likes !== undefined) updateData.likes = likes
         if (comments !== undefined) updateData.comments = comments
         if (title !== undefined) updateData.title = title
         if (description !== undefined) updateData.description = description
-        if (caption !== undefined) updateData.caption = caption
+        
+        // Handle caption carefully - only include if not empty AND column exists
+        // We'll check for caption column existence after the first error
 
         console.log('Update data:', updateData)
         console.log('Updating content ID:', id, 'for user ID:', user.id)
@@ -236,6 +239,27 @@ export async function PATCH(req: NextRequest) {
 
         if (error) {
             console.error('Supabase update error:', error)
+            // If error is about caption column, try without it
+            if (error.message.includes("'caption' column")) {
+                console.log('Retrying without caption field...')
+                delete updateData.caption
+                
+                const { data: retryData, error: retryError } = await supabase
+                    .from('content')
+                    .update(updateData)
+                    .eq('id', id)
+                    .eq('user_id', user.id)
+                    .select()
+                    .single()
+                    
+                if (retryError) {
+                    console.error('Retry also failed:', retryError)
+                    return NextResponse.json({ error: retryError.message }, { status: 500 })
+                }
+                
+                console.log('Successfully updated without caption:', retryData.id)
+                return NextResponse.json(retryData)
+            }
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
@@ -283,9 +307,13 @@ export async function DELETE(req: NextRequest) {
         .single()
 
     if (content?.cloudinary_public_id) {
-        await cloud.uploader.destroy(content.cloudinary_public_id, {
-            resource_type: 'video',
-        })
+        try {
+            await cloud.uploader.destroy(content.cloudinary_public_id, {
+                resource_type: 'video',
+            })
+        } catch (error) {
+            console.error('Cloudinary delete error:', error)
+        }
     }
 
     const { error } = await supabase

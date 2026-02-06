@@ -21,29 +21,100 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Return default availability since columns don't exist yet
+    const { data: user } = await supabase
+        .from('users')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+        .eq('email', session.user.email)
+        .maybeSingle()
+
+    if (!user) {
+        return NextResponse.json({
+            availability_mode: 'always',
+            available_from: null,
+            available_to: null,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            scroll_threshold: 3,
+            meeting_duration: 30
+        })
+    }
+
     return NextResponse.json({
-        availability_mode: 'always',
-        available_from: null,
-        available_to: null,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        availability_mode: user.availability_mode || 'always',
+        available_from: user.available_from || null,
+        available_to: user.available_to || null,
+        timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        scroll_threshold: user.scroll_threshold || 3,
+        meeting_duration: user.meeting_duration || 30
     })
 }
 
 // PATCH: Update availability settings
 export async function PATCH(req: NextRequest) {
+    const supabase = getSupabaseClient()
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Return success but don't save (columns don't exist)
     const body = await req.json()
+
+    const updateData: Record<string, unknown> = {}
+    if (body.availability_mode !== undefined) updateData.availability_mode = body.availability_mode
+    if (body.available_from !== undefined) updateData.available_from = body.available_from
+    if (body.available_to !== undefined) updateData.available_to = body.available_to
+    if (body.timezone !== undefined) updateData.timezone = body.timezone
+    if (body.scroll_threshold !== undefined) updateData.scroll_threshold = body.scroll_threshold
+    if (body.meeting_duration !== undefined) updateData.meeting_duration = body.meeting_duration
+
+    const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .maybeSingle()
+
+    if (!existingUser) {
+        const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+                email: session.user.email,
+                name: session.user.name,
+                ...updateData
+            })
+            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+            .single()
+
+        if (createError) {
+            return NextResponse.json({ error: createError.message }, { status: 500 })
+        }
+
+        return NextResponse.json({
+            availability_mode: newUser.availability_mode || 'always',
+            available_from: newUser.available_from || null,
+            available_to: newUser.available_to || null,
+            timezone: newUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            scroll_threshold: newUser.scroll_threshold || 3,
+            meeting_duration: newUser.meeting_duration || 30
+        })
+    }
+
+    const { data: updatedUser, error } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('email', session.user.email)
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+        .single()
+
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
     return NextResponse.json({
-        availability_mode: body.availability_mode || 'always',
-        available_from: body.available_from || null,
-        available_to: body.available_to || null,
-        timezone: body.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+        availability_mode: updatedUser.availability_mode || 'always',
+        available_from: updatedUser.available_from || null,
+        available_to: updatedUser.available_to || null,
+        timezone: updatedUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        scroll_threshold: updatedUser.scroll_threshold || 3,
+        meeting_duration: updatedUser.meeting_duration || 30
     })
 }

@@ -131,6 +131,29 @@
     transition: width 0.3s ease;
 }
 
+.uploadMessage {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+}
+
+.stopUploadBtn {
+    margin-top: 12px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stopUploadBtn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
 .hiddenInput {
     display: none;
 }

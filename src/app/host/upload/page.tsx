@@ -18,9 +18,12 @@ export default function UploadPage() {
     const [loading, setLoading] = useState(true)
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState(0)
+    const [uploadMessage, setUploadMessage] = useState('')
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editForm, setEditForm] = useState({ views: 0, likes: 0, comments: 0, caption: '', title: '', description: '' })
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const uploadAbortRef = useRef<AbortController | null>(null)
+    const cancelUploadRef = useRef(false)
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -52,11 +55,25 @@ export default function UploadPage() {
         const files = e.target.files
         if (!files || files.length === 0) return
 
+        const selectedFiles = Array.from(files).slice(0, 1)
+        if (files.length > 1) {
+            setUploadMessage('Uploading the first selected file only')
+        }
+
         setUploading(true)
         setUploadProgress(0)
+        if (files.length <= 1) {
+            setUploadMessage('')
+        }
+        cancelUploadRef.current = false
 
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i]
+        for (let i = 0; i < selectedFiles.length; i++) {
+            if (cancelUploadRef.current) {
+                setUploadMessage('Upload stopped')
+                break
+            }
+
+            const file = selectedFiles[i]
             const formData = new FormData()
             formData.append('file', file)
             formData.append('title', file.name.replace(/\.[^/.]+$/, ''))
@@ -64,10 +81,14 @@ export default function UploadPage() {
             formData.append('likes', '0')
             formData.append('comments', '0')
 
+            const abortController = new AbortController()
+            uploadAbortRef.current = abortController
+
             try {
                 const response = await fetch('/api/content', {
                     method: 'POST',
                     body: formData,
+                    signal: abortController.signal,
                 })
 
                 if (response.ok) {
@@ -75,15 +96,28 @@ export default function UploadPage() {
                     setContent(prev => [...prev, newContent])
                 }
             } catch (error) {
+                if ((error as Error).name === 'AbortError') {
+                    setUploadMessage('Upload stopped')
+                    break
+                }
                 console.error('Error uploading:', error)
             }
 
-            setUploadProgress(((i + 1) / files.length) * 100)
+            setUploadProgress(((i + 1) / selectedFiles.length) * 100)
         }
 
         setUploading(false)
+        uploadAbortRef.current = null
+        cancelUploadRef.current = false
         if (fileInputRef.current) {
             fileInputRef.current.value = ''
+        }
+    }
+
+    const stopUpload = () => {
+        cancelUploadRef.current = true
+        if (uploadAbortRef.current) {
+            uploadAbortRef.current.abort()
         }
     }
 
@@ -95,6 +129,9 @@ export default function UploadPage() {
 
             if (response.ok) {
                 setContent(prev => prev.filter(c => c.id !== id))
+            } else {
+                const errorData = await response.json()
+                console.error('Error deleting content:', errorData.error)
             }
         } catch (error) {
             console.error('Error deleting:', error)
@@ -117,19 +154,34 @@ export default function UploadPage() {
         if (!editingId) return
 
         try {
+            // Prepare update data, only include non-empty caption
+            const updateData: Record<string, any> = {
+                id: editingId,
+                views: editForm.views,
+                likes: editForm.likes,
+                comments: editForm.comments,
+                title: editForm.title,
+                description: editForm.description
+            }
+            
+            // Only include caption if it has content
+            if (editForm.caption.trim() !== '') {
+                updateData.caption = editForm.caption.trim()
+            }
+
             const response = await fetch('/api/content', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    id: editingId,
-                    ...editForm
-                })
+                body: JSON.stringify(updateData)
             })
 
             if (response.ok) {
                 const updated = await response.json()
                 setContent(prev => prev.map(c => c.id === editingId ? updated : c))
                 setEditingId(null)
+            } else {
+                const errorData = await response.json()
+                console.error('Save error:', errorData.error)
             }
         } catch (error) {
             console.error('Error saving:', error)
@@ -200,12 +252,20 @@ export default function UploadPage() {
                         <>
                             <FaSpinner className={styles.spinIcon} />
                             <p>Uploading... {Math.round(uploadProgress)}%</p>
+                            {uploadMessage && <span className={styles.uploadMessage}>{uploadMessage}</span>}
                             <div className={styles.progressBar}>
                                 <div
                                     className={styles.progressFill}
                                     style={{ width: `${uploadProgress}%` }}
                                 />
                             </div>
+                            <button
+                                type="button"
+                                className={styles.stopUploadBtn}
+                                onClick={stopUpload}
+                            >
+                                Stop uploading
+                            </button>
                         </>
                     ) : (
                         <>
