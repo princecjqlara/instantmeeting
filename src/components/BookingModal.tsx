@@ -1,13 +1,23 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { User } from '@/lib/types'
 import styles from './BookingModal.module.css'
 import { FaCheckCircle, FaTimes } from 'react-icons/fa'
 
 interface BookingModalProps {
-    host: User
+    host: BookingHost
     onClose: () => void
+}
+
+interface BookingHost {
+    id: string
+    name: string | null
+    available_from: string | null
+    available_to: string | null
+    meeting_duration: number | null
+    booking_title?: string | null
+    booking_description?: string | null
+    booking_note_placeholder?: string | null
 }
 
 export default function BookingModal({ host, onClose }: BookingModalProps) {
@@ -107,6 +117,10 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
         )
     }
 
+    const bookingTitle = host.booking_title || 'Schedule a Meeting'
+    const bookingDescription = host.booking_description || 'Share your details and pick a time that works.'
+    const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
+
     return (
         <div className={styles.overlay}>
             <div className={styles.modal}>
@@ -118,6 +132,10 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
                 </div>
 
                 <div className={styles.content}>
+                    <div className={styles.bookingIntro}>
+                        <h4>{bookingTitle}</h4>
+                        <p>{bookingDescription}</p>
+                    </div>
                     {step === 1 ? (
                         <div className={styles.step}>
                             <div className={styles.inputGroup}>
@@ -143,7 +161,7 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
                                 <textarea
                                     value={formData.note}
                                     onChange={e => setFormData({ ...formData, note: e.target.value })}
-                                    placeholder="I'd like to discuss..."
+                                    placeholder={notePlaceholder}
                                 />
                             </div>
                             <button

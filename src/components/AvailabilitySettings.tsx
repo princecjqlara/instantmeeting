@@ -11,6 +11,9 @@ interface AvailabilityData {
     timezone: string | null
     scroll_threshold?: number
     meeting_duration?: number
+    booking_title?: string
+    booking_description?: string
+    booking_note_placeholder?: string
 }
 
 export default function AvailabilitySettings() {
@@ -18,7 +21,10 @@ export default function AvailabilitySettings() {
         availability_mode: 'always',
         available_from: null,
         available_to: null,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        booking_title: 'Schedule a Meeting',
+        booking_description: 'Share your details and pick a time that works.',
+        booking_note_placeholder: "I'd like to discuss..."
     })
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -68,13 +74,16 @@ export default function AvailabilitySettings() {
         setSettings(prev => ({ ...prev, [field]: value }))
     }
 
-    const saveSchedule = () => {
+    const saveSettings = () => {
         updateAvailability({
-            availability_mode: 'scheduled',
+            availability_mode: settings.availability_mode,
             available_from: settings.available_from,
             available_to: settings.available_to,
             scroll_threshold: settings.scroll_threshold,
-            meeting_duration: settings.meeting_duration
+            meeting_duration: settings.meeting_duration,
+            booking_title: settings.booking_title,
+            booking_description: settings.booking_description,
+            booking_note_placeholder: settings.booking_note_placeholder
         })
     }
 
@@ -113,7 +122,7 @@ export default function AvailabilitySettings() {
                 </button>
             </div>
 
-            {settings.availability_mode === 'scheduled' && (
+            {settings.availability_mode !== 'always' && (
                 <div className={styles.scheduleForm}>
                     <div className={styles.settingsRow}>
                         <div className={styles.settingGroup}>
@@ -140,34 +149,68 @@ export default function AvailabilitySettings() {
                         </div>
                     </div>
 
-                    <div className={styles.timeRow}>
-                        <div className={styles.timeInput}>
-                            <label>Available from</label>
+                    <div className={styles.bookingSettings}>
+                        <div className={styles.settingGroup}>
+                            <label>Form Title</label>
                             <input
-                                type="time"
-                                value={settings.available_from || '09:00'}
-                                onChange={(e) => handleTimeChange('available_from', e.target.value)}
+                                type="text"
+                                value={settings.booking_title || ''}
+                                onChange={(e) => setSettings(prev => ({ ...prev, booking_title: e.target.value }))}
+                                placeholder="Schedule a Meeting"
                             />
                         </div>
-                        <span className={styles.to}>to</span>
-                        <div className={styles.timeInput}>
-                            <label>Until</label>
+                        <div className={styles.settingGroup}>
+                            <label>Form Description</label>
+                            <textarea
+                                rows={2}
+                                value={settings.booking_description || ''}
+                                onChange={(e) => setSettings(prev => ({ ...prev, booking_description: e.target.value }))}
+                                placeholder="Share your details and pick a time that works."
+                            />
+                        </div>
+                        <div className={styles.settingGroup}>
+                            <label>Note Placeholder</label>
                             <input
-                                type="time"
-                                value={settings.available_to || '17:00'}
-                                onChange={(e) => handleTimeChange('available_to', e.target.value)}
+                                type="text"
+                                value={settings.booking_note_placeholder || ''}
+                                onChange={(e) => setSettings(prev => ({ ...prev, booking_note_placeholder: e.target.value }))}
+                                placeholder="I'd like to discuss..."
                             />
                         </div>
                     </div>
-                    <div className={styles.timezone}>
-                        Timezone: {settings.timezone || 'UTC'}
-                    </div>
+
+                    {settings.availability_mode === 'scheduled' && (
+                        <>
+                            <div className={styles.timeRow}>
+                                <div className={styles.timeInput}>
+                                    <label>Available from</label>
+                                    <input
+                                        type="time"
+                                        value={settings.available_from || '09:00'}
+                                        onChange={(e) => handleTimeChange('available_from', e.target.value)}
+                                    />
+                                </div>
+                                <span className={styles.to}>to</span>
+                                <div className={styles.timeInput}>
+                                    <label>Until</label>
+                                    <input
+                                        type="time"
+                                        value={settings.available_to || '17:00'}
+                                        onChange={(e) => handleTimeChange('available_to', e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className={styles.timezone}>
+                                Timezone: {settings.timezone || 'UTC'}
+                            </div>
+                        </>
+                    )}
                     <button
                         className={styles.saveScheduleBtn}
-                        onClick={saveSchedule}
+                        onClick={saveSettings}
                         disabled={saving}
                     >
-                        {saving ? 'Saving...' : 'Save Schedule'}
+                        {saving ? 'Saving...' : 'Save Settings'}
                     </button>
                 </div>
             )}

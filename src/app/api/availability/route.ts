@@ -23,7 +23,7 @@ export async function GET() {
 
     const { data: user } = await supabase
         .from('users')
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
         .eq('email', session.user.email)
         .maybeSingle()
 
@@ -34,7 +34,10 @@ export async function GET() {
             available_to: null,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
             scroll_threshold: 3,
-            meeting_duration: 30
+            meeting_duration: 30,
+            booking_title: 'Schedule a Meeting',
+            booking_description: 'Share your details and pick a time that works.',
+            booking_note_placeholder: "I'd like to discuss..."
         })
     }
 
@@ -44,7 +47,10 @@ export async function GET() {
         available_to: user.available_to || null,
         timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         scroll_threshold: user.scroll_threshold || 3,
-        meeting_duration: user.meeting_duration || 30
+        meeting_duration: user.meeting_duration || 30,
+        booking_title: user.booking_title || 'Schedule a Meeting',
+        booking_description: user.booking_description || 'Share your details and pick a time that works.',
+        booking_note_placeholder: user.booking_note_placeholder || "I'd like to discuss..."
     })
 }
 
@@ -66,6 +72,9 @@ export async function PATCH(req: NextRequest) {
     if (body.timezone !== undefined) updateData.timezone = body.timezone
     if (body.scroll_threshold !== undefined) updateData.scroll_threshold = body.scroll_threshold
     if (body.meeting_duration !== undefined) updateData.meeting_duration = body.meeting_duration
+    if (body.booking_title !== undefined) updateData.booking_title = body.booking_title
+    if (body.booking_description !== undefined) updateData.booking_description = body.booking_description
+    if (body.booking_note_placeholder !== undefined) updateData.booking_note_placeholder = body.booking_note_placeholder
 
     const { data: existingUser } = await supabase
         .from('users')
@@ -81,7 +90,7 @@ export async function PATCH(req: NextRequest) {
                 name: session.user.name,
                 ...updateData
             })
-            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
             .single()
 
         if (createError) {
@@ -94,7 +103,10 @@ export async function PATCH(req: NextRequest) {
             available_to: newUser.available_to || null,
             timezone: newUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
             scroll_threshold: newUser.scroll_threshold || 3,
-            meeting_duration: newUser.meeting_duration || 30
+            meeting_duration: newUser.meeting_duration || 30,
+            booking_title: newUser.booking_title || 'Schedule a Meeting',
+            booking_description: newUser.booking_description || 'Share your details and pick a time that works.',
+            booking_note_placeholder: newUser.booking_note_placeholder || "I'd like to discuss..."
         })
     }
 
@@ -102,7 +114,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
         .single()
 
     if (error) {
@@ -115,6 +127,9 @@ export async function PATCH(req: NextRequest) {
         available_to: updatedUser.available_to || null,
         timezone: updatedUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         scroll_threshold: updatedUser.scroll_threshold || 3,
-        meeting_duration: updatedUser.meeting_duration || 30
+        meeting_duration: updatedUser.meeting_duration || 30,
+        booking_title: updatedUser.booking_title || 'Schedule a Meeting',
+        booking_description: updatedUser.booking_description || 'Share your details and pick a time that works.',
+        booking_note_placeholder: updatedUser.booking_note_placeholder || "I'd like to discuss..."
     })
 }

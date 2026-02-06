@@ -5,6 +5,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS available_to TIME;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS scroll_threshold INTEGER DEFAULT 3;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meeting_duration INTEGER DEFAULT 30;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_title TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_description TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_note_placeholder TEXT;
 
 -- Ensure content table has all columns
 ALTER TABLE content ADD COLUMN IF NOT EXISTS caption TEXT;

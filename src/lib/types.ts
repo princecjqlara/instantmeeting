@@ -17,6 +17,9 @@ export interface User {
     following: number
     scroll_threshold: number
     meeting_duration: number
+    booking_title: string | null
+    booking_description: string | null
+    booking_note_placeholder: string | null
     created_at: string
 }
 

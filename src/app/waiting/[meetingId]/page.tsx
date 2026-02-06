@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef } from 'react'
 import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
+import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaArrowUp } from 'react-icons/fa'
 
@@ -17,10 +18,18 @@ interface WaitingData {
         status: string
     }
     host: {
+        id: string
         name: string
         username: string | null
         avatar_url: string | null
         bio: string | null
+        availability_mode: 'always' | 'never' | 'scheduled'
+        available_from: string | null
+        available_to: string | null
+        meeting_duration: number | null
+        booking_title?: string | null
+        booking_description?: string | null
+        booking_note_placeholder?: string | null
     } | null
     content: Content[]
     guest: {
@@ -37,6 +46,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [showScrollIndicator, setShowScrollIndicator] = useState(false)
+    const [showBookingModal, setShowBookingModal] = useState(false)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -155,31 +165,16 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     <div className={styles.scheduleIcon}>
                         <FaCalendarAlt />
                     </div>
-                    <h2>Schedule a Meeting</h2>
-                    <p>Can't wait? Schedule a meeting for later.</p>
-                    <form className={styles.scheduleForm} onSubmit={(e) => e.preventDefault()}>
-                        <div className={styles.formRow}>
-                            <input
-                                type="date"
-                                className={styles.formInput}
-                                min={new Date().toISOString().split('T')[0]}
-                            />
-                            <input
-                                type="time"
-                                className={styles.formInput}
-                                defaultValue="10:00"
-                            />
-                        </div>
-                        <textarea
-                            className={styles.formTextarea}
-                            placeholder="What would you like to discuss? (optional)"
-                            rows={3}
-                        />
-                        <button type="submit" className="button-primary">
-                            Request Meeting
-                            <FaArrowRight />
-                        </button>
-                    </form>
+                    <h2>{data?.host?.booking_title || 'Schedule a Meeting'}</h2>
+                    <p>{data?.host?.booking_description || "Can't wait? Request a time that works for you."}</p>
+                    <button
+                        type="button"
+                        className="button-primary"
+                        onClick={() => setShowBookingModal(true)}
+                    >
+                        Request Meeting
+                        <FaArrowRight />
+                    </button>
                 </div>
             </div>
 
@@ -200,6 +195,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 >
                     <FaArrowUp />
                 </div>
+            )}
+
+            {showBookingModal && data?.host && (
+                <BookingModal
+                    host={data.host}
+                    onClose={() => setShowBookingModal(false)}
+                />
             )}
         </div>
     )

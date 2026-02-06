@@ -60,13 +60,19 @@
 }
 
 .settingGroup input,
-.settingGroup select {
+.settingGroup select,
+.settingGroup textarea {
     padding: 10px;
     border-radius: 8px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     font-size: 14px;
+}
+
+.settingGroup textarea {
+    resize: vertical;
+    min-height: 60px;
 }
 
 .modes {
@@ -113,6 +119,13 @@
     background: rgba(255, 255, 255, 0.03);
     border-radius: var(--radius-md);
     padding: 20px;
+}
+
+.bookingSettings {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 20px;
 }
 
 .timeRow {
