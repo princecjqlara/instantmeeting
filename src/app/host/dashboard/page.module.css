@@ -215,7 +215,9 @@
     display: flex;
     gap: 12px;
     margin-bottom: 20px;
+    flex-wrap: wrap;
 }
+
 
 .actionBtn {
     display: inline-flex;

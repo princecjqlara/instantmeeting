@@ -9,6 +9,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_title TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_description TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_note_placeholder TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_form_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- Ensure content table has all columns
 ALTER TABLE content ADD COLUMN IF NOT EXISTS caption TEXT;

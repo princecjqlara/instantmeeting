@@ -7,7 +7,7 @@ import { v2 as cloudinary } from 'cloudinary'
 export const dynamic = 'force-dynamic'
 
 cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 })
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     console.log('=== AVATAR UPLOAD === Starting upload process')
     console.log('Session email:', session?.user?.email)
     console.log('Cloudinary config:', {
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME ? 'SET' : 'NOT SET',
+        cloud_name: (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || process.env.CLOUDINARY_CLOUD_NAME) ? 'SET' : 'NOT SET',
         api_key: process.env.CLOUDINARY_API_KEY ? 'SET' : 'NOT SET',
         api_secret: process.env.CLOUDINARY_API_SECRET ? 'SET' : 'NOT SET'
     })
@@ -93,8 +93,7 @@ export async function POST(req: NextRequest) {
             .upsert({
                 email: session.user.email,
                 avatar_url: uploadResult.secure_url,
-                name: session.user.name,
-                updated_at: new Date().toISOString()
+                name: session.user.name
             }, { onConflict: 'email' })
             .select()
 

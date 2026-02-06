@@ -222,9 +222,7 @@ export async function PATCH(req: NextRequest) {
         if (comments !== undefined) updateData.comments = comments
         if (title !== undefined) updateData.title = title
         if (description !== undefined) updateData.description = description
-        
-        // Handle caption carefully - only include if not empty AND column exists
-        // We'll check for caption column existence after the first error
+        if (caption !== undefined) updateData.caption = caption
 
         console.log('Update data:', updateData)
         console.log('Updating content ID:', id, 'for user ID:', user.id)

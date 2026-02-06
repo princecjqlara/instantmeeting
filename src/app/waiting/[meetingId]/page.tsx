@@ -157,7 +157,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 const joinTop = joinSectionRef.current.offsetTop
                 if (scrollTop + windowHeight >= joinTop + 40) {
                     hasAutoJoinedRef.current = true
-                    window.open(data.meetLink, '_blank')
+                    window.location.assign(data.meetLink)
                 }
             }
         }
@@ -231,6 +231,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostAvatar={data?.host?.avatar_url}
                     hostSettings={data?.host || undefined}
                     guestStatus={data?.guest?.status}
+                    onEndReached={() => {
+                        if (canJoin && meetLink && !hasAutoJoinedRef.current) {
+                            hasAutoJoinedRef.current = true
+                            window.location.assign(meetLink)
+                        }
+                    }}
                 />
                 {canJoin && data?.meetLink && (
                     <div className={styles.joinBanner}>

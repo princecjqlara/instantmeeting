@@ -55,11 +55,11 @@
 
 /* Bottom Left - User Info */
 .bottomLeft {
-  position: absolute;
-  bottom: 20px;
-  left: 12px;
-  right: 80px;
-  z-index: 10;
+    position: absolute;
+    bottom: 20px;
+    left: 12px;
+    right: 80px;
+    z-index: 10;
 }
 
 .userInfo {
@@ -120,9 +120,9 @@
 
 /* Right Sidebar */
 .sidebar {
-  position: absolute;
-  right: 8px;
-  bottom: 100px;
+    position: absolute;
+    right: 8px;
+    bottom: 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -432,5 +432,63 @@
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@media (max-width: 480px) {
+  .bottomLeft {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: 70px;
+  }
+
+  .username {
+    font-size: 14px;
+  }
+
+  .caption {
+    font-size: 13px;
+  }
+
+  .description {
+    font-size: 12px;
+  }
+
+  .sidebar {
+    right: 6px;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    gap: 16px;
+  }
+
+  .actionButton {
+    width: 40px;
+    height: 40px;
+  }
+
+  .avatarWrapper,
+  .avatar,
+  .avatarPlaceholder {
+    width: 42px;
+    height: 42px;
+  }
+
+  .followBadge {
+    width: 18px;
+    height: 18px;
+    font-size: 12px;
+  }
+
+  .reelCounter {
+    top: calc(12px + env(safe-area-inset-top));
+    left: 10px;
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .volumeButton {
+    top: calc(12px + env(safe-area-inset-top));
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 }

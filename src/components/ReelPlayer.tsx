@@ -25,12 +25,13 @@ interface ReelPlayerProps {
         meeting_duration?: number | null
     } | null
     guestStatus?: 'waiting' | 'admitted' | 'left'
+    onEndReached?: () => void
     isHost?: boolean
     onEdit?: (reel: Content) => void
     onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, hostSettings: hostSettingsProp, guestStatus, isHost, onEdit, onDelete }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, hostSettings: hostSettingsProp, guestStatus, onEndReached, isHost, onEdit, onDelete }: ReelPlayerProps) {
     const router = useRouter()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
@@ -124,8 +125,10 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         } else if (shouldLoopToStart) {
             setCurrentIndex(0)
             setScrollCount(0)
+        } else {
+            onEndReached?.()
         }
-    }, [currentIndex, reels.length, hostSettings, isHost, isGuestAdmitted, shouldLoopToStart])
+    }, [currentIndex, reels.length, hostSettings, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
 
     const handleCommentSubmit = (e?: React.FormEvent) => {
         e?.preventDefault()

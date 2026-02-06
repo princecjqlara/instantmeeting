@@ -236,6 +236,7 @@ export default function Dashboard() {
         }
     }
 
+
     const copyWaitingLink = (meetingId: string) => {
         const link = `${window.location.origin}/waiting/${meetingId}`
         navigator.clipboard.writeText(link)
@@ -510,26 +511,6 @@ export default function Dashboard() {
                 <CalendarDayModal
                     date={selectedDate}
                     meetings={selectedDateMeetings}
-                    onMeetingUpdated={(updatedMeeting: Meeting) => {
-                        setMeetings(prev => prev.map(meeting =>
-                            meeting.id === updatedMeeting.id ? { ...meeting, ...updatedMeeting } : meeting
-                        ))
-                        setSelectedDateMeetings(prev => {
-                            const next = prev.map(meeting =>
-                                meeting.id === updatedMeeting.id ? { ...meeting, ...updatedMeeting } : meeting
-                            )
-                            const selected = selectedDate
-                            if (!selected) return next
-                            return next.filter(meeting => {
-                                const meetingDate = new Date(meeting.scheduled_at || meeting.created_at)
-                                return (
-                                    meetingDate.getFullYear() === selected.getFullYear() &&
-                                    meetingDate.getMonth() === selected.getMonth() &&
-                                    meetingDate.getDate() === selected.getDate()
-                                )
-                            })
-                        })
-                    }}
                     onClose={() => {
                         setSelectedDate(null)
                         setSelectedDateMeetings([])
