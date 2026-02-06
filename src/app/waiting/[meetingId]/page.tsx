@@ -54,6 +54,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [error, setError] = useState<string | null>(null)
     const [showScrollIndicator, setShowScrollIndicator] = useState(false)
     const [showBookingModal, setShowBookingModal] = useState(false)
+    const hasAutoJoinedRef = useRef(false)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -138,17 +139,25 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     useEffect(() => {
         const handleScroll = () => {
-            if (containerRef.current) {
-                const scrollTop = containerRef.current.scrollTop
-                const windowHeight = window.innerHeight
-                setShowScrollIndicator(scrollTop < windowHeight / 2)
+            if (!containerRef.current) return
+
+            const scrollTop = containerRef.current.scrollTop
+            const windowHeight = window.innerHeight
+            setShowScrollIndicator(scrollTop < windowHeight / 2)
+
+            const isAdmitted = Boolean(data?.guest?.status === 'admitted' && data?.meetLink)
+            if (isAdmitted && data?.meetLink && !hasAutoJoinedRef.current && joinSectionRef.current) {
+                const joinTop = joinSectionRef.current.offsetTop
+                if (scrollTop + windowHeight >= joinTop + 40) {
+                    hasAutoJoinedRef.current = true
+                    window.open(data.meetLink, '_blank')
+                }
             }
         }
 
         const container = containerRef.current
         if (container) {
             container.addEventListener('scroll', handleScroll)
-            // Initial check
             handleScroll()
         }
 
@@ -157,7 +166,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 container.removeEventListener('scroll', handleScroll)
             }
         }
-    }, [])
+    }, [data])
 
     if (loading) {
         return (
@@ -208,13 +217,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 />
                 {isAdmitted && data?.meetLink && (
                     <div className={styles.joinBanner}>
-                        <span>You are admitted</span>
+                        <span>Admitted — scroll down to join</span>
                         <button
                             type="button"
                             className={styles.joinBannerButton}
                             onClick={() => window.open(data.meetLink!, '_blank')}
                         >
-                            Join Meeting
+                            Join now
                         </button>
                     </div>
                 )}
@@ -244,10 +253,17 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 {isAdmitted && data?.meetLink ? (
                     <div className={styles.joinCard}>
                         <div className={styles.joinIcon}>
-                            <FaArrowUp />
+                            <FaArrowDown />
                         </div>
-                        <h2>Ready to join</h2>
-                        <p>Scroll up to the reels and tap “Join Meeting”.</p>
+                        <h2>Scroll down to join</h2>
+                        <p>Keep scrolling to open the meeting, or tap Join.</p>
+                        <button
+                            type="button"
+                            className="button-primary"
+                            onClick={() => window.open(data.meetLink!, '_blank')}
+                        >
+                            Join Meeting
+                        </button>
                     </div>
                 ) : isHostFree ? (
                     <div className={styles.joinCard}>
@@ -277,14 +293,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             </div>
 
             {/* Scroll Indicator */}
-            {isAdmitted && !showScrollIndicator ? (
+            {isAdmitted && showScrollIndicator ? (
                 <div
                     className={styles.scrollIndicator}
-                    onClick={scrollToReels}
-                    title="Scroll up to join"
+                    onClick={scrollToSchedule}
+                    title="Scroll down to join"
                 >
-                    <FaArrowUp />
-                    <span className={styles.scrollLabel}>Scroll up to join</span>
+                    <FaArrowDown />
+                    <span className={styles.scrollLabel}>Scroll down to join</span>
                 </div>
             ) : showScrollIndicator ? (
                 <div 
