@@ -57,6 +57,8 @@ export interface Meeting {
     google_event_id: string | null
     status: 'pending' | 'active' | 'completed'
     scheduled_at: string | null
+    host_joined_at?: string | null
+    ended_at?: string | null
     created_at: string
     waiting_guests?: WaitingGuest[]
 }

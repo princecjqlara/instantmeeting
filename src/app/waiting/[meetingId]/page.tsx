@@ -16,6 +16,8 @@ interface WaitingData {
         id: string
         title: string
         status: string
+        host_joined_at?: string | null
+        ended_at?: string | null
     }
     host: {
         id: string
@@ -87,7 +89,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     setData(result)
                 }
 
-                if (!guestIdParam && !result.guest) {
+                if (!guestIdParam && !result.guest && result.meeting?.status !== 'completed') {
                     const createRes = await fetch('/api/waiting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -145,8 +147,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             const windowHeight = window.innerHeight
             setShowScrollIndicator(scrollTop < windowHeight / 2)
 
-            const isAdmitted = Boolean(data?.guest?.status === 'admitted' && data?.meetLink)
-            if (isAdmitted && data?.meetLink && !hasAutoJoinedRef.current && joinSectionRef.current) {
+            const canAutoJoin = Boolean(
+                data?.guest?.status === 'admitted' &&
+                data?.meetLink &&
+                data?.meeting?.host_joined_at &&
+                data?.meeting?.status !== 'completed'
+            )
+            if (canAutoJoin && data?.meetLink && !hasAutoJoinedRef.current && joinSectionRef.current) {
                 const joinTop = joinSectionRef.current.offsetTop
                 if (scrollTop + windowHeight >= joinTop + 40) {
                     hasAutoJoinedRef.current = true
@@ -199,8 +206,16 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }
 
-    const isAdmitted = Boolean(data?.guest?.status === 'admitted' && data?.meetLink)
+    const meetLink = data?.meetLink || null
+    const isAdmitted = data?.guest?.status === 'admitted'
+    const canJoin = Boolean(
+        isAdmitted &&
+        meetLink &&
+        data?.meeting?.host_joined_at &&
+        data?.meeting?.status !== 'completed'
+    )
     const isHostFree = data?.host?.availability_mode === 'always'
+    const meetingEnded = data?.meeting?.status === 'completed'
 
     // Waiting room with reels
     return (
@@ -215,16 +230,23 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostSettings={data?.host || undefined}
                     guestStatus={data?.guest?.status}
                 />
-                {isAdmitted && data?.meetLink && (
+                {canJoin && data?.meetLink && (
                     <div className={styles.joinBanner}>
                         <span>Admitted — scroll down to join</span>
                         <button
                             type="button"
                             className={styles.joinBannerButton}
-                            onClick={() => window.open(data.meetLink!, '_blank')}
+                            onClick={() => {
+                                if (meetLink) window.open(meetLink, '_blank')
+                            }}
                         >
                             Join now
                         </button>
+                    </div>
+                )}
+                {!canJoin && isAdmitted && !meetingEnded && (
+                    <div className={styles.joinBanner}>
+                        <span>Admitted — waiting for host to join</span>
                     </div>
                 )}
             </div>
@@ -250,7 +272,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
             {/* Schedule Section - Below the fold */}
             <div ref={joinSectionRef} className={styles.joinSection}>
-                {isAdmitted && data?.meetLink ? (
+                {meetingEnded ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaUser />
+                        </div>
+                        <h2>Meeting ended</h2>
+                        <p>This meeting has ended. Please contact the host.</p>
+                    </div>
+                ) : canJoin ? (
                     <div className={styles.joinCard}>
                         <div className={styles.joinIcon}>
                             <FaArrowDown />
@@ -260,10 +290,20 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <button
                             type="button"
                             className="button-primary"
-                            onClick={() => window.open(data.meetLink!, '_blank')}
+                            onClick={() => {
+                                if (meetLink) window.open(meetLink, '_blank')
+                            }}
                         >
                             Join Meeting
                         </button>
+                    </div>
+                ) : isAdmitted ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaUser />
+                        </div>
+                        <h2>Waiting for host</h2>
+                        <p>The host hasn’t joined yet. You’ll be able to join once they do.</p>
                     </div>
                 ) : isHostFree ? (
                     <div className={styles.joinCard}>

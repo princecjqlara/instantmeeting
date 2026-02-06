@@ -52,6 +52,10 @@ export async function POST(
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
     }
 
+    if (meeting.status === 'completed') {
+        return NextResponse.json({ error: 'Meeting has ended' }, { status: 400 })
+    }
+
     if (!meeting.google_meet_link) {
         if (!user.google_access_token || !user.google_refresh_token) {
             return NextResponse.json(

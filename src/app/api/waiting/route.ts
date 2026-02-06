@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
       title,
       status,
       google_meet_link,
+      host_joined_at,
+      ended_at,
       user_id
     `)
         .eq('id', meetingId)
@@ -69,11 +71,15 @@ export async function GET(req: NextRequest) {
             id: meeting.id,
             title: meeting.title,
             status: meeting.status,
+            host_joined_at: meeting.host_joined_at,
+            ended_at: meeting.ended_at,
         },
         host,
         content: content || [],
         guest: guestStatus,
-        meetLink: guestStatus?.status === 'admitted' ? meeting.google_meet_link : null,
+        meetLink: guestStatus?.status === 'admitted' && meeting.host_joined_at && meeting.status !== 'completed'
+            ? meeting.google_meet_link
+            : null,
     })
 }
 

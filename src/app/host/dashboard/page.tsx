@@ -180,6 +180,61 @@ export default function Dashboard() {
         }
     }
 
+    const startMeeting = async (meetingId: string, meetLink?: string | null) => {
+        if (!meetLink) {
+            alert('Meeting link not available')
+            return
+        }
+
+        try {
+            const response = await fetch(`/api/meetings/${meetingId}/start`, {
+                method: 'POST',
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                alert(errorData.error || 'Failed to start meeting')
+                return
+            }
+
+            const updated = await response.json()
+            setMeetings(prev => prev.map(meeting =>
+                meeting.id === meetingId
+                    ? { ...meeting, ...updated }
+                    : meeting
+            ))
+
+            window.open(meetLink, '_blank')
+        } catch (error) {
+            console.error('Error starting meeting:', error)
+        }
+    }
+
+    const endMeeting = async (meetingId: string) => {
+        if (!confirm('End this meeting for everyone?')) return
+
+        try {
+            const response = await fetch(`/api/meetings/${meetingId}/end`, {
+                method: 'POST',
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                alert(errorData.error || 'Failed to end meeting')
+                return
+            }
+
+            const updated = await response.json()
+            setMeetings(prev => prev.map(meeting =>
+                meeting.id === meetingId
+                    ? { ...meeting, ...updated }
+                    : meeting
+            ))
+        } catch (error) {
+            console.error('Error ending meeting:', error)
+        }
+    }
+
     const copyWaitingLink = (meetingId: string) => {
         const link = `${window.location.origin}/waiting/${meetingId}`
         navigator.clipboard.writeText(link)
@@ -374,16 +429,23 @@ export default function Dashboard() {
                                         </button>
 
                                         {meeting.google_meet_link && (
-                                            <a
-                                                href={meeting.google_meet_link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
+                                            <button
                                                 className={styles.actionBtn}
+                                                onClick={() => startMeeting(meeting.id, meeting.google_meet_link)}
+                                                disabled={meeting.status === 'completed'}
                                             >
                                                 <FaLink />
-                                                <span>Join Meet</span>
-                                            </a>
+                                                <span>{meeting.status === 'completed' ? 'Meeting Ended' : 'Join Meet'}</span>
+                                            </button>
                                         )}
+                                        <button
+                                            className={styles.actionBtn}
+                                            onClick={() => endMeeting(meeting.id)}
+                                            disabled={meeting.status === 'completed'}
+                                        >
+                                            <FaTimes />
+                                            <span>End Meeting</span>
+                                        </button>
                                     </div>
 
                                     {/* Waiting Guests */}
@@ -401,6 +463,7 @@ export default function Dashboard() {
                                                         <button
                                                             onClick={() => admitGuest(meeting.id, guest.id)}
                                                             className={styles.admitBtn}
+                                                            disabled={meeting.status === 'completed'}
                                                         >
                                                             <FaUserCheck />
                                                             Admit
