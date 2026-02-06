@@ -12,19 +12,72 @@ import {
 interface CalendarDayModalProps {
     date: Date
     meetings: Meeting[]
+    onMeetingUpdated?: (meeting: Meeting) => void
     onClose: () => void
     onPrevDay: () => void
     onNextDay: () => void
 }
 
-export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, onNextDay }: CalendarDayModalProps) {
+export default function CalendarDayModal({ date, meetings, onMeetingUpdated, onClose, onPrevDay, onNextDay }: CalendarDayModalProps) {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
+    const [rescheduleDate, setRescheduleDate] = useState('')
+    const [rescheduleTime, setRescheduleTime] = useState('')
+    const [saving, setSaving] = useState(false)
 
     const formatTime = (dateString: string) => {
         return new Date(dateString).toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit'
         })
+    }
+
+    const getMeetingDate = (meeting: Meeting) => new Date(meeting.scheduled_at || meeting.created_at)
+
+    const formatDateInput = (dateObj: Date) => {
+        const year = dateObj.getFullYear()
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0')
+        const day = String(dateObj.getDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+    }
+
+    const formatTimeInput = (dateObj: Date) => {
+        const hours = String(dateObj.getHours()).padStart(2, '0')
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0')
+        return `${hours}:${minutes}`
+    }
+
+    const handleSelectMeeting = (meeting: Meeting) => {
+        setSelectedMeeting(meeting)
+        const meetingDate = getMeetingDate(meeting)
+        setRescheduleDate(formatDateInput(meetingDate))
+        setRescheduleTime(formatTimeInput(meetingDate))
+    }
+
+    const saveReschedule = async () => {
+        if (!selectedMeeting || !rescheduleDate || !rescheduleTime) return
+        if (selectedMeeting.status === 'completed') return
+        setSaving(true)
+        try {
+            const newDate = new Date(`${rescheduleDate}T${rescheduleTime}`)
+            const response = await fetch(`/api/meetings/${selectedMeeting.id}/reschedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledAt: newDate.toISOString() })
+            })
+
+            if (response.ok) {
+                const updated = await response.json()
+                onMeetingUpdated?.(updated)
+                setSelectedMeeting(updated)
+                const updatedDate = getMeetingDate(updated)
+                setRescheduleDate(formatDateInput(updatedDate))
+                setRescheduleTime(formatTimeInput(updatedDate))
+            }
+        } catch (error) {
+            console.error('Error rescheduling meeting:', error)
+        } finally {
+            setSaving(false)
+        }
     }
 
     const getStatusIcon = (status: string) => {
@@ -103,12 +156,12 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                     ) : (
                         <div className={styles.meetingsList}>
                             {meetings
-                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                                .sort((a, b) => getMeetingDate(a).getTime() - getMeetingDate(b).getTime())
                                 .map((meeting, index) => (
                                 <div 
                                     key={meeting.id} 
                                     className={styles.meetingItem}
-                                    onClick={() => setSelectedMeeting(meeting)}
+                                    onClick={() => handleSelectMeeting(meeting)}
                                 >
                                     <div className={styles.timelineLine}>
                                         <div className={styles.timelineDot} />
@@ -118,7 +171,7 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                                     <div className={styles.meetingCard}>
                                         <div className={styles.meetingTime}>
                                             <FaClock />
-                                            <span>{formatTime(meeting.created_at)}</span>
+                                            <span>{formatTime(getMeetingDate(meeting).toISOString())}</span>
                                         </div>
                                         
                                         <h4 className={styles.meetingTitle}>{meeting.title}</h4>
@@ -171,7 +224,7 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                                 <FaClock />
                                 <div>
                                     <label>Time</label>
-                                    <span>{formatTime(selectedMeeting.created_at)}</span>
+                                    <span>{formatTime(getMeetingDate(selectedMeeting).toISOString())}</span>
                                 </div>
                             </div>
 
@@ -216,6 +269,31 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                                     Join Meeting
                                 </a>
                             )}
+
+                            <div className={styles.rescheduleSection}>
+                                <h4>Reschedule</h4>
+                                <div className={styles.rescheduleRow}>
+                                    <input
+                                        type="date"
+                                        value={rescheduleDate}
+                                        onChange={(e) => setRescheduleDate(e.target.value)}
+                                        disabled={selectedMeeting.status === 'completed'}
+                                    />
+                                    <input
+                                        type="time"
+                                        value={rescheduleTime}
+                                        onChange={(e) => setRescheduleTime(e.target.value)}
+                                        disabled={selectedMeeting.status === 'completed'}
+                                    />
+                                </div>
+                                <button
+                                    className={styles.rescheduleButton}
+                                    onClick={saveReschedule}
+                                    disabled={saving || selectedMeeting.status === 'completed'}
+                                >
+                                    {saving ? 'Saving...' : 'Save Reschedule'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

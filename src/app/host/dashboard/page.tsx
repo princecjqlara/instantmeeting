@@ -510,6 +510,26 @@ export default function Dashboard() {
                 <CalendarDayModal
                     date={selectedDate}
                     meetings={selectedDateMeetings}
+                    onMeetingUpdated={(updatedMeeting: Meeting) => {
+                        setMeetings(prev => prev.map(meeting =>
+                            meeting.id === updatedMeeting.id ? { ...meeting, ...updatedMeeting } : meeting
+                        ))
+                        setSelectedDateMeetings(prev => {
+                            const next = prev.map(meeting =>
+                                meeting.id === updatedMeeting.id ? { ...meeting, ...updatedMeeting } : meeting
+                            )
+                            const selected = selectedDate
+                            if (!selected) return next
+                            return next.filter(meeting => {
+                                const meetingDate = new Date(meeting.scheduled_at || meeting.created_at)
+                                return (
+                                    meetingDate.getFullYear() === selected.getFullYear() &&
+                                    meetingDate.getMonth() === selected.getMonth() &&
+                                    meetingDate.getDate() === selected.getDate()
+                                )
+                            })
+                        })
+                    }}
                     onClose={() => {
                         setSelectedDate(null)
                         setSelectedDateMeetings([])
@@ -519,7 +539,7 @@ export default function Dashboard() {
                         prevDate.setDate(prevDate.getDate() - 1)
                         setSelectedDate(prevDate)
                         const prevMeetings = meetings.filter(meeting => {
-                            const meetingDate = new Date(meeting.created_at)
+                            const meetingDate = new Date(meeting.scheduled_at || meeting.created_at)
                             return (
                                 meetingDate.getFullYear() === prevDate.getFullYear() &&
                                 meetingDate.getMonth() === prevDate.getMonth() &&
@@ -533,7 +553,7 @@ export default function Dashboard() {
                         nextDate.setDate(nextDate.getDate() + 1)
                         setSelectedDate(nextDate)
                         const nextMeetings = meetings.filter(meeting => {
-                            const meetingDate = new Date(meeting.created_at)
+                            const meetingDate = new Date(meeting.scheduled_at || meeting.created_at)
                             return (
                                 meetingDate.getFullYear() === nextDate.getFullYear() &&
                                 meetingDate.getMonth() === nextDate.getMonth() &&

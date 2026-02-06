@@ -41,7 +41,7 @@ export default function Calendar({ meetings, currentMonth, onMonthChange, onDate
 
     const getMeetingsForDate = (date: Date): Meeting[] => {
         return meetings.filter(meeting => {
-            const meetingDate = new Date(meeting.created_at)
+            const meetingDate = new Date(meeting.scheduled_at || meeting.created_at)
             return (
                 meetingDate.getFullYear() === date.getFullYear() &&
                 meetingDate.getMonth() === date.getMonth() &&
