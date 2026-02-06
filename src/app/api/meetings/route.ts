@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     // Get user with tokens
     const { data: user } = await supabase
         .from('users')
-        .select('*')
+        .select('id, google_access_token, google_refresh_token')
         .eq('email', session.user.email)
         .single()
 
@@ -79,8 +79,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    if (!user.google_access_token || !user.google_refresh_token) {
+        return NextResponse.json({ error: 'Missing Google tokens for host' }, { status: 400 })
+    }
+
     try {
-        // Create Google Calendar event with Meet link
         const oauth2Client = new google.auth.OAuth2(
             process.env.GOOGLE_CLIENT_ID,
             process.env.GOOGLE_CLIENT_SECRET
@@ -93,7 +96,6 @@ export async function POST(req: NextRequest) {
 
         const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
 
-        // Create event with conferencing
         const event = await calendar.events.insert({
             calendarId: 'primary',
             conferenceDataVersion: 1,
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
                     timeZone: 'UTC',
                 },
                 end: {
-                    dateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+                    dateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
                     timeZone: 'UTC',
                 },
                 conferenceData: {
@@ -120,7 +122,6 @@ export async function POST(req: NextRequest) {
 
         const meetLink = event.data.hangoutLink
 
-        // Create meeting in Supabase
         const { data: meeting, error } = await supabase
             .from('meetings')
             .insert({
