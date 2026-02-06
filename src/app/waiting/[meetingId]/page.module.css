@@ -558,6 +558,21 @@
     z-index: 40;
 }
 
+.waitBanner {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 999px;
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 12px;
+    z-index: 39;
+}
+
 .joinBannerButton {
     border: none;
     background: var(--accent-primary);

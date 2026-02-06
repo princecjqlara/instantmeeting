@@ -120,7 +120,8 @@ export default function Dashboard() {
     const allWaitingGuests: WaitingGuestWithMeeting[] = meetings.flatMap(meeting =>
         (meeting.waiting_guests || []).map(guest => ({
             ...guest,
-            meeting_title: meeting.title
+            meeting_title: meeting.title,
+            meeting_id: guest.meeting_id || meeting.id
         }))
     )
 

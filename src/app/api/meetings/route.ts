@@ -41,6 +41,7 @@ export async function GET() {
       *,
       waiting_guests (
         id,
+        meeting_id,
         guest_name,
         status,
         joined_at

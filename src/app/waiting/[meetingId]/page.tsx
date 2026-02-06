@@ -208,6 +208,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     const meetLink = data?.meetLink || null
     const isAdmitted = data?.guest?.status === 'admitted'
+    const isWaiting = data?.guest?.status === 'waiting'
     const canJoin = Boolean(
         isAdmitted &&
         meetLink &&
@@ -216,6 +217,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     )
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
+    const hostDisplayName = data?.host?.name || 'the host'
 
     // Waiting room with reels
     return (
@@ -247,6 +249,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 {!canJoin && isAdmitted && !meetingEnded && (
                     <div className={styles.joinBanner}>
                         <span>Admitted — waiting for host to join</span>
+                    </div>
+                )}
+                {!meetingEnded && isWaiting && !canJoin && (
+                    <div className={styles.waitBanner}>
+                        <span>Waiting for {hostDisplayName} to admit you</span>
                     </div>
                 )}
             </div>
@@ -311,7 +318,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <FaUser />
                         </div>
                         <h2>Host is available</h2>
-                        <p>Please wait to be admitted.</p>
+                        <p>Please wait for {hostDisplayName} to admit you.</p>
                     </div>
                 ) : (
                     <div className={styles.scheduleCard}>
