@@ -7,7 +7,7 @@ import { Content } from '@/lib/types'
 import styles from './page.module.css'
 import {
     FaArrowLeft, FaCamera, FaUser, FaCopy, FaCheck, FaPlay, FaShare,
-    FaTh, FaBookmark, FaHeart, FaCog, FaPlus
+    FaTh, FaBookmark, FaHeart, FaCog, FaPlus, FaImage
 } from 'react-icons/fa'
 
 interface ProfileSettings {
@@ -38,6 +38,11 @@ export default function ProfileSettingsPage() {
     const [editing, setEditing] = useState(false)
     const [activeTab, setActiveTab] = useState<'grid' | 'liked'>('grid')
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const isImageUrl = (url?: string) => {
+        if (!url) return false
+        return url.includes('/image/upload/') || /\.(png|jpe?g|gif|webp)$/i.test(url)
+    }
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -331,14 +336,22 @@ export default function ProfileSettingsPage() {
                     ) : (
                         content.map((item) => (
                             <div key={item.id} className={styles.contentItem}>
-                                <video
-                                    src={item.cloudinary_url}
-                                    className={styles.contentThumb}
-                                    muted
-                                    playsInline
-                                />
+                                {isImageUrl(item.cloudinary_url) ? (
+                                    <img
+                                        src={item.cloudinary_url}
+                                        className={styles.contentThumb}
+                                        alt={item.title || 'Uploaded image'}
+                                    />
+                                ) : (
+                                    <video
+                                        src={item.cloudinary_url}
+                                        className={styles.contentThumb}
+                                        muted
+                                        playsInline
+                                    />
+                                )}
                                 <div className={styles.contentOverlay}>
-                                    <FaPlay />
+                                    {isImageUrl(item.cloudinary_url) ? <FaImage /> : <FaPlay />}
                                     <span>{item.views || 0}</span>
                                 </div>
                             </div>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Content } from '@/lib/types'
 import styles from './ContentPreview.module.css'
-import { FaPlay, FaTimes, FaFilm } from 'react-icons/fa'
+import { FaPlay, FaTimes, FaFilm, FaImage } from 'react-icons/fa'
 
 interface ContentPreviewProps {
     content: Content[]
@@ -18,6 +18,11 @@ export default function ContentPreview({ content, onUploadClick }: ContentPrevie
         const mins = Math.floor(seconds / 60)
         const secs = seconds % 60
         return `${mins}:${secs.toString().padStart(2, '0')}`
+    }
+
+    const isImageUrl = (url?: string) => {
+        if (!url) return false
+        return url.includes('/image/upload/') || /\.(png|jpe?g|gif|webp)$/i.test(url)
     }
 
     if (content.length === 0) {
@@ -47,20 +52,32 @@ export default function ContentPreview({ content, onUploadClick }: ContentPrevie
                             className={styles.thumbnail}
                             onClick={() => setPreviewVideo(item)}
                         >
-                            <video
-                                src={item.cloudinary_url}
-                                className={styles.video}
-                                muted
-                                preload="metadata"
-                            />
+                            {isImageUrl(item.cloudinary_url) ? (
+                                <img
+                                    src={item.cloudinary_url}
+                                    className={styles.video}
+                                    alt={item.title || 'Uploaded image'}
+                                />
+                            ) : (
+                                <video
+                                    src={item.cloudinary_url}
+                                    className={styles.video}
+                                    muted
+                                    preload="metadata"
+                                />
+                            )}
                             <div className={styles.overlay}>
-                                <FaPlay className={styles.playIcon} />
+                                {isImageUrl(item.cloudinary_url) ? (
+                                    <FaImage className={styles.playIcon} />
+                                ) : (
+                                    <FaPlay className={styles.playIcon} />
+                                )}
                             </div>
-                            {item.duration_seconds && (
+                            {!isImageUrl(item.cloudinary_url) && item.duration_seconds ? (
                                 <span className={styles.duration}>
                                     {formatDuration(item.duration_seconds)}
                                 </span>
-                            )}
+                            ) : null}
                             {item.title || item.caption ? (
                                 <span className={styles.title}>{item.title || item.caption}</span>
                             ) : null}
@@ -79,12 +96,20 @@ export default function ContentPreview({ content, onUploadClick }: ContentPrevie
                         >
                             <FaTimes />
                         </button>
-                        <video
-                            src={previewVideo.cloudinary_url}
-                            className={styles.previewVideo}
-                            controls
-                            autoPlay
-                        />
+                        {isImageUrl(previewVideo.cloudinary_url) ? (
+                            <img
+                                src={previewVideo.cloudinary_url}
+                                className={styles.previewVideo}
+                                alt={previewVideo.title || 'Uploaded image'}
+                            />
+                        ) : (
+                            <video
+                                src={previewVideo.cloudinary_url}
+                                className={styles.previewVideo}
+                                controls
+                                autoPlay
+                            />
+                        )}
                         {previewVideo.title && (
                             <h4 className={styles.previewTitle}>{previewVideo.title}</h4>
                         )}

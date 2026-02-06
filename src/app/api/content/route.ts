@@ -173,9 +173,11 @@ export async function POST(req: NextRequest) {
 
         console.log('Uploading to Cloudinary...')
 
+        const resourceType = file.type?.startsWith('image/') ? 'image' : 'video'
+
         // Upload to Cloudinary
         const uploadResult = await cloud.uploader.upload(dataUri, {
-            resource_type: 'video',
+            resource_type: resourceType,
             folder: 'instantmeeting/reels',
         })
 
@@ -203,8 +205,10 @@ export async function POST(req: NextRequest) {
                 description,
                 cloudinary_url: uploadResult.secure_url,
                 cloudinary_public_id: uploadResult.public_id,
-                thumbnail_url: uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg'),
-                duration_seconds: Math.round(uploadResult.duration || 0),
+                thumbnail_url: resourceType === 'video'
+                    ? uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg')
+                    : uploadResult.secure_url,
+                duration_seconds: resourceType === 'video' ? Math.round(uploadResult.duration || 0) : 0,
                 order_index: nextOrder,
                 views,
                 likes,

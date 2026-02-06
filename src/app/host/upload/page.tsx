@@ -25,6 +25,11 @@ export default function UploadPage() {
     const uploadAbortRef = useRef<AbortController | null>(null)
     const cancelUploadRef = useRef(false)
 
+    const isImageUrl = (url?: string) => {
+        if (!url) return false
+        return url.includes('/image/upload/') || /\.(png|jpe?g|gif|webp)$/i.test(url)
+    }
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/')
@@ -74,6 +79,7 @@ export default function UploadPage() {
             }
 
             const file = selectedFiles[i]
+            const resourceType = file.type.startsWith('image/') ? 'image' : 'video'
             const abortController = new AbortController()
             uploadAbortRef.current = abortController
 
@@ -99,7 +105,7 @@ export default function UploadPage() {
                 uploadForm.append('folder', signData.folder)
 
                 const cloudinaryRes = await fetch(
-                    `https://api.cloudinary.com/v1_1/${signData.cloudName}/video/upload`,
+                    `https://api.cloudinary.com/v1_1/${signData.cloudName}/${resourceType}/upload`,
                     {
                         method: 'POST',
                         body: uploadForm,
@@ -121,8 +127,10 @@ export default function UploadPage() {
                         description: '',
                         cloudinary_url: uploadResult.secure_url,
                         cloudinary_public_id: uploadResult.public_id,
-                        thumbnail_url: uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg'),
-                        duration_seconds: Math.round(uploadResult.duration || 0),
+                        thumbnail_url: resourceType === 'video'
+                            ? uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg')
+                            : uploadResult.secure_url,
+                        duration_seconds: resourceType === 'video' ? Math.round(uploadResult.duration || 0) : 0,
                         views: 0,
                         likes: 0,
                         comments: 0,
@@ -312,17 +320,17 @@ export default function UploadPage() {
                     ) : (
                         <>
                             <FaUpload className={styles.uploadIcon} />
-                            <p>Drop videos here or click to upload</p>
-                            <span>Supports MP4, MOV, WebM</span>
+                            <p>Drop media here or click to upload</p>
+                            <span>Supports MP4, MOV, WebM, JPG, PNG</span>
                         </>
                     )}
                 </div>
 
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    multiple
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="video/*,image/*"
+                        multiple
                     onChange={handleFileSelect}
                     onClick={(e) => { (e.target as HTMLInputElement).value = '' }}
                     className={styles.hiddenInput}
@@ -362,20 +370,30 @@ export default function UploadPage() {
                                 </div>
 
                                 <div className={styles.thumbnail}>
-                                    <video
-                                        src={item.cloudinary_url}
-                                        muted
-                                        className={styles.video}
-                                    />
-                                    <div className={styles.playOverlay}>
-                                        <FaPlay />
-                                    </div>
-                                    {item.duration_seconds && (
+                                    {isImageUrl(item.cloudinary_url) ? (
+                                        <img
+                                            src={item.cloudinary_url}
+                                            alt={item.title || 'Uploaded image'}
+                                            className={styles.video}
+                                        />
+                                    ) : (
+                                        <video
+                                            src={item.cloudinary_url}
+                                            muted
+                                            className={styles.video}
+                                        />
+                                    )}
+                                    {!isImageUrl(item.cloudinary_url) && (
+                                        <div className={styles.playOverlay}>
+                                            <FaPlay />
+                                        </div>
+                                    )}
+                                    {!isImageUrl(item.cloudinary_url) && item.duration_seconds ? (
                                         <span className={styles.duration}>
                                             {Math.floor(item.duration_seconds / 60)}:
                                             {(item.duration_seconds % 60).toString().padStart(2, '0')}
                                         </span>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 <div className={styles.cardContent}>

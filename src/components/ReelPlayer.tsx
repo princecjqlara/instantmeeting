@@ -35,7 +35,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     const router = useRouter()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
-    const [isMuted, setIsMuted] = useState(true)
+    const [isMuted, setIsMuted] = useState(false)
     const [progress, setProgress] = useState(0)
     const [likedReels, setLikedReels] = useState<Set<string>>(new Set())
     const [localEngagement, setLocalEngagement] = useState<Record<string, { likes: number; comments: number }>>({})
@@ -56,6 +56,12 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
     const hasReels = reels.length > 0
     const currentReel = hasReels ? reels[currentIndex] : null
+
+    const isImageUrl = (url?: string) => {
+        if (!url) return false
+        return url.includes('/image/upload/') || /\.(png|jpe?g|gif|webp)$/i.test(url)
+    }
+    const isImage = currentReel ? isImageUrl(currentReel.cloudinary_url) : false
 
     const formatNumber = (num: number) => {
         if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
@@ -188,6 +194,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     }, [hostName, isHost])
 
     useEffect(() => {
+        if (isImage) return
         if (videoRef.current) {
             if (isPlaying) {
                 videoRef.current.play().catch(() => { })
@@ -195,7 +202,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 videoRef.current.pause()
             }
         }
-    }, [isPlaying, currentIndex])
+    }, [isPlaying, currentIndex, isImage])
 
     // Track views
     useEffect(() => {
@@ -209,10 +216,11 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     }, [currentReel?.id, isPlaying])
 
     useEffect(() => {
+        if (isImage) return
         if (videoRef.current) {
             videoRef.current.muted = isMuted
         }
-    }, [isMuted])
+    }, [isMuted, isImage])
 
     const handleTimeUpdate = useCallback(() => {
         if (videoRef.current) {
@@ -328,34 +336,45 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         )
     }
 
+
     return (
         <div ref={containerRef} className={styles.container}>
-            {/* Video */}
-            <video
-                ref={videoRef}
-                key={currentReel.id}
-                src={currentReel.cloudinary_url}
-                className={`${styles.video} ${styles.slideAnimation}`}
-                playsInline
-                loop={false}
-                autoPlay
-                muted={isMuted}
-                onTimeUpdate={handleTimeUpdate}
-                onEnded={handleVideoEnd}
-                onClick={() => setIsPlaying(prev => !prev)}
-            />
+            {/* Media */}
+            {isImage ? (
+                <img
+                    src={currentReel.cloudinary_url}
+                    alt={currentReel.title || currentReel.caption || 'Image'}
+                    className={`${styles.video} ${styles.slideAnimation}`}
+                />
+            ) : (
+                <video
+                    ref={videoRef}
+                    key={currentReel.id}
+                    src={currentReel.cloudinary_url}
+                    className={`${styles.video} ${styles.slideAnimation}`}
+                    playsInline
+                    loop={false}
+                    autoPlay
+                    muted={isMuted}
+                    onTimeUpdate={handleTimeUpdate}
+                    onEnded={handleVideoEnd}
+                    onClick={() => setIsPlaying(prev => !prev)}
+                />
+            )}
 
             {/* Play/Pause Indicator */}
-            {!isPlaying && (
+            {!isImage && !isPlaying && (
                 <div className={styles.playIndicator}>
                     <FaPlay />
                 </div>
             )}
 
             {/* Progress bar */}
-            <div className={styles.progressBar}>
-                <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-            </div>
+            {!isImage && (
+                <div className={styles.progressBar}>
+                    <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+                </div>
+            )}
 
             {/* Bottom Left - User Info */}
             <div className={styles.bottomLeft}>
@@ -490,12 +509,14 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
             )}
 
             {/* Volume Control */}
-            <button
-                className={styles.volumeButton}
-                onClick={() => setIsMuted(prev => !prev)}
-            >
-                {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
-            </button>
+            {!isImage && (
+                <button
+                    className={styles.volumeButton}
+                    onClick={() => setIsMuted(prev => !prev)}
+                >
+                    {isMuted ? <FaVolumeMute /> : <FaVolumeUp />}
+                </button>
+            )}
 
             {/* Reel Counter */}
             {reels.length > 1 && (

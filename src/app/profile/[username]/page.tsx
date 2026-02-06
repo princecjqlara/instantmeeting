@@ -7,7 +7,7 @@ import ReelPlayer from '@/components/ReelPlayer'
 import styles from './page.module.css'
 import {
     FaUserPlus, FaEnvelope, FaPlay, FaHeart, FaEye,
-    FaVideo, FaCheck, FaTimes, FaClock
+    FaVideo, FaCheck, FaTimes, FaClock, FaImage
 } from 'react-icons/fa'
 
 interface ProfileData {
@@ -37,6 +37,11 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [selectedReel, setSelectedReel] = useState<number | null>(null)
+
+    const isImageUrl = (url?: string) => {
+        if (!url) return false
+        return url.includes('/image/upload/') || /\.(png|jpe?g|gif|webp)$/i.test(url)
+    }
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -203,7 +208,7 @@ export default function ProfilePage() {
                                     <video src={item.cloudinary_url} muted />
                                 )}
                                 <div className={styles.playOverlay}>
-                                    <FaPlay />
+                                    {isImageUrl(item.thumbnail_url || item.cloudinary_url) ? <FaImage /> : <FaPlay />}
                                 </div>
                             </div>
                             <div className={styles.cardStats}>
