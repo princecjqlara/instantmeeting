@@ -30,6 +30,13 @@ interface WaitingData {
         booking_title?: string | null
         booking_description?: string | null
         booking_note_placeholder?: string | null
+        booking_form_fields?: Array<{
+            id: string
+            label: string
+            type: 'short_text' | 'long_text' | 'multiple_choice'
+            required: boolean
+            options?: string[]
+        }> | null
     } | null
     content: Content[]
     guest: {

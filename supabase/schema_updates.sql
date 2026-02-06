@@ -8,6 +8,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS meeting_duration INTEGER DEFAULT 30;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_title TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_description TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_note_placeholder TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_form_fields JSONB DEFAULT '[]'::jsonb;
 
 -- Ensure content table has all columns
 ALTER TABLE content ADD COLUMN IF NOT EXISTS caption TEXT;
@@ -26,6 +27,10 @@ ALTER TABLE meetings ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
 
 -- Ensure waiting_guests table has all columns
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_name TEXT NOT NULL;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_email TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_phone TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'admitted', 'left'));
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
 

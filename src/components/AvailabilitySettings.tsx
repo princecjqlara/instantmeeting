@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react'
 import { FaClock, FaCheck, FaTimes } from 'react-icons/fa'
 import styles from './AvailabilitySettings.module.css'
 
+interface BookingField {
+    id: string
+    label: string
+    type: 'short_text' | 'long_text' | 'multiple_choice'
+    required: boolean
+    options?: string[]
+}
+
 interface AvailabilityData {
     availability_mode: 'always' | 'never' | 'scheduled'
     available_from: string | null
@@ -14,6 +22,7 @@ interface AvailabilityData {
     booking_title?: string
     booking_description?: string
     booking_note_placeholder?: string
+    booking_form_fields?: BookingField[]
 }
 
 export default function AvailabilitySettings() {
@@ -24,7 +33,8 @@ export default function AvailabilitySettings() {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         booking_title: 'Schedule a Meeting',
         booking_description: 'Share your details and pick a time that works.',
-        booking_note_placeholder: "I'd like to discuss..."
+        booking_note_placeholder: "I'd like to discuss...",
+        booking_form_fields: []
     })
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -35,7 +45,11 @@ export default function AvailabilitySettings() {
                 const response = await fetch('/api/availability')
                 if (response.ok) {
                     const data = await response.json()
-                    setSettings(prev => ({ ...prev, ...data }))
+                    setSettings(prev => ({
+                        ...prev,
+                        ...data,
+                        booking_form_fields: data.booking_form_fields || []
+                    }))
                 }
             } catch (error) {
                 console.error('Error fetching availability:', error)
@@ -83,8 +97,38 @@ export default function AvailabilitySettings() {
             meeting_duration: settings.meeting_duration,
             booking_title: settings.booking_title,
             booking_description: settings.booking_description,
-            booking_note_placeholder: settings.booking_note_placeholder
+            booking_note_placeholder: settings.booking_note_placeholder,
+            booking_form_fields: settings.booking_form_fields
         })
+    }
+
+    const addField = () => {
+        const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `field_${Date.now()}`
+        setSettings(prev => ({
+            ...prev,
+            booking_form_fields: [
+                ...(prev.booking_form_fields || []),
+                { id, label: 'New field', type: 'short_text', required: false, options: [] }
+            ]
+        }))
+    }
+
+    const updateField = (fieldId: string, updates: Partial<BookingField>) => {
+        setSettings(prev => ({
+            ...prev,
+            booking_form_fields: (prev.booking_form_fields || []).map(field =>
+                field.id === fieldId ? { ...field, ...updates } : field
+            )
+        }))
+    }
+
+    const removeField = (fieldId: string) => {
+        setSettings(prev => ({
+            ...prev,
+            booking_form_fields: (prev.booking_form_fields || []).filter(field => field.id !== fieldId)
+        }))
     }
 
     return (
@@ -177,6 +221,77 @@ export default function AvailabilitySettings() {
                                 placeholder="I'd like to discuss..."
                             />
                         </div>
+                    </div>
+
+                    <div className={styles.fieldBuilder}>
+                        <div className={styles.fieldBuilderHeader}>
+                            <div>
+                                <h4>Custom Fields</h4>
+                                <p>Add questions to your booking form.</p>
+                            </div>
+                            <button type="button" className={styles.addFieldBtn} onClick={addField}>
+                                Add Field
+                            </button>
+                        </div>
+
+                        {(settings.booking_form_fields || []).length === 0 ? (
+                            <div className={styles.emptyFields}>No custom fields yet.</div>
+                        ) : (
+                            <div className={styles.fieldList}>
+                                {(settings.booking_form_fields || []).map((field) => (
+                                    <div key={field.id} className={styles.fieldCard}>
+                                        <div className={styles.fieldRow}>
+                                            <input
+                                                type="text"
+                                                value={field.label}
+                                                onChange={(e) => updateField(field.id, { label: e.target.value })}
+                                                placeholder="Question label"
+                                            />
+                                            <select
+                                                value={field.type}
+                                                onChange={(e) => updateField(field.id, { type: e.target.value as BookingField['type'] })}
+                                            >
+                                                <option value="short_text">Short answer</option>
+                                                <option value="long_text">Long answer</option>
+                                                <option value="multiple_choice">Multiple choice</option>
+                                            </select>
+                                        </div>
+                                        <div className={styles.fieldRow}>
+                                            <label className={styles.checkbox}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={field.required}
+                                                    onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                                                />
+                                                Required
+                                            </label>
+                                            <button
+                                                type="button"
+                                                className={styles.removeFieldBtn}
+                                                onClick={() => removeField(field.id)}
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        {field.type === 'multiple_choice' && (
+                                            <div className={styles.fieldRow}>
+                                                <input
+                                                    type="text"
+                                                    value={(field.options || []).join(', ')}
+                                                    onChange={(e) => updateField(field.id, {
+                                                        options: e.target.value
+                                                            .split(',')
+                                                            .map(option => option.trim())
+                                                            .filter(Boolean)
+                                                    })}
+                                                    placeholder="Options (comma separated)"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {settings.availability_mode === 'scheduled' && (

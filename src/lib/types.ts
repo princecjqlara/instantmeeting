@@ -1,5 +1,13 @@
 // Database types for Supabase
 
+export interface BookingField {
+    id: string
+    label: string
+    type: 'short_text' | 'long_text' | 'multiple_choice'
+    required: boolean
+    options?: string[]
+}
+
 export interface User {
     id: string
     email: string
@@ -20,6 +28,7 @@ export interface User {
     booking_title: string | null
     booking_description: string | null
     booking_note_placeholder: string | null
+    booking_form_fields?: BookingField[] | null
     created_at: string
 }
 
@@ -56,6 +65,10 @@ export interface WaitingGuest {
     id: string
     meeting_id: string
     guest_name: string
+    guest_email?: string | null
+    guest_phone?: string | null
+    note?: string | null
+    custom_fields?: Array<{ id: string; label: string; value: string }> | null
     status: 'waiting' | 'admitted' | 'left'
     joined_at: string
     admitted_at: string | null

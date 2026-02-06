@@ -128,6 +128,107 @@
     margin-top: 20px;
 }
 
+.fieldBuilder {
+    margin-top: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.fieldBuilderHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.fieldBuilderHeader h4 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.fieldBuilderHeader p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.addFieldBtn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.addFieldBtn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.emptyFields {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.fieldList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fieldCard {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fieldRow {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.fieldRow input,
+.fieldRow select {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.removeFieldBtn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid rgba(255, 51, 102, 0.4);
+    color: var(--accent-primary);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.removeFieldBtn:hover {
+    background: rgba(255, 51, 102, 0.1);
+}
+
 .timeRow {
     display: flex;
     align-items: flex-end;

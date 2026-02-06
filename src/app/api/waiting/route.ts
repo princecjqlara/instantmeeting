@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
     // Get host info
     const { data: host } = await supabase
         .from('users')
-        .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
+        .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
         .eq('id', meeting.user_id)
         .single()
 

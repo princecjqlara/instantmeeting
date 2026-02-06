@@ -84,7 +84,8 @@
 }
 
 .inputGroup input,
-.inputGroup textarea {
+.inputGroup textarea,
+.inputGroup select {
     width: 100%;
     padding: 12px;
     border-radius: 8px;
@@ -97,6 +98,16 @@
 .inputGroup textarea {
     min-height: 80px;
     resize: vertical;
+}
+
+.customFields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.required {
+    color: var(--accent-primary);
 }
 
 .slots {

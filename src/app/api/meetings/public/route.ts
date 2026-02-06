@@ -15,7 +15,7 @@ function getSupabaseClient() {
 export async function POST(req: NextRequest) {
     const supabase = getSupabaseClient()
     const body = await req.json()
-    const { hostId, guestName, guestEmail, note, date, time } = body
+    const { hostId, guestName, guestEmail, note, date, time, customFields } = body
 
     if (!hostId || !guestName || !date || !time) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -24,12 +24,28 @@ export async function POST(req: NextRequest) {
     // 1. Verify host exists
     const { data: host, error: hostError } = await supabase
         .from('users')
-        .select('id, email, name, availability_mode, available_from, available_to, timezone')
+        .select('id, email, name, availability_mode, available_from, available_to, timezone, booking_form_fields')
         .eq('id', hostId)
         .single()
 
     if (hostError || !host) {
         return NextResponse.json({ error: 'Host not found' }, { status: 404 })
+    }
+
+    const requiredFields = (host.booking_form_fields || []).filter((field: any) => field.required)
+    if (requiredFields.length > 0) {
+        const customFieldMap = new Map(
+            Array.isArray(customFields)
+                ? customFields.map((field: any) => [field.id, field.value])
+                : []
+        )
+        const missingRequired = requiredFields.some((field: any) => {
+            const value = customFieldMap.get(field.id)
+            return !value || String(value).trim() === ''
+        })
+        if (missingRequired) {
+            return NextResponse.json({ error: 'Missing required form fields' }, { status: 400 })
+        }
     }
 
     // 2. Create meeting in "pending" status
@@ -64,6 +80,9 @@ export async function POST(req: NextRequest) {
     await supabase.from('waiting_guests').insert({
         meeting_id: meeting.id,
         guest_name: guestName,
+        guest_email: guestEmail || null,
+        note: note || null,
+        custom_fields: Array.isArray(customFields) ? customFields : [],
         status: 'waiting'
     })
 

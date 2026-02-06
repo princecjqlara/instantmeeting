@@ -18,6 +18,13 @@ interface BookingHost {
     booking_title?: string | null
     booking_description?: string | null
     booking_note_placeholder?: string | null
+    booking_form_fields?: Array<{
+        id: string
+        label: string
+        type: 'short_text' | 'long_text' | 'multiple_choice'
+        required: boolean
+        options?: string[]
+    }> | null
 }
 
 export default function BookingModal({ host, onClose }: BookingModalProps) {
@@ -31,6 +38,7 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
     const [selectedTime, setSelectedTime] = useState<string>('')
     const [submitting, setSubmitting] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({})
 
     // Generate next 7 days for selection (naive implementation)
     // Filter by host availability if needed (e.g. check "available_from" days?)
@@ -72,6 +80,13 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
     const handleSubmit = async () => {
         setSubmitting(true)
         try {
+            const customFieldPayload = customFields.map(field => ({
+                id: field.id,
+                label: field.label,
+                value: customAnswers[field.id] || ''
+            }))
+            .filter(field => field.value.trim() !== '')
+
             const res = await fetch('/api/meetings/public', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -81,7 +96,8 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
                     guestEmail: formData.email,
                     note: formData.note,
                     date: selectedDate, // ISO string
-                    time: selectedTime
+                    time: selectedTime,
+                    customFields: customFieldPayload
                 })
             })
 
@@ -120,6 +136,17 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
     const bookingTitle = host.booking_title || 'Schedule a Meeting'
     const bookingDescription = host.booking_description || 'Share your details and pick a time that works.'
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
+    const customFields = host.booking_form_fields || []
+
+    const requiredFieldsMissing = customFields.some((field) => {
+        if (!field.required) return false
+        const value = customAnswers[field.id]
+        return !value || value.trim() === ''
+    })
+
+    const handleFieldChange = (fieldId: string, value: string) => {
+        setCustomAnswers(prev => ({ ...prev, [fieldId]: value }))
+    }
 
     return (
         <div className={styles.overlay}>
@@ -164,10 +191,45 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
                                     placeholder={notePlaceholder}
                                 />
                             </div>
+                            {customFields.length > 0 && (
+                                <div className={styles.customFields}>
+                                    {customFields.map((field) => (
+                                        <div key={field.id} className={styles.inputGroup}>
+                                            <label>
+                                                {field.label}
+                                                {field.required && <span className={styles.required}> *</span>}
+                                            </label>
+                                            {field.type === 'long_text' ? (
+                                                <textarea
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                    placeholder="Your answer"
+                                                />
+                                            ) : field.type === 'multiple_choice' ? (
+                                                <select
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                >
+                                                    <option value="">Select an option</option>
+                                                    {(field.options || []).map(option => (
+                                                        <option key={option} value={option}>{option}</option>
+                                                    ))}
+                                                </select>
+                                            ) : (
+                                                <input
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                    placeholder="Your answer"
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <button
                                 className={styles.actionBtn}
                                 onClick={() => setStep(2)}
-                                disabled={!formData.name || !formData.email}
+                                disabled={!formData.name || !formData.email || requiredFieldsMissing}
                             >
                                 Next
                             </button>

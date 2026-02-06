@@ -19,6 +19,7 @@ interface Lead {
     joined_at: string
     admitted_at?: string
     note?: string
+    custom_fields?: Array<{ id: string; label: string; value: string }>
     meetings: {
         id: string
         title: string
@@ -369,6 +370,22 @@ export default function LeadsPage() {
                                 <div className={styles.detailSection}>
                                     <h4>Note</h4>
                                     <p className={styles.noteText}>{selectedLead.note}</p>
+                                </div>
+                            )}
+
+                            {selectedLead.custom_fields && selectedLead.custom_fields.length > 0 && (
+                                <div className={styles.detailSection}>
+                                    <h4>Custom Responses</h4>
+                                    <div className={styles.detailGrid}>
+                                        {selectedLead.custom_fields.map((field) => (
+                                            <div key={field.id} className={styles.detailItem}>
+                                                <div>
+                                                    <label>{field.label}</label>
+                                                    <span>{field.value}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>

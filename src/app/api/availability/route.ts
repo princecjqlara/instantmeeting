@@ -23,7 +23,7 @@ export async function GET() {
 
     const { data: user } = await supabase
         .from('users')
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
         .eq('email', session.user.email)
         .maybeSingle()
 
@@ -37,7 +37,8 @@ export async function GET() {
             meeting_duration: 30,
             booking_title: 'Schedule a Meeting',
             booking_description: 'Share your details and pick a time that works.',
-            booking_note_placeholder: "I'd like to discuss..."
+            booking_note_placeholder: "I'd like to discuss...",
+            booking_form_fields: []
         })
     }
 
@@ -50,7 +51,8 @@ export async function GET() {
         meeting_duration: user.meeting_duration || 30,
         booking_title: user.booking_title || 'Schedule a Meeting',
         booking_description: user.booking_description || 'Share your details and pick a time that works.',
-        booking_note_placeholder: user.booking_note_placeholder || "I'd like to discuss..."
+        booking_note_placeholder: user.booking_note_placeholder || "I'd like to discuss...",
+        booking_form_fields: user.booking_form_fields || []
     })
 }
 
@@ -75,6 +77,7 @@ export async function PATCH(req: NextRequest) {
     if (body.booking_title !== undefined) updateData.booking_title = body.booking_title
     if (body.booking_description !== undefined) updateData.booking_description = body.booking_description
     if (body.booking_note_placeholder !== undefined) updateData.booking_note_placeholder = body.booking_note_placeholder
+    if (body.booking_form_fields !== undefined) updateData.booking_form_fields = body.booking_form_fields
 
     const { data: existingUser } = await supabase
         .from('users')
@@ -90,7 +93,7 @@ export async function PATCH(req: NextRequest) {
                 name: session.user.name,
                 ...updateData
             })
-            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
+            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
             .single()
 
         if (createError) {
@@ -106,7 +109,8 @@ export async function PATCH(req: NextRequest) {
             meeting_duration: newUser.meeting_duration || 30,
             booking_title: newUser.booking_title || 'Schedule a Meeting',
             booking_description: newUser.booking_description || 'Share your details and pick a time that works.',
-            booking_note_placeholder: newUser.booking_note_placeholder || "I'd like to discuss..."
+            booking_note_placeholder: newUser.booking_note_placeholder || "I'd like to discuss...",
+            booking_form_fields: newUser.booking_form_fields || []
         })
     }
 
@@ -114,7 +118,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
         .single()
 
     if (error) {
@@ -130,6 +134,7 @@ export async function PATCH(req: NextRequest) {
         meeting_duration: updatedUser.meeting_duration || 30,
         booking_title: updatedUser.booking_title || 'Schedule a Meeting',
         booking_description: updatedUser.booking_description || 'Share your details and pick a time that works.',
-        booking_note_placeholder: updatedUser.booking_note_placeholder || "I'd like to discuss..."
+        booking_note_placeholder: updatedUser.booking_note_placeholder || "I'd like to discuss...",
+        booking_form_fields: updatedUser.booking_form_fields || []
     })
 }
