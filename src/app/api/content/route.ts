@@ -95,6 +95,60 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const contentType = req.headers.get('content-type') || ''
+        if (contentType.includes('application/json')) {
+            const body = await req.json()
+            const {
+                title,
+                description,
+                cloudinary_url,
+                cloudinary_public_id,
+                thumbnail_url,
+                duration_seconds,
+                views,
+                likes,
+                comments,
+            } = body
+
+            if (!cloudinary_url || !cloudinary_public_id) {
+                return NextResponse.json({ error: 'Missing upload data' }, { status: 400 })
+            }
+
+            const { data: maxOrder } = await supabase
+                .from('content')
+                .select('order_index')
+                .eq('user_id', userId)
+                .order('order_index', { ascending: false })
+                .limit(1)
+                .single()
+
+            const nextOrder = (maxOrder?.order_index ?? -1) + 1
+
+            const { data: content, error } = await supabase
+                .from('content')
+                .insert({
+                    user_id: userId,
+                    title,
+                    description,
+                    cloudinary_url,
+                    cloudinary_public_id,
+                    thumbnail_url: thumbnail_url || cloudinary_url.replace(/\.[^/.]+$/, '.jpg'),
+                    duration_seconds: duration_seconds || 0,
+                    order_index: nextOrder,
+                    views: views || 0,
+                    likes: likes || 0,
+                    comments: comments || 0,
+                })
+                .select()
+                .single()
+
+            if (error) {
+                return NextResponse.json({ error: error.message }, { status: 500 })
+            }
+
+            return NextResponse.json(content)
+        }
+
         const formData = await req.formData()
         const file = formData.get('file') as File
         const title = formData.get('title') as string

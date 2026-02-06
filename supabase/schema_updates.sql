@@ -27,6 +27,8 @@ ALTER TABLE meetings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending' CHEC
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS host_joined_at TIMESTAMPTZ;
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reschedule_requested BOOLEAN DEFAULT false;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reschedule_requested_at TIMESTAMPTZ;
 
 -- Ensure waiting_guests table has all columns
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_name TEXT NOT NULL;

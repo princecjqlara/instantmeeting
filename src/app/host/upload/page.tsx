@@ -74,32 +74,74 @@ export default function UploadPage() {
             }
 
             const file = selectedFiles[i]
-            const formData = new FormData()
-            formData.append('file', file)
-            formData.append('title', file.name.replace(/\.[^/.]+$/, ''))
-            formData.append('views', '0')
-            formData.append('likes', '0')
-            formData.append('comments', '0')
-
             const abortController = new AbortController()
             uploadAbortRef.current = abortController
 
             try {
+                const signRes = await fetch('/api/cloudinary/sign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder: 'instantmeeting/reels' }),
+                    signal: abortController.signal,
+                })
+
+                if (!signRes.ok) {
+                    const signErr = await signRes.json()
+                    throw new Error(signErr.error || 'Failed to sign upload')
+                }
+
+                const signData = await signRes.json()
+                const uploadForm = new FormData()
+                uploadForm.append('file', file)
+                uploadForm.append('api_key', signData.apiKey)
+                uploadForm.append('timestamp', String(signData.timestamp))
+                uploadForm.append('signature', signData.signature)
+                uploadForm.append('folder', signData.folder)
+
+                const cloudinaryRes = await fetch(
+                    `https://api.cloudinary.com/v1_1/${signData.cloudName}/video/upload`,
+                    {
+                        method: 'POST',
+                        body: uploadForm,
+                        signal: abortController.signal,
+                    }
+                )
+
+                if (!cloudinaryRes.ok) {
+                    const err = await cloudinaryRes.json()
+                    throw new Error(err.error?.message || 'Cloudinary upload failed')
+                }
+
+                const uploadResult = await cloudinaryRes.json()
                 const response = await fetch('/api/content', {
                     method: 'POST',
-                    body: formData,
-                    signal: abortController.signal,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: file.name.replace(/\.[^/.]+$/, ''),
+                        description: '',
+                        cloudinary_url: uploadResult.secure_url,
+                        cloudinary_public_id: uploadResult.public_id,
+                        thumbnail_url: uploadResult.secure_url.replace(/\.[^/.]+$/, '.jpg'),
+                        duration_seconds: Math.round(uploadResult.duration || 0),
+                        views: 0,
+                        likes: 0,
+                        comments: 0,
+                    })
                 })
 
                 if (response.ok) {
                     const newContent = await response.json()
                     setContent(prev => [...prev, newContent])
+                } else {
+                    const errorData = await response.json()
+                    throw new Error(errorData.error || 'Failed to save content')
                 }
             } catch (error) {
                 if ((error as Error).name === 'AbortError') {
                     setUploadMessage('Upload stopped')
                     break
                 }
+                setUploadMessage((error as Error).message || 'Upload failed')
                 console.error('Error uploading:', error)
             }
 

@@ -7,6 +7,9 @@ import { FaCheckCircle, FaTimes } from 'react-icons/fa'
 interface BookingModalProps {
     host: BookingHost
     onClose: () => void
+    meetingId?: string
+    guestId?: string
+    mode?: 'new' | 'reschedule'
 }
 
 interface BookingHost {
@@ -28,7 +31,7 @@ interface BookingHost {
     availability_mode?: 'always' | 'never' | 'scheduled'
 }
 
-export default function BookingModal({ host, onClose }: BookingModalProps) {
+export default function BookingModal({ host, onClose, meetingId, guestId, mode = 'new' }: BookingModalProps) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         name: '',
@@ -88,18 +91,29 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
             }))
             .filter(field => field.value.trim() !== '')
 
-            const res = await fetch('/api/meetings/public', {
+            const endpoint = mode === 'reschedule' && meetingId
+                ? `/api/meetings/${meetingId}/reschedule/guest`
+                : '/api/meetings/public'
+
+            const payload: Record<string, unknown> = {
+                hostId: host.id,
+                guestName: formData.name,
+                guestEmail: formData.email,
+                note: formData.note,
+                date: selectedDate,
+                time: selectedTime,
+                customFields: customFieldPayload,
+            }
+
+            if (mode === 'reschedule' && meetingId) {
+                payload.meetingId = meetingId
+                payload.guestId = guestId
+            }
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    hostId: host.id,
-                    guestName: formData.name,
-                    guestEmail: formData.email,
-                    note: formData.note,
-                    date: selectedDate, // ISO string
-                    time: selectedTime,
-                    customFields: customFieldPayload
-                })
+                body: JSON.stringify(payload)
             })
 
             if (res.ok) {
@@ -120,12 +134,15 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
             <div className={styles.overlay}>
                 <div className={styles.modal}>
                     <div className={styles.header}>
-                        <h3>Booking Confirmed!</h3>
+                        <h3>{mode === 'reschedule' ? 'Reschedule Sent!' : 'Booking Confirmed!'}</h3>
                         <button onClick={onClose} className={styles.closeBtn}><FaTimes /></button>
                     </div>
                     <div className={styles.success}>
                         <FaCheckCircle className={styles.successIcon} />
-                        <p>Your meeting request has been sent to {host.name || 'the host'}.</p>
+                        <p>{mode === 'reschedule'
+                            ? `Your new time has been sent to ${host.name || 'the host'}.`
+                            : `Your meeting request has been sent to ${host.name || 'the host'}.`
+                        }</p>
                         <p>You will receive a confirmation email shortly.</p>
                         <button onClick={onClose} className={styles.actionBtn}>Close</button>
                     </div>

@@ -18,6 +18,8 @@ interface WaitingData {
         status: string
         host_joined_at?: string | null
         ended_at?: string | null
+        reschedule_requested?: boolean
+        reschedule_requested_at?: string | null
     }
     host: {
         id: string
@@ -140,6 +142,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }, [meetingId])
 
     useEffect(() => {
+        if (data?.meeting?.reschedule_requested) {
+            setShowBookingModal(true)
+        }
+    }, [data?.meeting?.reschedule_requested])
+
+    useEffect(() => {
         const handleScroll = () => {
             if (!containerRef.current) return
 
@@ -209,11 +217,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const meetLink = data?.meetLink || null
     const isAdmitted = data?.guest?.status === 'admitted'
     const isWaiting = data?.guest?.status === 'waiting'
+    const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
     const canJoin = Boolean(
         isAdmitted &&
         meetLink &&
         data?.meeting?.host_joined_at &&
-        data?.meeting?.status !== 'completed'
+        data?.meeting?.status !== 'completed' &&
+        !rescheduleRequested
     )
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
@@ -257,9 +267,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <span>Admitted — waiting for host to join</span>
                     </div>
                 )}
-                {!meetingEnded && isWaiting && !canJoin && (
+                {!meetingEnded && isWaiting && !canJoin && !rescheduleRequested && (
                     <div className={styles.waitBanner}>
                         <span>Waiting for {hostDisplayName} to admit you</span>
+                    </div>
+                )}
+                {rescheduleRequested && (
+                    <div className={styles.waitBanner}>
+                        <span>{hostDisplayName} requested a new time</span>
                     </div>
                 )}
             </div>
@@ -346,16 +361,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             </div>
 
             {/* Scroll Indicator */}
-            {isAdmitted && showScrollIndicator ? (
-                <div
-                    className={styles.scrollIndicator}
-                    onClick={scrollToSchedule}
-                    title="Scroll down to join"
-                >
-                    <FaArrowDown />
-                    <span className={styles.scrollLabel}>Scroll down to join</span>
-                </div>
-            ) : showScrollIndicator ? (
+            {isAdmitted ? null : showScrollIndicator ? (
                 <div 
                     className={styles.scrollIndicator}
                     onClick={scrollToSchedule}
@@ -378,6 +384,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 <BookingModal
                     host={data.host}
                     onClose={() => setShowBookingModal(false)}
+                    meetingId={data?.meeting?.id}
+                    guestId={data?.guest?.id}
+                    mode={rescheduleRequested ? 'reschedule' : 'new'}
                 />
             )}
         </div>

@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
       google_meet_link,
       host_joined_at,
       ended_at,
+      reschedule_requested,
+      reschedule_requested_at,
       user_id
     `)
         .eq('id', meetingId)
@@ -73,11 +75,16 @@ export async function GET(req: NextRequest) {
             status: meeting.status,
             host_joined_at: meeting.host_joined_at,
             ended_at: meeting.ended_at,
+            reschedule_requested: meeting.reschedule_requested,
+            reschedule_requested_at: meeting.reschedule_requested_at,
         },
         host,
         content: content || [],
         guest: guestStatus,
-        meetLink: guestStatus?.status === 'admitted' && meeting.host_joined_at && meeting.status !== 'completed'
+        meetLink: guestStatus?.status === 'admitted' &&
+            meeting.host_joined_at &&
+            meeting.status !== 'completed' &&
+            !meeting.reschedule_requested
             ? meeting.google_meet_link
             : null,
     })

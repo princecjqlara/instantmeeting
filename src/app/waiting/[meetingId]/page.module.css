@@ -587,6 +587,34 @@
     background: var(--accent-secondary);
 }
 
+@media (max-width: 480px) {
+    .joinBanner {
+        top: calc(10px + env(safe-area-inset-top));
+        left: 10px;
+        right: 10px;
+        transform: none;
+        padding: 8px 10px;
+        gap: 8px;
+        font-size: 11px;
+    }
+
+    .joinBannerButton {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+
+    .waitBanner {
+        top: calc(52px + env(safe-area-inset-top));
+        left: 10px;
+        right: 10px;
+        transform: none;
+    }
+
+    .hostProfile {
+        top: calc(90px + env(safe-area-inset-top));
+    }
+}
+
 .scrollIndicator:hover {
     background: rgba(255, 51, 102, 0.45);
     transform: scale(1.12) translateY(-2px);

@@ -15,7 +15,7 @@ import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
     FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser,
-    FaChartLine, FaUsers as FaUsersIcon
+    FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt
 } from 'react-icons/fa'
 
 interface MeetingWithGuests extends Meeting {
@@ -236,6 +236,27 @@ export default function Dashboard() {
         }
     }
 
+    const requestReschedule = async (meetingId: string) => {
+        try {
+            const response = await fetch(`/api/meetings/${meetingId}/request-reschedule`, {
+                method: 'POST',
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                alert(errorData.error || 'Failed to request reschedule')
+                return
+            }
+
+            const updated = await response.json()
+            setMeetings(prev => prev.map(meeting =>
+                meeting.id === updated.id ? { ...meeting, ...updated } : meeting
+            ))
+        } catch (error) {
+            console.error('Error requesting reschedule:', error)
+        }
+    }
+
 
     const copyWaitingLink = (meetingId: string) => {
         const link = `${window.location.origin}/waiting/${meetingId}`
@@ -447,6 +468,14 @@ export default function Dashboard() {
                                         >
                                             <FaTimes />
                                             <span>End Meeting</span>
+                                        </button>
+                                        <button
+                                            className={styles.actionBtn}
+                                            onClick={() => requestReschedule(meeting.id)}
+                                            disabled={meeting.status === 'completed'}
+                                        >
+                                            <FaCalendarAlt />
+                                            <span>Request Reschedule</span>
                                         </button>
                                     </div>
 

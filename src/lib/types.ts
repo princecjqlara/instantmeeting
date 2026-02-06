@@ -59,6 +59,8 @@ export interface Meeting {
     scheduled_at: string | null
     host_joined_at?: string | null
     ended_at?: string | null
+    reschedule_requested?: boolean
+    reschedule_requested_at?: string | null
     created_at: string
     waiting_guests?: WaitingGuest[]
 }
