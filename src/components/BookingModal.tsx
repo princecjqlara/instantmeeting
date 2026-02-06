@@ -25,6 +25,7 @@ interface BookingHost {
         required: boolean
         options?: string[]
     }> | null
+    availability_mode?: 'always' | 'never' | 'scheduled'
 }
 
 export default function BookingModal({ host, onClose }: BookingModalProps) {
@@ -136,7 +137,11 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
     const bookingTitle = host.booking_title || 'Schedule a Meeting'
     const bookingDescription = host.booking_description || 'Share your details and pick a time that works.'
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
-    const customFields = host.booking_form_fields || []
+    const customFields = Array.isArray(host.booking_form_fields) ? host.booking_form_fields : []
+
+    if (host.availability_mode === 'always') {
+        return null
+    }
 
     const requiredFieldsMissing = customFields.some((field) => {
         if (!field.required) return false

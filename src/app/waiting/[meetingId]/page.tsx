@@ -41,7 +41,7 @@ interface WaitingData {
     content: Content[]
     guest: {
         id: string
-        status: string
+        status: 'waiting' | 'admitted' | 'left'
     } | null
     meetLink: string | null
     hostAvailable?: boolean
@@ -59,9 +59,22 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     // Fetch waiting room data
     useEffect(() => {
-        const fetchData = async () => {
+        let isMounted = true
+        let intervalId: ReturnType<typeof setInterval> | null = null
+        const guestStorageKey = `waitingGuest:${meetingId}`
+
+        const getStoredGuestId = () => {
             try {
-                const response = await fetch(`/api/waiting?meetingId=${meetingId}`)
+                return localStorage.getItem(guestStorageKey)
+            } catch {
+                return null
+            }
+        }
+
+        const fetchData = async (guestIdParam?: string | null, isInitial = false) => {
+            try {
+                const guestQuery = guestIdParam ? `&guestId=${guestIdParam}` : ''
+                const response = await fetch(`/api/waiting?meetingId=${meetingId}${guestQuery}`)
                 const result = await response.json()
 
                 if (!response.ok) {
@@ -69,15 +82,58 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     return
                 }
 
-                setData(result)
+                if (isMounted) {
+                    setData(result)
+                }
+
+                if (!guestIdParam && !result.guest) {
+                    const createRes = await fetch('/api/waiting', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            meetingId,
+                            guestName: 'Guest'
+                        })
+                    })
+
+                    if (createRes.ok) {
+                        const created = await createRes.json()
+                        try {
+                            localStorage.setItem(guestStorageKey, created.id)
+                        } catch {
+                            // ignore storage errors
+                        }
+                        if (isMounted) {
+                            setData(prev => prev ? {
+                                ...prev,
+                                guest: { id: created.id, status: created.status }
+                            } : prev)
+                        }
+                    }
+                }
             } catch {
-                setError('Failed to load waiting room')
+                if (isInitial && isMounted) {
+                    setError('Failed to load waiting room')
+                }
             } finally {
-                setLoading(false)
+                if (isInitial && isMounted) {
+                    setLoading(false)
+                }
             }
         }
 
-        fetchData()
+        const storedGuestId = getStoredGuestId()
+        fetchData(storedGuestId, true)
+        intervalId = setInterval(() => {
+            fetchData(getStoredGuestId(), false)
+        }, 5000)
+
+        return () => {
+            isMounted = false
+            if (intervalId) {
+                clearInterval(intervalId)
+            }
+        }
     }, [meetingId])
 
     useEffect(() => {
@@ -134,6 +190,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }
 
+    const isAdmitted = Boolean(data?.guest?.status === 'admitted' && data?.meetLink)
+    const isHostFree = data?.host?.availability_mode === 'always'
+
     // Waiting room with reels
     return (
         <div ref={containerRef} className={styles.container}>
@@ -144,7 +203,21 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostName={data?.host?.name || undefined}
                     hostUsername={data?.host?.username || undefined}
                     hostAvatar={data?.host?.avatar_url}
+                    hostSettings={data?.host || undefined}
+                    guestStatus={data?.guest?.status}
                 />
+                {isAdmitted && data?.meetLink && (
+                    <div className={styles.joinBanner}>
+                        <span>You are admitted</span>
+                        <button
+                            type="button"
+                            className={styles.joinBannerButton}
+                            onClick={() => window.open(data.meetLink!, '_blank')}
+                        >
+                            Join Meeting
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Host Profile Overlay */}
@@ -168,31 +241,59 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
             {/* Schedule Section - Below the fold */}
             <div ref={joinSectionRef} className={styles.joinSection}>
-                <div className={styles.scheduleCard}>
-                    <div className={styles.scheduleIcon}>
-                        <FaCalendarAlt />
+                {isAdmitted && data?.meetLink ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaArrowUp />
+                        </div>
+                        <h2>Ready to join</h2>
+                        <p>Scroll up to the reels and tap “Join Meeting”.</p>
                     </div>
-                    <h2>{data?.host?.booking_title || 'Schedule a Meeting'}</h2>
-                    <p>{data?.host?.booking_description || "Can't wait? Request a time that works for you."}</p>
-                    <button
-                        type="button"
-                        className="button-primary"
-                        onClick={() => setShowBookingModal(true)}
-                    >
-                        Request Meeting
-                        <FaArrowRight />
-                    </button>
-                </div>
+                ) : isHostFree ? (
+                    <div className={styles.joinCard}>
+                        <div className={styles.joinIcon}>
+                            <FaUser />
+                        </div>
+                        <h2>Host is available</h2>
+                        <p>Please wait to be admitted.</p>
+                    </div>
+                ) : (
+                    <div className={styles.scheduleCard}>
+                        <div className={styles.scheduleIcon}>
+                            <FaCalendarAlt />
+                        </div>
+                        <h2>{data?.host?.booking_title || 'Schedule a Meeting'}</h2>
+                        <p>{data?.host?.booking_description || "Can't wait? Request a time that works for you."}</p>
+                        <button
+                            type="button"
+                            className="button-primary"
+                            onClick={() => setShowBookingModal(true)}
+                        >
+                            Request Meeting
+                            <FaArrowRight />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Scroll Indicator */}
-            {showScrollIndicator ? (
+            {isAdmitted && !showScrollIndicator ? (
+                <div
+                    className={styles.scrollIndicator}
+                    onClick={scrollToReels}
+                    title="Scroll up to join"
+                >
+                    <FaArrowUp />
+                    <span className={styles.scrollLabel}>Scroll up to join</span>
+                </div>
+            ) : showScrollIndicator ? (
                 <div 
                     className={styles.scrollIndicator}
                     onClick={scrollToSchedule}
-                    title="Scroll down to schedule"
+                    title={isHostFree ? 'Scroll down' : 'Scroll down to schedule'}
                 >
                     <FaArrowDown />
+                    {!isHostFree && <span className={styles.scrollLabel}>Schedule meeting</span>}
                 </div>
             ) : (
                 <div 

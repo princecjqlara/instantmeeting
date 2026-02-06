@@ -12,12 +12,25 @@ interface ReelPlayerProps {
     hostName?: string
     hostUsername?: string
     hostAvatar?: string | null
+    hostSettings?: {
+        id?: string
+        availability_mode?: 'always' | 'never' | 'scheduled'
+        scroll_threshold?: number
+        booking_form_fields?: unknown
+        booking_title?: string | null
+        booking_description?: string | null
+        booking_note_placeholder?: string | null
+        available_from?: string | null
+        available_to?: string | null
+        meeting_duration?: number | null
+    } | null
+    guestStatus?: 'waiting' | 'admitted' | 'left'
     isHost?: boolean
     onEdit?: (reel: Content) => void
     onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, isHost, onEdit, onDelete }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, hostSettings: hostSettingsProp, guestStatus, isHost, onEdit, onDelete }: ReelPlayerProps) {
     const router = useRouter()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
@@ -92,21 +105,27 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
     // ... useEffects ...
 
+    const isGuestAdmitted = guestStatus === 'admitted'
+    const shouldLoopToStart = hostSettings?.availability_mode === 'always' && !isGuestAdmitted
+
     const goToNext = useCallback(() => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
             setScrollCount(prev => {
                 const newCount = prev + 1
-                if (hostSettings && hostSettings.scroll_threshold && newCount >= hostSettings.scroll_threshold) {
-                    if (hostSettings.availability_mode !== 'always') {
+                if (!isHost && hostSettings && hostSettings.scroll_threshold && newCount >= hostSettings.scroll_threshold) {
+                    if (hostSettings.availability_mode !== 'always' && !isGuestAdmitted) {
                         setShowBookingModal(true)
                         return 0
                     }
                 }
                 return newCount
             })
+        } else if (shouldLoopToStart) {
+            setCurrentIndex(0)
+            setScrollCount(0)
         }
-    }, [currentIndex, reels.length, hostSettings])
+    }, [currentIndex, reels.length, hostSettings, isHost, isGuestAdmitted, shouldLoopToStart])
 
     const handleCommentSubmit = (e?: React.FormEvent) => {
         e?.preventDefault()
@@ -128,6 +147,10 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     })
 
     useEffect(() => {
+        if (hostSettingsProp) {
+            setHostSettings(hostSettingsProp)
+            return
+        }
         if (reels.length > 0) {
             const hostId = reels[0].user_id
             fetch(`/api/users/${hostId}/public`)
@@ -135,7 +158,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 .then(data => setHostSettings(data))
                 .catch(err => console.error("Failed to fetch host settings", err))
         }
-    }, [reels])
+    }, [reels, hostSettingsProp])
 
     useEffect(() => {
         // Fetch latest host profile data to ensure avatar is up to date
@@ -198,10 +221,10 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     const handleVideoEnd = useCallback(() => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
-        } else {
+        } else if (shouldLoopToStart) {
             setCurrentIndex(0)
         }
-    }, [currentIndex, reels.length])
+    }, [currentIndex, reels.length, shouldLoopToStart])
 
     const goToPrev = useCallback(() => {
         if (currentIndex > 0) {
