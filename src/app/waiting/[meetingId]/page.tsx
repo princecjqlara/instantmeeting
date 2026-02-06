@@ -58,7 +58,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [error, setError] = useState<string | null>(null)
     const [showScrollIndicator, setShowScrollIndicator] = useState(false)
     const [showBookingModal, setShowBookingModal] = useState(false)
+    const [showAdmitPopup, setShowAdmitPopup] = useState(false)
     const hasAutoJoinedRef = useRef(false)
+    const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
 
@@ -146,6 +148,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             setShowBookingModal(true)
         }
     }, [data?.meeting?.reschedule_requested])
+
+    useEffect(() => {
+        const currentStatus = data?.guest?.status || null
+        const previousStatus = lastGuestStatusRef.current
+        if (currentStatus === 'admitted' && previousStatus !== 'admitted') {
+            setShowAdmitPopup(true)
+        }
+        lastGuestStatusRef.current = currentStatus
+    }, [data?.guest?.status])
 
     useEffect(() => {
         const handleScroll = () => {
@@ -388,6 +399,39 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     guestId={data?.guest?.id}
                     mode={rescheduleRequested ? 'reschedule' : 'new'}
                 />
+            )}
+
+            {showAdmitPopup && (
+                <div className={styles.admitOverlay}>
+                    <div className={styles.admitModal}>
+                        <h2>You're admitted</h2>
+                        {canJoin ? (
+                            <p>Scroll down to join the meeting now.</p>
+                        ) : meetingEnded ? (
+                            <p>This meeting has ended.</p>
+                        ) : (
+                            <p>The host will start the meeting soon.</p>
+                        )}
+                        <div className={styles.admitActions}>
+                            {canJoin && meetLink && (
+                                <button
+                                    type="button"
+                                    className={styles.admitPrimary}
+                                    onClick={() => window.location.assign(meetLink)}
+                                >
+                                    Join now
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className={styles.admitSecondary}
+                                onClick={() => setShowAdmitPopup(false)}
+                            >
+                                Continue watching
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )

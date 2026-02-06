@@ -621,6 +621,69 @@
     box-shadow: 0 6px 16px rgba(255, 51, 102, 0.7);
 }
 
+.admitOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 120;
+    padding: 24px;
+    backdrop-filter: blur(6px);
+}
+
+.admitModal {
+    width: min(440px, 100%);
+    background: rgba(15, 15, 20, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.admitModal h2 {
+    margin: 0 0 8px;
+    font-size: 20px;
+}
+
+.admitModal p {
+    margin: 0 0 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.admitActions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.admitPrimary {
+    border: none;
+    background: var(--accent-primary);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.admitPrimary:hover {
+    background: var(--accent-secondary);
+}
+
+.admitSecondary {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent;
+    color: var(--text-primary);
+    padding: 11px 16px;
+    border-radius: 999px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
 @keyframes pulse {
     0% {
         box-shadow: 0 4px 12px rgba(255, 51, 102, 0.3);
