@@ -139,10 +139,6 @@ export default function BookingModal({ host, onClose }: BookingModalProps) {
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
     const customFields = Array.isArray(host.booking_form_fields) ? host.booking_form_fields : []
 
-    if (host.availability_mode === 'always') {
-        return null
-    }
-
     const requiredFieldsMissing = customFields.some((field) => {
         if (!field.required) return false
         const value = customAnswers[field.id]

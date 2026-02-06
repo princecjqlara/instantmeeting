@@ -149,11 +149,32 @@ export default function Dashboard() {
 
     const admitGuest = async (meetingId: string, guestId: string) => {
         try {
-            await fetch(`/api/meetings/${meetingId}/admit`, {
+            const response = await fetch(`/api/meetings/${meetingId}/admit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ guestId }),
             })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                alert(errorData.error || 'Failed to admit guest')
+                return
+            }
+
+            const result = await response.json()
+            setMeetings(prev => prev.map(meeting => {
+                if (meeting.id !== meetingId) return meeting
+                return {
+                    ...meeting,
+                    google_meet_link: result.meet_link || meeting.google_meet_link,
+                    status: meeting.status === 'pending' ? 'active' : meeting.status,
+                    waiting_guests: (meeting.waiting_guests || []).map(guest =>
+                        guest.id === guestId
+                            ? { ...guest, status: 'admitted', admitted_at: result.guest?.admitted_at || guest.admitted_at }
+                            : guest
+                    )
+                }
+            }))
         } catch (error) {
             console.error('Error admitting guest:', error)
         }
