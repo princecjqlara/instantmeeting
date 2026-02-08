@@ -143,12 +143,16 @@ export async function POST(req: NextRequest) {
 
     // If room is occupied, create a new meeting room
     if (existingGuest) {
+        // Check if this is a "(Guest)" room that might already have a guest
+        // If so, create another new room
+        let newMeetingTitle = `${originalMeeting.title} (Guest)`
+        
         // Create new meeting room for this guest
         const { data: newMeeting, error: meetingError } = await supabase
             .from('meetings')
             .insert({
                 user_id: originalMeeting.user_id,
-                title: `${originalMeeting.title} (Guest)`,
+                title: newMeetingTitle,
                 status: 'pending',
             })
             .select()

@@ -69,6 +69,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
+    const isCreatingGuestRef = useRef(false)
 
     // Fetch waiting room data
     useEffect(() => {
@@ -99,7 +100,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     setData(result)
                 }
 
-                if (!guestIdParam && !result.guest && result.meeting?.status !== 'completed') {
+                if (!guestIdParam && !result.guest && result.meeting?.status !== 'completed' && !isCreatingGuestRef.current) {
+                    isCreatingGuestRef.current = true
                     const createRes = await fetch('/api/waiting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -112,8 +114,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     if (createRes.ok) {
                         const created = await createRes.json()
                         
-                        // If new room was created, redirect to it
+                        // If new room was created, store guest ID and redirect
                         if (created.isNewRoom && created.newMeetingId) {
+                            const newGuestStorageKey = `waitingGuest:${created.newMeetingId}`
+                            try {
+                                localStorage.setItem(newGuestStorageKey, created.id)
+                            } catch {
+                                // ignore storage errors
+                            }
                             if (isMounted) {
                                 router.push(`/waiting/${created.newMeetingId}`)
                             }
@@ -133,6 +141,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         }
                     } else {
                         // Handle room occupied error
+                        isCreatingGuestRef.current = false
                         const errorData = await createRes.json()
                         if (isMounted) {
                             setError(errorData.message || 'Unable to join waiting room')
@@ -140,6 +149,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     }
                 }
             } catch {
+                isCreatingGuestRef.current = false
                 if (isInitial && isMounted) {
                     setError('Failed to load waiting room')
                 }
