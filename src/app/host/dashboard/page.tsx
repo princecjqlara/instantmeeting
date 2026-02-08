@@ -483,20 +483,12 @@ export default function Dashboard() {
                                         </button>
                                     </div>
 
-                                    {/* Occupied Indicator */}
-                                    {hasAdmittedGuest && (
-                                        <div className={styles.occupiedIndicator}>
-                                            <FaUserCheck />
-                                            <span>Room occupied by {admittedGuest?.guest_name}</span>
-                                        </div>
-                                    )}
-
-                                    {/* Waiting Guests */}
+                                    {/* Waiting Guests - 1 guest per room */}
                                     {waitingGuests.length > 0 && (
                                         <div className={styles.waitingGuests}>
                                             <div className={styles.guestsHeader}>
                                                 <FaUsers />
-                                                <span>{waitingGuests.length} waiting</span>
+                                                <span>1 waiting</span>
                                             </div>
 
                                             <div className={styles.guestsList}>
@@ -506,8 +498,7 @@ export default function Dashboard() {
                                                         <button
                                                             onClick={() => admitGuest(meeting.id, guest.id)}
                                                             className={styles.admitBtn}
-                                                            disabled={meeting.status === 'completed' || hasAdmittedGuest}
-                                                            title={hasAdmittedGuest ? 'Room is currently occupied' : 'Admit guest to meeting'}
+                                                            disabled={meeting.status === 'completed'}
                                                         >
                                                             <FaUserCheck />
                                                             Admit

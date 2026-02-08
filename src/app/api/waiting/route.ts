@@ -116,24 +116,74 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify meeting exists and is active
-    const { data: meeting } = await supabase
+    const { data: originalMeeting } = await supabase
         .from('meetings')
-        .select('id, status')
+        .select('id, status, title, user_id')
         .eq('id', meetingId)
         .single()
 
-    if (!meeting) {
+    if (!originalMeeting) {
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
     }
 
-    if (meeting.status === 'completed') {
+    if (originalMeeting.status === 'completed') {
         return NextResponse.json(
             { error: 'Meeting has ended' },
             { status: 400 }
         )
     }
 
-    // Create waiting guest entry
+    // Check if there's already a guest waiting or admitted
+    const { data: existingGuest } = await supabase
+        .from('waiting_guests')
+        .select('id, guest_name, status')
+        .eq('meeting_id', meetingId)
+        .in('status', ['waiting', 'admitted'])
+        .single()
+
+    // If room is occupied, create a new meeting room
+    if (existingGuest) {
+        // Create new meeting room for this guest
+        const { data: newMeeting, error: meetingError } = await supabase
+            .from('meetings')
+            .insert({
+                user_id: originalMeeting.user_id,
+                title: `${originalMeeting.title} (Guest)`,
+                status: 'pending',
+            })
+            .select()
+            .single()
+
+        if (meetingError || !newMeeting) {
+            return NextResponse.json(
+                { error: 'Failed to create new room' },
+                { status: 500 }
+            )
+        }
+
+        // Create waiting guest entry in the new room
+        const { data: guest, error } = await supabase
+            .from('waiting_guests')
+            .insert({
+                meeting_id: newMeeting.id,
+                guest_name: guestName,
+                status: 'waiting',
+            })
+            .select()
+            .single()
+
+        if (error) {
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        return NextResponse.json({
+            ...guest,
+            newMeetingId: newMeeting.id,
+            isNewRoom: true,
+        })
+    }
+
+    // Create waiting guest entry in original room
     const { data: guest, error } = await supabase
         .from('waiting_guests')
         .insert({

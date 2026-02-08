@@ -135,21 +135,6 @@ export async function POST(
         return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
     }
 
-    // Check if there's already an admitted guest (1 guest 1 meeting room rule)
-    const { data: admittedGuest } = await supabase
-        .from('waiting_guests')
-        .select('id, guest_name')
-        .eq('meeting_id', meetingId)
-        .eq('status', 'admitted')
-        .single()
-
-    if (admittedGuest && admittedGuest.id !== guestId) {
-        return NextResponse.json({ 
-            error: 'Meeting room is occupied', 
-            message: `${admittedGuest.guest_name} is already in the meeting room. Only one guest is allowed at a time.` 
-        }, { status: 400 })
-    }
-
     const joinToken = existingGuest.join_token || randomUUID()
 
     // Admit the guest

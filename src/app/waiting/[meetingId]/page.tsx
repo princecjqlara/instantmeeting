@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
@@ -57,6 +58,7 @@ interface WaitingData {
 
 export default function WaitingRoom({ params }: WaitingPageProps) {
     const { meetingId } = use(params)
+    const router = useRouter()
     const [data, setData] = useState<WaitingData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -109,6 +111,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
                     if (createRes.ok) {
                         const created = await createRes.json()
+                        
+                        // If new room was created, redirect to it
+                        if (created.isNewRoom && created.newMeetingId) {
+                            if (isMounted) {
+                                router.push(`/waiting/${created.newMeetingId}`)
+                            }
+                            return
+                        }
+                        
                         try {
                             localStorage.setItem(guestStorageKey, created.id)
                         } catch {
@@ -119,6 +130,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                 ...prev,
                                 guest: { id: created.id, status: created.status }
                             } : prev)
+                        }
+                    } else {
+                        // Handle room occupied error
+                        const errorData = await createRes.json()
+                        if (isMounted) {
+                            setError(errorData.message || 'Unable to join waiting room')
                         }
                     }
                 }
@@ -243,7 +260,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
-    const isRoomOccupied = Boolean(data?.admittedGuest && data?.admittedGuest.id !== data?.guest?.id)
 
     // Waiting room with reels
     return (
@@ -293,11 +309,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <span>{hostDisplayName} requested a new time</span>
                     </div>
                 )}
-                {isRoomOccupied && data?.admittedGuest && (
-                    <div className={styles.occupiedBanner}>
-                        <span>Room is occupied by {data.admittedGuest.guest_name}. Please wait.</span>
-                    </div>
-                )}
             </div>
 
             {/* Host Profile Overlay */}
@@ -328,14 +339,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         </div>
                         <h2>Meeting ended</h2>
                         <p>This meeting has ended. Please contact the host.</p>
-                    </div>
-                ) : isRoomOccupied ? (
-                    <div className={styles.occupiedCard}>
-                        <div className={styles.occupiedIcon}>
-                            <FaUser />
-                        </div>
-                        <h2>Room is occupied</h2>
-                        <p>{data?.admittedGuest?.guest_name} is currently in the meeting. Please wait your turn.</p>
                     </div>
                 ) : canJoin ? (
                     <div className={styles.joinCard}>
