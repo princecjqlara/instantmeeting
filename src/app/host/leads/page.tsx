@@ -38,6 +38,10 @@ export default function LeadsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
 
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1)
+    const leadsPerPage = 12
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/')
@@ -81,6 +85,7 @@ export default function LeadsPage() {
         }
 
         setFilteredLeads(filtered)
+        setCurrentPage(1) // Reset to first page when filters change
     }, [statusFilter, searchQuery, leads])
 
     const formatDate = (dateString: string) => {
@@ -225,6 +230,14 @@ export default function LeadsPage() {
             </section>
 
             {/* Leads List */}
+            {(() => {
+                // Pagination calculations
+                const indexOfLastLead = currentPage * leadsPerPage
+                const indexOfFirstLead = indexOfLastLead - leadsPerPage
+                const currentLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead)
+                const totalPages = Math.ceil(filteredLeads.length / leadsPerPage)
+                
+                return (
             <section className={styles.leadsSection}>
                 {filteredLeads.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -233,8 +246,13 @@ export default function LeadsPage() {
                         <span>{searchQuery ? 'Try adjusting your search' : 'Leads will appear here when guests join your meetings'}</span>
                     </div>
                 ) : (
+                    <>
+                    {/* Pagination Info */}
+                    <div className={styles.paginationInfo}>
+                        <span>Showing {Math.min((currentPage - 1) * leadsPerPage + 1, filteredLeads.length)}-{Math.min(currentPage * leadsPerPage, filteredLeads.length)} of {filteredLeads.length} leads</span>
+                    </div>
                     <div className={styles.leadsGrid}>
-                        {filteredLeads.map((lead) => (
+                        {currentLeads.map((lead) => (
                             <div 
                                 key={lead.id} 
                                 className={styles.leadCard}
@@ -278,8 +296,44 @@ export default function LeadsPage() {
                             </div>
                         ))}
                     </div>
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className={styles.pagination}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className={styles.pageBtn}
+                            >
+                                Previous
+                            </button>
+                            
+                            <div className={styles.pageNumbers}>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`${styles.pageNumber} ${currentPage === page ? styles.activePage : ''}`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                            </div>
+                            
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className={styles.pageBtn}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
+                    </>
                 )}
             </section>
+                )
+            })()}
 
             {/* Lead Detail Modal */}
             {selectedLead && (

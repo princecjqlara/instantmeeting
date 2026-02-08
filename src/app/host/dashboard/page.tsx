@@ -42,6 +42,10 @@ export default function Dashboard() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null)
     const [selectedDateMeetings, setSelectedDateMeetings] = useState<Meeting[]>([])
     const supabase = createClient()
+    
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1)
+    const meetingsPerPage = 9
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -416,8 +420,19 @@ export default function Dashboard() {
             </section>
 
             {/* Meetings List */}
+            {(() => {
+                // Pagination calculations
+                const indexOfLastMeeting = currentPage * meetingsPerPage
+                const indexOfFirstMeeting = indexOfLastMeeting - meetingsPerPage
+                const currentMeetings = meetings.slice(indexOfFirstMeeting, indexOfLastMeeting)
+                const totalPages = Math.ceil(meetings.length / meetingsPerPage)
+                
+                return (
             <section className={styles.meetingsSection}>
-                <h2>Your Meetings</h2>
+                <div className={styles.meetingsHeader}>
+                    <h2>Your Meetings</h2>
+                    <span className={styles.meetingsCount}>{meetings.length} total</span>
+                </div>
 
                 {meetings.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -426,8 +441,9 @@ export default function Dashboard() {
                         <span>Create your first meeting to get started!</span>
                     </div>
                 ) : (
+                    <>
                     <div className={styles.meetingsGrid}>
-                        {meetings.map((meeting) => {
+                        {currentMeetings.map((meeting) => {
                             const waitingGuests = meeting.waiting_guests?.filter(
                                 g => g.status === 'waiting'
                             ) || []
@@ -511,7 +527,47 @@ export default function Dashboard() {
                                 </div>
                             )
                         })}
+                    })()}
                     </div>
+                    
+                    {/* Pagination */}
+                    {(() => {
+                        const totalPages = Math.ceil(meetings.length / meetingsPerPage)
+                        if (totalPages <= 1) return null
+                        
+                        return (
+                            <div className={styles.pagination}>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className={styles.pageBtn}
+                                >
+                                    Previous
+                                </button>
+                                
+                                <div className={styles.pageNumbers}>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                        <button
+                                            key={page}
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`${styles.pageNumber} ${currentPage === page ? styles.active : ''}`}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                </div>
+                                
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className={styles.pageBtn}
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )
+                    })()}
+                    </>
                 )}
             </section>
 
