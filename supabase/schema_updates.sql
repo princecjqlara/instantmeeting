@@ -36,8 +36,11 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_email TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_phone TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS note TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS join_token TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'admitted', 'left'));
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 
 -- Create content_engagement table if it doesn't exist
 CREATE TABLE IF NOT EXISTS content_engagement (

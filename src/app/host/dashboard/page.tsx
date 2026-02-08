@@ -431,9 +431,13 @@ export default function Dashboard() {
                             const waitingGuests = meeting.waiting_guests?.filter(
                                 g => g.status === 'waiting'
                             ) || []
+                            const admittedGuest = meeting.waiting_guests?.find(
+                                g => g.status === 'admitted'
+                            )
+                            const hasAdmittedGuest = !!admittedGuest
 
                             return (
-                                <div key={meeting.id} className={styles.meetingCard}>
+                                <div key={meeting.id} className={`${styles.meetingCard} ${meeting.status === 'active' ? styles.active : ''} ${waitingGuests.length > 0 ? styles.hasWaiting : ''}`}>
                                     <div className={styles.meetingHeader}>
                                         <h3>{meeting.title}</h3>
                                         <span className={`${styles.status} ${styles[meeting.status]}`}>
@@ -479,6 +483,14 @@ export default function Dashboard() {
                                         </button>
                                     </div>
 
+                                    {/* Occupied Indicator */}
+                                    {hasAdmittedGuest && (
+                                        <div className={styles.occupiedIndicator}>
+                                            <FaUserCheck />
+                                            <span>Room occupied by {admittedGuest?.guest_name}</span>
+                                        </div>
+                                    )}
+
                                     {/* Waiting Guests */}
                                     {waitingGuests.length > 0 && (
                                         <div className={styles.waitingGuests}>
@@ -494,7 +506,8 @@ export default function Dashboard() {
                                                         <button
                                                             onClick={() => admitGuest(meeting.id, guest.id)}
                                                             className={styles.admitBtn}
-                                                            disabled={meeting.status === 'completed'}
+                                                            disabled={meeting.status === 'completed' || hasAdmittedGuest}
+                                                            title={hasAdmittedGuest ? 'Room is currently occupied' : 'Admit guest to meeting'}
                                                         >
                                                             <FaUserCheck />
                                                             Admit

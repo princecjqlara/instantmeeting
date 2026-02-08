@@ -73,6 +73,7 @@ export interface WaitingGuest {
     guest_phone?: string | null
     note?: string | null
     custom_fields?: Array<{ id: string; label: string; value: string }> | null
+    join_token?: string | null
     status: 'waiting' | 'admitted' | 'left'
     joined_at: string
     admitted_at: string | null

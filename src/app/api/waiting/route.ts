@@ -68,6 +68,16 @@ export async function GET(req: NextRequest) {
         .eq('id', meeting.user_id)
         .single()
 
+    const origin = req.nextUrl.origin
+
+    // Check if there's already an admitted guest
+    const { data: admittedGuest } = await supabase
+        .from('waiting_guests')
+        .select('id, guest_name')
+        .eq('meeting_id', meetingId)
+        .eq('status', 'admitted')
+        .single()
+
     return NextResponse.json({
         meeting: {
             id: meeting.id,
@@ -81,11 +91,13 @@ export async function GET(req: NextRequest) {
         host,
         content: content || [],
         guest: guestStatus,
+        admittedGuest: admittedGuest || null,
         meetLink: guestStatus?.status === 'admitted' &&
             meeting.host_joined_at &&
             meeting.status !== 'completed' &&
-            !meeting.reschedule_requested
-            ? meeting.google_meet_link
+            !meeting.reschedule_requested &&
+            guestStatus?.join_token
+            ? `${origin}/api/join/${guestStatus.join_token}`
             : null,
     })
 }

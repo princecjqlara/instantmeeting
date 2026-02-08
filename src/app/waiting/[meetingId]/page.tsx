@@ -47,6 +47,10 @@ interface WaitingData {
         id: string
         status: 'waiting' | 'admitted' | 'left'
     } | null
+    admittedGuest: {
+        id: string
+        guest_name: string
+    } | null
     meetLink: string | null
     hostAvailable?: boolean
 }
@@ -239,6 +243,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
+    const isRoomOccupied = Boolean(data?.admittedGuest && data?.admittedGuest.id !== data?.guest?.id)
 
     // Waiting room with reels
     return (
@@ -288,6 +293,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <span>{hostDisplayName} requested a new time</span>
                     </div>
                 )}
+                {isRoomOccupied && data?.admittedGuest && (
+                    <div className={styles.occupiedBanner}>
+                        <span>Room is occupied by {data.admittedGuest.guest_name}. Please wait.</span>
+                    </div>
+                )}
             </div>
 
             {/* Host Profile Overlay */}
@@ -319,6 +329,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <h2>Meeting ended</h2>
                         <p>This meeting has ended. Please contact the host.</p>
                     </div>
+                ) : isRoomOccupied ? (
+                    <div className={styles.occupiedCard}>
+                        <div className={styles.occupiedIcon}>
+                            <FaUser />
+                        </div>
+                        <h2>Room is occupied</h2>
+                        <p>{data?.admittedGuest?.guest_name} is currently in the meeting. Please wait your turn.</p>
+                    </div>
                 ) : canJoin ? (
                     <div className={styles.joinCard}>
                         <div className={styles.joinIcon}>
@@ -342,7 +360,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <FaUser />
                         </div>
                         <h2>Waiting for host</h2>
-                        <p>The host hasn’t joined yet. You’ll be able to join once they do.</p>
+                        <p>The host hasn't joined yet. You'll be able to join once they do.</p>
                     </div>
                 ) : isHostFree ? (
                     <div className={styles.joinCard}>
@@ -413,7 +431,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <p>The host will start the meeting soon.</p>
                         )}
                         <div className={styles.admitActions}>
-                            {canJoin && meetLink && (
+                            {canJoin && meetLink ? (
                                 <button
                                     type="button"
                                     className={styles.admitPrimary}
@@ -421,14 +439,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                 >
                                     Join now
                                 </button>
+                            ) : (
+                                <div className={styles.admitWaiting}>
+                                    <div className={styles.admitSpinner} />
+                                    <span>Waiting for {hostDisplayName} to join...</span>
+                                </div>
                             )}
-                            <button
-                                type="button"
-                                className={styles.admitSecondary}
-                                onClick={() => setShowAdmitPopup(false)}
-                            >
-                                Continue watching
-                            </button>
                         </div>
                     </div>
                 </div>

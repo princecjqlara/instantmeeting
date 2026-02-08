@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { google } from 'googleapis'
+import { randomUUID } from 'crypto'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -123,12 +124,41 @@ export async function POST(
         }
     }
 
+    const { data: existingGuest } = await supabase
+        .from('waiting_guests')
+        .select('id, join_token')
+        .eq('id', guestId)
+        .eq('meeting_id', meetingId)
+        .single()
+
+    if (!existingGuest) {
+        return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+    }
+
+    // Check if there's already an admitted guest (1 guest 1 meeting room rule)
+    const { data: admittedGuest } = await supabase
+        .from('waiting_guests')
+        .select('id, guest_name')
+        .eq('meeting_id', meetingId)
+        .eq('status', 'admitted')
+        .single()
+
+    if (admittedGuest && admittedGuest.id !== guestId) {
+        return NextResponse.json({ 
+            error: 'Meeting room is occupied', 
+            message: `${admittedGuest.guest_name} is already in the meeting room. Only one guest is allowed at a time.` 
+        }, { status: 400 })
+    }
+
+    const joinToken = existingGuest.join_token || randomUUID()
+
     // Admit the guest
     const { data: guest, error } = await supabase
         .from('waiting_guests')
         .update({
             status: 'admitted',
             admitted_at: new Date().toISOString(),
+            join_token: joinToken,
         })
         .eq('id', guestId)
         .eq('meeting_id', meetingId)
@@ -143,5 +173,6 @@ export async function POST(
         success: true,
         guest,
         meet_link: meeting.google_meet_link,
+        join_link: `${req.nextUrl.origin}/api/join/${joinToken}`,
     })
 }
