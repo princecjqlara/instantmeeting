@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, use, useRef, useMemo } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
@@ -299,20 +299,20 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }
 
-    const meetLink = useMemo(() => data?.meetLink || null, [data?.meetLink])
-    const isAdmitted = useMemo(() => data?.guest?.status === 'admitted', [data?.guest?.status])
-    const isWaiting = useMemo(() => data?.guest?.status === 'waiting', [data?.guest?.status])
-    const rescheduleRequested = useMemo(() => Boolean(data?.meeting?.reschedule_requested), [data?.meeting?.reschedule_requested])
-    const canJoin = useMemo(() => Boolean(
+    const meetLink = data?.meetLink || null
+    const isAdmitted = data?.guest?.status === 'admitted'
+    const isWaiting = data?.guest?.status === 'waiting'
+    const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
+    const canJoin = Boolean(
         isAdmitted &&
         meetLink &&
         data?.meeting?.host_joined_at &&
         data?.meeting?.status !== 'completed' &&
         !rescheduleRequested
-    ), [isAdmitted, meetLink, data?.meeting?.host_joined_at, data?.meeting?.status, rescheduleRequested])
-    const isHostFree = useMemo(() => data?.host?.availability_mode === 'always', [data?.host?.availability_mode])
-    const meetingEnded = useMemo(() => data?.meeting?.status === 'completed', [data?.meeting?.status])
-    const hostDisplayName = useMemo(() => data?.host?.name || 'the host', [data?.host?.name])
+    )
+    const isHostFree = data?.host?.availability_mode === 'always'
+    const meetingEnded = data?.meeting?.status === 'completed'
+    const hostDisplayName = data?.host?.name || 'the host'
 
     // Show schedule popup when host is unavailable and user hasn't seen it yet
     useEffect(() => {

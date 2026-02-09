@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
 import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash, FaPlay, FaMusic } from 'react-icons/fa'
@@ -80,7 +80,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         return num.toString()
     }
 
-    const updateEngagement = useCallback(async (type: 'view' | 'like' | 'comment') => {
+    const updateEngagement = async (type: 'view' | 'like' | 'comment') => {
         if (!currentReel) return
         try {
             await fetch('/api/content/engagement', {
@@ -91,7 +91,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         } catch (error) {
             console.error(`Error updating ${type}:`, error)
         }
-    }, [currentReel])
+    }
 
     const ensureGuestName = (action: 'like' | 'comment') => {
         if (isHost) return true
@@ -138,18 +138,18 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     // ... useEffects ...
 
     const isGuestAdmitted = guestStatus === 'admitted'
-    const shouldLoopToStart = useMemo(() => 
-        hostSettings?.availability_mode === 'always' && !isGuestAdmitted,
-        [hostSettings?.availability_mode, isGuestAdmitted]
-    )
+    const shouldLoopToStart = hostSettings?.availability_mode === 'always' && !isGuestAdmitted
 
-    const goToNext = useCallback(() => {
+    const goToNext = () => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
             setScrollCount(prev => {
                 const newCount = prev + 1
-                if (!isHost && hostSettings && hostSettings.scroll_threshold && newCount >= hostSettings.scroll_threshold) {
-                    if (hostSettings.availability_mode !== 'always' && !isGuestAdmitted) {
+                const scrollThreshold = hostSettings?.scroll_threshold
+                const availabilityMode = hostSettings?.availability_mode
+                
+                if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                    if (availabilityMode !== 'always' && !isGuestAdmitted) {
                         setShowBookingModal(true)
                         return 0
                     }
@@ -162,7 +162,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         } else {
             onEndReached?.()
         }
-    }, [currentIndex, reels.length, hostSettings, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
+    }
 
     const handleCommentSubmit = (e?: React.FormEvent) => {
         e?.preventDefault()
@@ -251,26 +251,26 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         }
     }, [isMuted, isImage])
 
-    const handleTimeUpdate = useCallback(() => {
+    const handleTimeUpdate = () => {
         if (videoRef.current) {
             const percent = (videoRef.current.currentTime / videoRef.current.duration) * 100
             setProgress(percent)
         }
-    }, [])
+    }
 
-    const handleVideoEnd = useCallback(() => {
+    const handleVideoEnd = () => {
         if (currentIndex < reels.length - 1) {
             setCurrentIndex(prev => prev + 1)
         } else if (shouldLoopToStart) {
             setCurrentIndex(0)
         }
-    }, [currentIndex, reels.length, shouldLoopToStart])
+    }
 
-    const goToPrev = useCallback(() => {
+    const goToPrev = () => {
         if (currentIndex > 0) {
             setCurrentIndex(prev => prev - 1)
         }
-    }, [currentIndex])
+    }
 
     // Handle swipe/scroll
     useEffect(() => {
