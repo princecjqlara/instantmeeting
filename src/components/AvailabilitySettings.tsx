@@ -7,8 +7,9 @@ import styles from './AvailabilitySettings.module.css'
 interface BookingField {
     id: string
     label: string
-    type: 'short_text' | 'long_text' | 'multiple_choice'
+    type: 'short_text' | 'long_text' | 'multiple_choice' | 'email' | 'phone' | 'number' | 'date' | 'time'
     required: boolean
+    placeholder?: string
     options?: string[]
 }
 
@@ -23,8 +24,6 @@ interface AvailabilityData {
     booking_description?: string
     booking_note_placeholder?: string
     booking_form_fields?: BookingField[]
-    collect_email?: boolean
-    email_required?: boolean
 }
 
 export default function AvailabilitySettings() {
@@ -36,9 +35,7 @@ export default function AvailabilitySettings() {
         booking_title: 'Schedule a Meeting',
         booking_description: 'Share your details and pick a time that works.',
         booking_note_placeholder: "I'd like to discuss...",
-        booking_form_fields: [],
-        collect_email: true,
-        email_required: true
+        booking_form_fields: []
     })
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -114,7 +111,7 @@ export default function AvailabilitySettings() {
             ...prev,
             booking_form_fields: [
                 ...(prev.booking_form_fields || []),
-                { id, label: 'New field', type: 'short_text', required: false, options: [] }
+                { id, label: 'New field', type: 'short_text', required: false, placeholder: '', options: [] }
             ]
         }))
     }
@@ -227,30 +224,6 @@ export default function AvailabilitySettings() {
                         </div>
                     </div>
 
-                    <div className={styles.emailSettings}>
-                        <h4>Email Collection</h4>
-                        <div className={styles.checkboxGroup}>
-                            <label className={styles.checkbox}>
-                                <input
-                                    type="checkbox"
-                                    checked={settings.collect_email !== false}
-                                    onChange={(e) => setSettings(prev => ({ ...prev, collect_email: e.target.checked }))}
-                                />
-                                <span>Collect email address</span>
-                            </label>
-                            {settings.collect_email !== false && (
-                                <label className={styles.checkbox}>
-                                    <input
-                                        type="checkbox"
-                                        checked={settings.email_required !== false}
-                                        onChange={(e) => setSettings(prev => ({ ...prev, email_required: e.target.checked }))}
-                                    />
-                                    <span>Make email required</span>
-                                </label>
-                            )}
-                        </div>
-                    </div>
-
                     <div className={styles.fieldBuilder}>
                         <div className={styles.fieldBuilderHeader}>
                             <div>
@@ -273,16 +246,44 @@ export default function AvailabilitySettings() {
                                                 type="text"
                                                 value={field.label}
                                                 onChange={(e) => updateField(field.id, { label: e.target.value })}
-                                                placeholder="Question label"
+                                                placeholder="Field label"
                                             />
                                             <select
                                                 value={field.type}
                                                 onChange={(e) => updateField(field.id, { type: e.target.value as BookingField['type'] })}
                                             >
-                                                <option value="short_text">Short answer</option>
-                                                <option value="long_text">Long answer</option>
-                                                <option value="multiple_choice">Multiple choice</option>
+                                                <option value="short_text">Short Text</option>
+                                                <option value="long_text">Long Text</option>
+                                                <option value="email">Email</option>
+                                                <option value="phone">Phone Number</option>
+                                                <option value="number">Number</option>
+                                                <option value="date">Date</option>
+                                                <option value="time">Time</option>
+                                                <option value="multiple_choice">Multiple Choice</option>
                                             </select>
+                                        </div>
+                                        <div className={styles.fieldRow}>
+                                            <input
+                                                type="text"
+                                                value={field.placeholder || ''}
+                                                onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                                                placeholder="Placeholder text (optional)"
+                                            />
+                                            <label className={styles.checkbox}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={field.required}
+                                                    onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                                                />
+                                                <span>Required</span>
+                                            </label>
+                                            <button
+                                                type="button"
+                                                className={styles.removeBtn}
+                                                onClick={() => removeField(field.id)}
+                                            >
+                                                Remove
+                                            </button>
                                         </div>
                                         <div className={styles.fieldRow}>
                                             <label className={styles.checkbox}>

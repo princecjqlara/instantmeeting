@@ -3,9 +3,16 @@
 export interface BookingField {
     id: string
     label: string
-    type: 'short_text' | 'long_text' | 'multiple_choice'
+    type: 'short_text' | 'long_text' | 'multiple_choice' | 'email' | 'phone' | 'number' | 'date' | 'time'
     required: boolean
+    placeholder?: string
     options?: string[]
+    validation?: {
+        min?: number
+        max?: number
+        pattern?: string
+        patternMessage?: string
+    }
 }
 
 export interface User {

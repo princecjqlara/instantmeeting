@@ -24,20 +24,18 @@ interface BookingHost {
     booking_form_fields?: Array<{
         id: string
         label: string
-        type: 'short_text' | 'long_text' | 'multiple_choice'
+        type: 'short_text' | 'long_text' | 'multiple_choice' | 'email' | 'phone' | 'number' | 'date' | 'time'
         required: boolean
+        placeholder?: string
         options?: string[]
     }> | null
     availability_mode?: 'always' | 'never' | 'scheduled'
-    collect_email?: boolean
-    email_required?: boolean
 }
 
 export default function BookingModal({ host, onClose, meetingId, guestId, mode = 'new' }: BookingModalProps) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         name: '',
-        email: '',
         note: ''
     })
     const [selectedDate, setSelectedDate] = useState<string>('')
@@ -100,7 +98,6 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
             const payload: Record<string, unknown> = {
                 hostId: host.id,
                 guestName: formData.name,
-                guestEmail: formData.email,
                 note: formData.note,
                 date: selectedDate,
                 time: selectedTime,
@@ -157,10 +154,6 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
     const bookingDescription = host.booking_description || 'Share your details and pick a time that works.'
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
     const customFields = Array.isArray(host.booking_form_fields) ? host.booking_form_fields : []
-    
-    // Check if email field should be shown (host can configure this)
-    const shouldShowEmailField = host.collect_email !== false // Default to true if not set
-    const isEmailRequired = host.email_required !== false // Email is required by default if not set
 
     const requiredFieldsMissing = customFields.some((field) => {
         if (!field.required) return false
@@ -168,8 +161,8 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
         return !value || value.trim() === ''
     })
     
-    // Check if email is missing when it should be collected
-    const emailMissing = shouldShowEmailField && isEmailRequired && !formData.email.trim()
+    // Check if name is missing
+    const nameMissing = !formData.name.trim()
 
     const handleFieldChange = (fieldId: string, value: string) => {
         setCustomAnswers(prev => ({ ...prev, [fieldId]: value }))
@@ -201,20 +194,6 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                     autoFocus
                                 />
                             </div>
-                            {shouldShowEmailField && (
-                                <div className={styles.inputGroup}>
-                                    <label>
-                                        Email Address
-                                        {isEmailRequired && <span className={styles.required}> *</span>}
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="jane@example.com"
-                                    />
-                                </div>
-                            )}
                             <div className={styles.inputGroup}>
                                 <label>Note (Optional)</label>
                                 <textarea
@@ -235,7 +214,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                                 <textarea
                                                     value={customAnswers[field.id] || ''}
                                                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                                                    placeholder="Your answer"
+                                                    placeholder={field.placeholder || "Your answer"}
                                                 />
                                             ) : field.type === 'multiple_choice' ? (
                                                 <select
@@ -247,11 +226,45 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                                         <option key={option} value={option}>{option}</option>
                                                     ))}
                                                 </select>
-                                            ) : (
+                                            ) : field.type === 'email' ? (
                                                 <input
+                                                    type="email"
                                                     value={customAnswers[field.id] || ''}
                                                     onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                                                    placeholder="Your answer"
+                                                    placeholder={field.placeholder || "your.email@example.com"}
+                                                />
+                                            ) : field.type === 'phone' ? (
+                                                <input
+                                                    type="tel"
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                    placeholder={field.placeholder || "+1 (555) 123-4567"}
+                                                />
+                                            ) : field.type === 'number' ? (
+                                                <input
+                                                    type="number"
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                    placeholder={field.placeholder || "123"}
+                                                />
+                                            ) : field.type === 'date' ? (
+                                                <input
+                                                    type="date"
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                />
+                                            ) : field.type === 'time' ? (
+                                                <input
+                                                    type="time"
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                />
+                                            ) : (
+                                                <input
+                                                    type="text"
+                                                    value={customAnswers[field.id] || ''}
+                                                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                                                    placeholder={field.placeholder || "Your answer"}
                                                 />
                                             )}
                                         </div>
@@ -261,7 +274,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                             <button
                                 className={styles.actionBtn}
                                 onClick={() => setStep(2)}
-                                disabled={!formData.name || emailMissing || requiredFieldsMissing}
+                                disabled={nameMissing || requiredFieldsMissing}
                             >
                                 Next
                             </button>

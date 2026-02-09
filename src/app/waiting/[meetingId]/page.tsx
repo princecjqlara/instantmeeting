@@ -267,7 +267,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     // Show schedule popup when host is unavailable and user hasn't seen it yet
     useEffect(() => {
-        if (!isHostFree && !isAdmitted && !showSchedulePopup && data) {
+        if (data && !isHostFree && !isAdmitted && !showSchedulePopup) {
             const timer = setTimeout(() => {
                 setShowSchedulePopup(true)
             }, 1000) // Show after 1 second
@@ -418,7 +418,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             )}
             
             {/* Up scroll indicator when not at top */}
-            {!isAdmitted && showScrollIndicator === false && (
+            {!isAdmitted && !showScrollIndicator && (
                 <div 
                     className={styles.scrollIndicator}
                     onClick={scrollToReels}
