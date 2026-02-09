@@ -250,6 +250,18 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }, [data])
 
+    // Show schedule popup when host is unavailable and user hasn't seen it yet
+    useEffect(() => {
+        const isHostFree = data?.host?.availability_mode === 'always'
+        const isAdmitted = data?.guest?.status === 'admitted'
+        if (data && !isHostFree && !isAdmitted && !showSchedulePopup) {
+            const timer = setTimeout(() => {
+                setShowSchedulePopup(true)
+            }, 1000) // Show after 1 second
+            return () => clearTimeout(timer)
+        }
+    }, [data, showSchedulePopup])
+
     if (loading && !data) {
         return (
             <div className={styles.container}>
@@ -313,16 +325,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
-
-    // Show schedule popup when host is unavailable and user hasn't seen it yet
-    useEffect(() => {
-        if (data && !isHostFree && !isAdmitted && !showSchedulePopup) {
-            const timer = setTimeout(() => {
-                setShowSchedulePopup(true)
-            }, 1000) // Show after 1 second
-            return () => clearTimeout(timer)
-        }
-    }, [isHostFree, isAdmitted, data, showSchedulePopup])
 
     // Waiting room with reels
     return (
