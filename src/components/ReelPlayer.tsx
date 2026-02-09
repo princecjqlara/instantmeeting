@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
 import { FaHeart, FaCommentDots, FaShare, FaVolumeUp, FaVolumeMute, FaArrowLeft, FaEdit, FaTrash, FaPlay, FaMusic } from 'react-icons/fa'
@@ -80,7 +80,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         return num.toString()
     }
 
-    const updateEngagement = async (type: 'view' | 'like' | 'comment') => {
+    const updateEngagement = useCallback(async (type: 'view' | 'like' | 'comment') => {
         if (!currentReel) return
         try {
             await fetch('/api/content/engagement', {
@@ -91,7 +91,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
         } catch (error) {
             console.error(`Error updating ${type}:`, error)
         }
-    }
+    }, [currentReel])
 
     const ensureGuestName = (action: 'like' | 'comment') => {
         if (isHost) return true
@@ -138,7 +138,10 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
     // ... useEffects ...
 
     const isGuestAdmitted = guestStatus === 'admitted'
-    const shouldLoopToStart = hostSettings?.availability_mode === 'always' && !isGuestAdmitted
+    const shouldLoopToStart = useMemo(() => 
+        hostSettings?.availability_mode === 'always' && !isGuestAdmitted,
+        [hostSettings?.availability_mode, isGuestAdmitted]
+    )
 
     const goToNext = useCallback(() => {
         if (currentIndex < reels.length - 1) {
