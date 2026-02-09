@@ -88,11 +88,52 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         const getStoredGuestId = () => {
             try {
                 const stored = localStorage.getItem(guestStorageKey)
-                console.log(`Retrieved guest ID from localStorage[${guestStorageKey}]:`, stored ? `yes (${stored})` : 'no')
                 return stored
             } catch (error) {
-                console.error('Error accessing localStorage:', error)
                 return null
+            }
+        }
+
+        const createGuest = async () => {
+            if (isCreatingGuestRef.current) return
+            
+            isCreatingGuestRef.current = true
+            try {
+                const createRes = await fetch('/api/waiting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        meetingId,
+                        guestName: 'Guest'
+                    })
+                })
+
+                if (createRes.ok) {
+                    const created = await createRes.json()
+                    
+                    try {
+                        localStorage.setItem(guestStorageKey, created.id)
+                    } catch (error) {
+                        // Silently fail on localStorage errors
+                    }
+                    if (isMounted) {
+                        setData(prev => prev ? {
+                            ...prev,
+                            guest: { id: created.id, status: created.status }
+                        } : prev)
+                    }
+                } else {
+                    const errorData = await createRes.json()
+                    if (isMounted) {
+                        setError(errorData.message || 'Unable to join waiting room')
+                    }
+                }
+            } catch {
+                if (isMounted) {
+                    setError('Failed to join waiting room')
+                }
+            } finally {
+                isCreatingGuestRef.current = false
             }
         }
 
@@ -109,50 +150,24 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
                 if (isMounted) {
                     setData(result)
+                    setLoading(false)
                 }
 
-                if (!guestIdParam && !result.guest && result.meeting?.status !== 'completed' && !isCreatingGuestRef.current) {
-                    isCreatingGuestRef.current = true
-                    const createRes = await fetch('/api/waiting', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            meetingId,
-                            guestName: 'Guest'
-                        })
-                    })
+                // Create guest if needed in parallel, don't block UI
+                if (!guestIdParam && !result.guest && result.meeting?.status !== 'completed') {
+                    createGuest()
+                }
 
-                    if (createRes.ok) {
-                        const created = await createRes.json()
-                        
-                        try {
-                            localStorage.setItem(guestStorageKey, created.id)
-                            console.log(`Stored guest ID ${created.id} in localStorage[${guestStorageKey}]`)
-                        } catch (error) {
-                            console.error('Error storing guest ID in localStorage:', error)
-                        }
-                        if (isMounted) {
-                            setData(prev => prev ? {
-                                ...prev,
-                                guest: { id: created.id, status: created.status }
-                            } : prev)
-                        }
-                    } else {
-                        // Handle room occupied error
-                        isCreatingGuestRef.current = false
-                        const errorData = await createRes.json()
-                        if (isMounted) {
-                            setError(errorData.message || 'Unable to join waiting room')
-                        }
+                // Stop polling if guest is admitted or meeting ended
+                if (result.guest?.status === 'admitted' || result.meeting?.status === 'completed') {
+                    if (intervalId) {
+                        clearInterval(intervalId)
+                        intervalId = null
                     }
                 }
             } catch {
-                isCreatingGuestRef.current = false
                 if (isInitial && isMounted) {
                     setError('Failed to load waiting room')
-                }
-            } finally {
-                if (isInitial && isMounted) {
                     setLoading(false)
                 }
             }
@@ -160,9 +175,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
         const storedGuestId = getStoredGuestId()
         fetchData(storedGuestId, true)
-        intervalId = setInterval(() => {
-            fetchData(getStoredGuestId(), false)
-        }, 5000)
+        
+        // Only poll if guest is waiting or we don't have guest data yet
+        const startPolling = () => {
+            if (intervalId) return
+            
+            intervalId = setInterval(() => {
+                const currentGuestId = getStoredGuestId()
+                fetchData(currentGuestId, false)
+            }, 15000)
+        }
+        
+        // Start polling after initial load
+        setTimeout(startPolling, 1000)
 
         return () => {
             isMounted = false
@@ -225,11 +250,29 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }, [data, isClient])
 
-    if (loading) {
+    if (loading && !data) {
         return (
-            <div className={styles.loading}>
-                <div className={styles.spinner}></div>
-                <p>Loading waiting room...</p>
+            <div className={styles.container}>
+                {/* Skeleton loading UI */}
+                <div className={styles.reelSection}>
+                    <div className={styles.skeletonReel}></div>
+                    <div className={styles.skeletonBanner}></div>
+                </div>
+                <div className={styles.skeletonHostProfile}>
+                    <div className={styles.skeletonAvatar}></div>
+                    <div className={styles.skeletonHostInfo}>
+                        <div className={styles.skeletonText}></div>
+                        <div className={styles.skeletonTextSmall}></div>
+                    </div>
+                </div>
+                <div className={styles.joinSection}>
+                    <div className={styles.skeletonCard}>
+                        <div className={styles.skeletonIcon}></div>
+                        <div className={styles.skeletonTitle}></div>
+                        <div className={styles.skeletonDescription}></div>
+                        <div className={styles.skeletonButton}></div>
+                    </div>
+                </div>
             </div>
         )
     }

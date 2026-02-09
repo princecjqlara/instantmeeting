@@ -22,61 +22,68 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Meeting ID required' }, { status: 400 })
     }
 
-    // Get meeting with host info
-    const { data: meeting, error: meetingError } = await supabase
-        .from('meetings')
-        .select(`
-      id,
-      title,
-      status,
-      google_meet_link,
-      host_joined_at,
-      ended_at,
-      reschedule_requested,
-      reschedule_requested_at,
-      user_id
-    `)
-        .eq('id', meetingId)
-        .single()
+    // Get meeting, host info, and content in parallel
+    const [{ data: meeting, error: meetingError }, contentPromise, guestPromise, hostPromise, admittedGuestPromise] = await Promise.all([
+        supabase
+            .from('meetings')
+            .select(`
+                id,
+                title,
+                status,
+                google_meet_link,
+                host_joined_at,
+                ended_at,
+                reschedule_requested,
+                reschedule_requested_at,
+                user_id
+            `)
+            .eq('id', meetingId)
+            .single(),
+        
+        // Content query - we'll execute it if meeting exists
+        Promise.resolve(null),
+        
+        // Guest status if guestId provided
+        guestId ? supabase
+            .from('waiting_guests')
+            .select('*')
+            .eq('id', guestId)
+            .single() 
+        : Promise.resolve({ data: null, error: null }),
+        
+        // Host info - we'll execute it if meeting exists
+        Promise.resolve(null),
+        
+        // Admitted guest check
+        supabase
+            .from('waiting_guests')
+            .select('id, guest_name')
+            .eq('meeting_id', meetingId)
+            .eq('status', 'admitted')
+            .single()
+    ])
 
     if (meetingError || !meeting) {
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
     }
 
-    // Get host's content
-    const { data: content } = await supabase
-        .from('content')
-        .select('*')
-        .eq('user_id', meeting.user_id)
-        .order('order_index', { ascending: true })
-
-    // Get guest status if guestId provided
-    let guestStatus = null
-    if (guestId) {
-        const { data: guest } = await supabase
-            .from('waiting_guests')
+    // Now execute dependent queries in parallel
+    const [{ data: content }, { data: host }, { data: guestStatus }] = await Promise.all([
+        supabase
+            .from('content')
             .select('*')
-            .eq('id', guestId)
-            .single()
-        guestStatus = guest
-    }
+            .eq('user_id', meeting.user_id)
+            .order('order_index', { ascending: true }),
+        supabase
+            .from('users')
+            .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+            .eq('id', meeting.user_id)
+            .single(),
+        guestPromise
+    ])
 
-    // Get host info
-    const { data: host } = await supabase
-        .from('users')
-        .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
-        .eq('id', meeting.user_id)
-        .single()
-
+    const { data: admittedGuest } = admittedGuestPromise
     const origin = req.nextUrl.origin
-
-    // Check if there's already an admitted guest
-    const { data: admittedGuest } = await supabase
-        .from('waiting_guests')
-        .select('id, guest_name')
-        .eq('meeting_id', meetingId)
-        .eq('status', 'admitted')
-        .single()
 
     return NextResponse.json({
         meeting: {

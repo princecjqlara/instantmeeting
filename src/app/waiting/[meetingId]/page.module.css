@@ -947,9 +947,129 @@
 
 @keyframes fadeInDelayed {
     from {
-        opacity: 0;
+        opacity: 0
     }
     to {
-        opacity: 0.7;
+        opacity: 0.7
+    }
+}
+
+/* Skeleton loading styles */
+.skeletonReel {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #1a1a2e 25%, #2d2d44 50%, #1a1a2e 75%);
+    background-size: 200% 100%;
+    animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonBanner {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 40px;
+    background: #2d2d44;
+    border-radius: 999px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.2s;
+}
+
+.skeletonHostProfile {
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 6px 10px;
+    border-radius: 50px;
+    z-index: 50;
+    max-width: 180px;
+}
+
+.skeletonAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2d2d44;
+    animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonHostInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.skeletonText {
+    width: 80px;
+    height: 14px;
+    background: #2d2d44;
+    border-radius: 4px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.1s;
+}
+
+.skeletonTextSmall {
+    width: 60px;
+    height: 12px;
+    background: #2d2d44;
+    border-radius: 4px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.2s;
+}
+
+.skeletonCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 48px 40px;
+    max-width: 450px;
+    width: 100%;
+    text-align: center;
+}
+
+.skeletonIcon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: #2d2d44;
+    margin: 0 auto 24px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite;
+}
+
+.skeletonTitle {
+    width: 200px;
+    height: 24px;
+    background: #2d2d44;
+    border-radius: 4px;
+    margin: 0 auto 12px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.1s;
+}
+
+.skeletonDescription {
+    width: 300px;
+    height: 16px;
+    background: #2d2d44;
+    border-radius: 4px;
+    margin: 0 auto 28px;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.2s;
+}
+
+.skeletonButton {
+    width: 180px;
+    height: 44px;
+    background: #2d2d44;
+    border-radius: 999px;
+    margin: 0 auto;
+    animation: skeletonShimmer 1.5s ease-in-out infinite 0.3s;
+}
+
+@keyframes skeletonShimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
     }
 }
