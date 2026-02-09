@@ -66,21 +66,27 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [showBookingModal, setShowBookingModal] = useState(false)
     const [showAdmitPopup, setShowAdmitPopup] = useState(false)
     const [showSchedulePopup, setShowSchedulePopup] = useState(false)
+    const [isClient, setIsClient] = useState(false)
     const hasAutoJoinedRef = useRef(false)
     const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const isCreatingGuestRef = useRef(false)
 
+    useEffect(() => {
+        setIsClient(true)
+    }, [])
+
     // Fetch waiting room data
     useEffect(() => {
+        if (!isClient) return
+        
         let isMounted = true
         let intervalId: ReturnType<typeof setInterval> | null = null
         const guestStorageKey = `waitingGuest:${meetingId}`
 
         const getStoredGuestId = () => {
             try {
-                if (typeof window === 'undefined') return null
                 const stored = localStorage.getItem(guestStorageKey)
                 console.log(`Retrieved guest ID from localStorage[${guestStorageKey}]:`, stored ? `yes (${stored})` : 'no')
                 return stored
@@ -120,10 +126,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         const created = await createRes.json()
                         
                         try {
-                            if (typeof window !== 'undefined') {
-                                localStorage.setItem(guestStorageKey, created.id)
-                                console.log(`Stored guest ID ${created.id} in localStorage[${guestStorageKey}]`)
-                            }
+                            localStorage.setItem(guestStorageKey, created.id)
+                            console.log(`Stored guest ID ${created.id} in localStorage[${guestStorageKey}]`)
                         } catch (error) {
                             console.error('Error storing guest ID in localStorage:', error)
                         }
@@ -184,6 +188,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }, [data?.guest?.status])
 
     useEffect(() => {
+        if (!isClient) return
+        
         const handleScroll = () => {
             if (!containerRef.current) return
 
@@ -217,7 +223,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 container.removeEventListener('scroll', handleScroll)
             }
         }
-    }, [data])
+    }, [data, isClient])
 
     if (loading) {
         return (

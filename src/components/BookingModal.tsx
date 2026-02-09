@@ -42,6 +42,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
     const [selectedTime, setSelectedTime] = useState<string>('')
     const [submitting, setSubmitting] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [error, setError] = useState<string | null>(null)
     const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({})
 
     // Generate next 7 days for selection (naive implementation)
@@ -118,11 +119,14 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
             if (res.ok) {
                 setSuccess(true)
             } else {
-                alert('Something went wrong. Please try again.')
+                const error = await res.json()
+                console.error('Booking failed:', error)
+                // Don't use alert() as it causes hydration issues
+                setError(error.message || 'Something went wrong. Please try again.')
             }
         } catch (err) {
             console.error(err)
-            alert('Failed to book meeting')
+            setError('Failed to book meeting')
         } finally {
             setSubmitting(false)
         }
@@ -313,13 +317,18 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                 </div>
                             )}
 
-                            <button
-                                className={styles.actionBtn}
-                                onClick={handleSubmit}
-                                disabled={!selectedDate || !selectedTime || submitting}
-                            >
-                                {submitting ? 'Booking...' : 'Confirm Booking'}
-                            </button>
+                             {error && (
+                                 <div className={styles.error}>
+                                     {error}
+                                 </div>
+                             )}
+                             <button
+                                 className={styles.actionBtn}
+                                 onClick={handleSubmit}
+                                 disabled={!selectedDate || !selectedTime || submitting}
+                             >
+                                 {submitting ? 'Booking...' : 'Confirm Booking'}
+                             </button>
                         </div>
                     )}
                 </div>
