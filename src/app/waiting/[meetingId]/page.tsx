@@ -65,6 +65,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [showScrollIndicator, setShowScrollIndicator] = useState(false)
     const [showBookingModal, setShowBookingModal] = useState(false)
     const [showAdmitPopup, setShowAdmitPopup] = useState(false)
+    const [showSchedulePopup, setShowSchedulePopup] = useState(false)
     const hasAutoJoinedRef = useRef(false)
     const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
@@ -264,6 +265,16 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
 
+    // Show schedule popup when host is unavailable and user hasn't seen it yet
+    useEffect(() => {
+        if (!isHostFree && !isAdmitted && !showSchedulePopup && data) {
+            const timer = setTimeout(() => {
+                setShowSchedulePopup(true)
+            }, 1000) // Show after 1 second
+            return () => clearTimeout(timer)
+        }
+    }, [isHostFree, isAdmitted, data, showSchedulePopup])
+
     // Waiting room with reels
     return (
         <div ref={containerRef} className={styles.container}>
@@ -395,17 +406,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 )}
             </div>
 
-            {/* Scroll Indicator */}
-            {isAdmitted ? null : showScrollIndicator ? (
+            {/* Scroll Indicator - Only show when host is available */}
+            {!isAdmitted && isHostFree && showScrollIndicator && (
                 <div 
                     className={styles.scrollIndicator}
                     onClick={scrollToSchedule}
-                    title={isHostFree ? 'Scroll down' : 'Scroll down to schedule'}
+                    title="Scroll down"
                 >
                     <FaArrowDown />
-                    {!isHostFree && <span className={styles.scrollLabel}>Schedule meeting</span>}
                 </div>
-            ) : (
+            )}
+            
+            {/* Up scroll indicator when not at top */}
+            {!isAdmitted && showScrollIndicator === false && (
                 <div 
                     className={styles.scrollIndicator}
                     onClick={scrollToReels}
@@ -451,6 +464,35 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     <span>Waiting for {hostDisplayName} to join...</span>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Schedule Popup - shown when host is unavailable */}
+            {showSchedulePopup && !isHostFree && !isAdmitted && (
+                <div className={styles.admitOverlay}>
+                    <div className={styles.admitModal}>
+                        <h2>Host is Busy</h2>
+                        <p>{hostDisplayName} isn't available right now. Would you like to schedule a meeting for later?</p>
+                        <div className={styles.admitActions}>
+                            <button
+                                type="button"
+                                className={styles.admitPrimary}
+                                onClick={() => {
+                                    setShowSchedulePopup(false)
+                                    setShowBookingModal(true)
+                                }}
+                            >
+                                Schedule Meeting
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.admitSecondary}
+                                onClick={() => setShowSchedulePopup(false)}
+                            >
+                                Continue Waiting
+                            </button>
                         </div>
                     </div>
                 </div>

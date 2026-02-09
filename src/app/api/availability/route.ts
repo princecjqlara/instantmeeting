@@ -38,7 +38,9 @@ export async function GET() {
             booking_title: 'Schedule a Meeting',
             booking_description: 'Share your details and pick a time that works.',
             booking_note_placeholder: "I'd like to discuss...",
-            booking_form_fields: []
+            booking_form_fields: [],
+            collect_email: true,
+            email_required: true
         })
     }
 
@@ -52,7 +54,9 @@ export async function GET() {
         booking_title: user.booking_title || 'Schedule a Meeting',
         booking_description: user.booking_description || 'Share your details and pick a time that works.',
         booking_note_placeholder: user.booking_note_placeholder || "I'd like to discuss...",
-        booking_form_fields: user.booking_form_fields || []
+        booking_form_fields: user.booking_form_fields || [],
+        collect_email: (user as any).collect_email !== false, // Default to true if not set
+        email_required: (user as any).email_required !== false // Default to true if not set
     })
 }
 
@@ -78,6 +82,8 @@ export async function PATCH(req: NextRequest) {
     if (body.booking_description !== undefined) updateData.booking_description = body.booking_description
     if (body.booking_note_placeholder !== undefined) updateData.booking_note_placeholder = body.booking_note_placeholder
     if (body.booking_form_fields !== undefined) updateData.booking_form_fields = body.booking_form_fields
+    if (body.collect_email !== undefined) (updateData as any).collect_email = body.collect_email
+    if (body.email_required !== undefined) (updateData as any).email_required = body.email_required
 
     const { data: existingUser } = await supabase
         .from('users')
@@ -93,7 +99,7 @@ export async function PATCH(req: NextRequest) {
                 name: session.user.name,
                 ...updateData
             })
-            .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields, collect_email, email_required')
             .single()
 
         if (createError) {

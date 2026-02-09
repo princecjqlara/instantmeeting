@@ -29,6 +29,8 @@ interface BookingHost {
         options?: string[]
     }> | null
     availability_mode?: 'always' | 'never' | 'scheduled'
+    collect_email?: boolean
+    email_required?: boolean
 }
 
 export default function BookingModal({ host, onClose, meetingId, guestId, mode = 'new' }: BookingModalProps) {
@@ -155,12 +157,19 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
     const bookingDescription = host.booking_description || 'Share your details and pick a time that works.'
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
     const customFields = Array.isArray(host.booking_form_fields) ? host.booking_form_fields : []
+    
+    // Check if email field should be shown (host can configure this)
+    const shouldShowEmailField = host.collect_email !== false // Default to true if not set
+    const isEmailRequired = host.email_required !== false // Email is required by default if not set
 
     const requiredFieldsMissing = customFields.some((field) => {
         if (!field.required) return false
         const value = customAnswers[field.id]
         return !value || value.trim() === ''
     })
+    
+    // Check if email is missing when it should be collected
+    const emailMissing = shouldShowEmailField && isEmailRequired && !formData.email.trim()
 
     const handleFieldChange = (fieldId: string, value: string) => {
         setCustomAnswers(prev => ({ ...prev, [fieldId]: value }))
@@ -192,15 +201,20 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                     autoFocus
                                 />
                             </div>
-                            <div className={styles.inputGroup}>
-                                <label>Email Address</label>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                    placeholder="jane@example.com"
-                                />
-                            </div>
+                            {shouldShowEmailField && (
+                                <div className={styles.inputGroup}>
+                                    <label>
+                                        Email Address
+                                        {isEmailRequired && <span className={styles.required}> *</span>}
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="jane@example.com"
+                                    />
+                                </div>
+                            )}
                             <div className={styles.inputGroup}>
                                 <label>Note (Optional)</label>
                                 <textarea
@@ -247,7 +261,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                             <button
                                 className={styles.actionBtn}
                                 onClick={() => setStep(2)}
-                                disabled={!formData.name || !formData.email || requiredFieldsMissing}
+                                disabled={!formData.name || emailMissing || requiredFieldsMissing}
                             >
                                 Next
                             </button>

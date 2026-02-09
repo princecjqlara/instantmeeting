@@ -23,6 +23,8 @@ interface AvailabilityData {
     booking_description?: string
     booking_note_placeholder?: string
     booking_form_fields?: BookingField[]
+    collect_email?: boolean
+    email_required?: boolean
 }
 
 export default function AvailabilitySettings() {
@@ -34,7 +36,9 @@ export default function AvailabilitySettings() {
         booking_title: 'Schedule a Meeting',
         booking_description: 'Share your details and pick a time that works.',
         booking_note_placeholder: "I'd like to discuss...",
-        booking_form_fields: []
+        booking_form_fields: [],
+        collect_email: true,
+        email_required: true
     })
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
@@ -220,6 +224,30 @@ export default function AvailabilitySettings() {
                                 onChange={(e) => setSettings(prev => ({ ...prev, booking_note_placeholder: e.target.value }))}
                                 placeholder="I'd like to discuss..."
                             />
+                        </div>
+                    </div>
+
+                    <div className={styles.emailSettings}>
+                        <h4>Email Collection</h4>
+                        <div className={styles.checkboxGroup}>
+                            <label className={styles.checkbox}>
+                                <input
+                                    type="checkbox"
+                                    checked={settings.collect_email !== false}
+                                    onChange={(e) => setSettings(prev => ({ ...prev, collect_email: e.target.checked }))}
+                                />
+                                <span>Collect email address</span>
+                            </label>
+                            {settings.collect_email !== false && (
+                                <label className={styles.checkbox}>
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.email_required !== false}
+                                        onChange={(e) => setSettings(prev => ({ ...prev, email_required: e.target.checked }))}
+                                    />
+                                    <span>Make email required</span>
+                                </label>
+                            )}
                         </div>
                     </div>
 
