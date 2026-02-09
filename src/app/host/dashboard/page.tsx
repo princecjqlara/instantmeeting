@@ -527,7 +527,6 @@ export default function Dashboard() {
                                 </div>
                             )
                         })}
-                    })()}
                     </div>
                     
                     {/* Pagination */}
@@ -570,6 +569,8 @@ export default function Dashboard() {
                     </>
                 )}
             </section>
+        )
+    })()}
 
             {/* Preview Modal */}
             {showPreview && (
