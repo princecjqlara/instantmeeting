@@ -124,6 +124,34 @@ export async function POST(
         }
     }
 
+    // First check if guest exists at all
+    const { data: guestExists } = await supabase
+        .from('waiting_guests')
+        .select('id, meeting_id, status')
+        .eq('id', guestId)
+        .single()
+
+    if (!guestExists) {
+        return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+    }
+
+    // Check if guest belongs to this meeting
+    if (guestExists.meeting_id !== meetingId) {
+        return NextResponse.json({ 
+            error: 'Guest does not belong to this meeting',
+            details: `Guest is in meeting ${guestExists.meeting_id}, not ${meetingId}`
+        }, { status: 400 })
+    }
+
+    // Check if guest is already admitted
+    if (guestExists.status === 'admitted') {
+        return NextResponse.json({ 
+            error: 'Guest already admitted',
+            message: 'This guest has already been admitted to the meeting'
+        }, { status: 400 })
+    }
+
+    // Get guest with join_token
     const { data: existingGuest } = await supabase
         .from('waiting_guests')
         .select('id, join_token')
@@ -131,11 +159,7 @@ export async function POST(
         .eq('meeting_id', meetingId)
         .single()
 
-    if (!existingGuest) {
-        return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
-    }
-
-    const joinToken = existingGuest.join_token || randomUUID()
+    const joinToken = existingGuest?.join_token || randomUUID()
 
     // Admit the guest
     const { data: guest, error } = await supabase
