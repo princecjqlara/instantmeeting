@@ -667,62 +667,51 @@
 }
 
 @media (max-width: 480px) {
+    .reelSection {
+        padding-top: 120px;
+    }
+
     .joinBanner {
-        top: calc(10px + env(safe-area-inset-top));
-        left: 10px;
-        right: 10px;
-        transform: none;
-        padding: 8px 12px;
-        gap: 6px;
-        font-size: 11px;
-        flex-wrap: wrap;
-        justify-content: center;
-        max-width: calc(100% - 20px);
+        top: calc(60px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 16px;
+        font-size: 13px;
+        min-width: 200px;
+        text-align: center;
     }
 
     .joinBannerButton {
-        padding: 4px 10px;
-        font-size: 10px;
+        padding: 6px 12px;
+        font-size: 12px;
     }
 
     .waitBanner {
-        top: calc(55px + env(safe-area-inset-top));
-        left: 10px;
-        right: 10px;
-        transform: none;
-        padding: 8px 12px;
-        font-size: 11px;
-        max-width: calc(100% - 20px);
+        top: calc(60px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 16px;
+        font-size: 13px;
+        min-width: 220px;
+        text-align: center;
+        white-space: nowrap;
     }
 
     .hostProfile {
-        top: calc(95px + env(safe-area-inset-top));
-        left: 10px;
-        max-width: calc(100% - 20px);
-        padding: 4px 8px;
-    }
-    
-    .hostAvatar {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .hostName {
-        font-size: 12px;
-    }
-    
-    .hostUsername {
-        font-size: 10px;
+        position: relative;
+        top: auto;
+        left: auto;
+        margin: 16px auto;
+        max-width: 200px;
     }
     
     .occupiedBanner {
-        top: calc(140px + env(safe-area-inset-top));
-        left: 10px;
-        right: 10px;
-        transform: none;
-        font-size: 10px;
-        padding: 8px 12px;
-        max-width: calc(100% - 20px);
+        top: calc(100px + env(safe-area-inset-top));
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 16px;
+        font-size: 12px;
+        text-align: center;
     }
 }
 
