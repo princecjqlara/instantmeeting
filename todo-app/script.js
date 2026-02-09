@@ -1,12 +1,28 @@
+const STORAGE_KEY = 'todo-app-tasks';
+
 const taskInput = document.getElementById('taskInput');
 const addTaskBtn = document.getElementById('addTaskBtn');
 const taskList = document.getElementById('taskList');
 const statsEl = document.getElementById('stats');
 
-let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+let tasks = loadTasks();
+
+function loadTasks() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error('Failed to load tasks from localStorage', e);
+    return [];
+  }
+}
 
 function saveTasks() {
-  localStorage.setItem('tasks', JSON.stringify(tasks));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (e) {
+    console.error('Failed to save tasks to localStorage', e);
+  }
 }
 
 function renderTasks() {

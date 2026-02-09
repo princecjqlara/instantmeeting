@@ -1,3 +1,5 @@
+const STORAGE_KEY = 'todo-app-tasks';
+
 function describe(name, fn) {
   console.group(name);
   fn();
@@ -28,25 +30,35 @@ function assertDeepEqual(actual, expected, message) {
   }
 }
 
-function assertTrue(condition, message) {
-  if (!condition) {
-    throw new Error(message);
+function loadTasks() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error('Failed to load tasks from localStorage', e);
+    return [];
   }
 }
 
-describe('Task Management', () => {
-  let originalTasks;
+function saveTasks(tasks) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  } catch (e) {
+    console.error('Failed to save tasks to localStorage', e);
+  }
+}
+
+describe('LocalStorage Persistence', () => {
   let mockLocalStorage;
   
   beforeEach(() => {
-    originalTasks = [];
     mockLocalStorage = {
       store: {},
       getItem: function(key) {
         return this.store[key] || null;
       },
       setItem: function(key, value) {
-        this.store[key] = JSON.stringify(JSON.parse(value));
+        this.store[key] = value;
       },
       clear: function() {
         this.store = {};
@@ -54,97 +66,139 @@ describe('Task Management', () => {
     };
     
     global.localStorage = mockLocalStorage;
-    global.tasks = [];
   });
   
   afterEach(() => {
     mockLocalStorage.clear();
   });
   
-  describe('addTask', () => {
-    it('should add a task to the list', () => {
-      global.tasks = [];
-      const text = 'Test task';
-      global.tasks.push({ text, createdAt: Date.now() });
-      
-      assertEqual(global.tasks.length, 1, 'Should have 1 task');
-      assertEqual(global.tasks[0].text, text, 'Task text should match');
-    });
-    
-    it('should not add empty task', () => {
-      global.tasks = [];
-      const text = '';
-      
-      if (text.trim()) {
-        global.tasks.push({ text, createdAt: Date.now() });
-      }
-      
-      assertEqual(global.tasks.length, 0, 'Should not add empty task');
-    });
-  });
-  
-  describe('deleteTask', () => {
-    it('should delete a task by index', () => {
-      global.tasks = [
-        { text: 'Task 1', createdAt: 1 },
-        { text: 'Task 2', createdAt: 2 },
-        { text: 'Task 3', createdAt: 3 }
-      ];
-      
-      const deleteIndex = 1;
-      global.tasks.splice(deleteIndex, 1);
-      
-      assertEqual(global.tasks.length, 2, 'Should have 2 tasks after delete');
-      assertEqual(global.tasks[0].text, 'Task 1', 'First task should remain');
-      assertEqual(global.tasks[1].text, 'Task 3', 'Third task should shift');
-    });
-    
-    it('should handle deleting last task', () => {
-      global.tasks = [
-        { text: 'Task 1', createdAt: 1 },
-        { text: 'Task 2', createdAt: 2 }
-      ];
-      
-      const deleteIndex = 1;
-      global.tasks.splice(deleteIndex, 1);
-      
-      assertEqual(global.tasks.length, 1, 'Should have 1 task');
-      assertEqual(global.tasks[0].text, 'Task 1', 'First task should remain');
-    });
-    
-    it('should handle deleting first task', () => {
-      global.tasks = [
-        { text: 'Task 1', createdAt: 1 },
-        { text: 'Task 2', createdAt: 2 }
-      ];
-      
-      const deleteIndex = 0;
-      global.tasks.splice(deleteIndex, 1);
-      
-      assertEqual(global.tasks.length, 1, 'Should have 1 task');
-      assertEqual(global.tasks[0].text, 'Task 2', 'Second task should become first');
-    });
-  });
-  
-  describe('localStorage', () => {
-    it('should save tasks to localStorage', () => {
-      mockLocalStorage.clear();
+  describe('saveTasks', () => {
+    it('should save valid tasks to localStorage', () => {
       const tasks = [
         { text: 'Task 1', createdAt: 1 },
         { text: 'Task 2', createdAt: 2 }
       ];
       
-      mockLocalStorage.setItem('tasks', JSON.stringify(tasks));
+      saveTasks(tasks);
       
-      const retrieved = JSON.parse(mockLocalStorage.getItem('tasks'));
-      assertDeepEqual(retrieved, tasks, 'Saved tasks should match retrieved tasks');
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(stored);
+      assertDeepEqual(parsed, tasks, 'Saved tasks should match input');
     });
     
-    it('should retrieve empty array for no tasks', () => {
-      mockLocalStorage.clear();
-      const retrieved = JSON.parse(mockLocalStorage.getItem('tasks'));
-      const expected = null;
-      assertEqual(retrieved, expected, 'Should return null for missing key');
+    it('should save empty array', () => {
+      const tasks = [];
+      
+      saveTasks(tasks);
+      
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(stored);
+      assertDeepEqual(parsed, tasks, 'Should save empty array');
+    });
+    
+    it('should handle save with single task', () => {
+      const tasks = [{ text: 'Single task', createdAt: 123 }];
+      
+      saveTasks(tasks);
+      
+      const stored = localStorage.getItem(STORAGE_KEY);
+      const parsed = JSON.parse(stored);
+      assertEqual(parsed.length, 1, 'Should have 1 task');
+      assertEqual(parsed[0].text, 'Single task', 'Text should match');
+    });
+  });
+  
+  describe('loadTasks', () => {
+    it('should load tasks from localStorage when data exists', () => {
+      const tasks = [
+        { text: 'Task 1', createdAt: 1 },
+        { text: 'Task 2', createdAt: 2 }
+      ];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      
+      const loaded = loadTasks();
+      
+      assertDeepEqual(loaded, tasks, 'Loaded tasks should match saved tasks');
+    });
+    
+    it('should return empty array when localStorage is empty', () => {
+      localStorage.clear();
+      
+      const loaded = loadTasks();
+      
+      assertDeepEqual(loaded, [], 'Should return empty array');
+    });
+    
+    it('should return empty array when localStorage has null value', () => {
+      localStorage.clear();
+      
+      const loaded = loadTasks();
+      
+      assertDeepEqual(loaded, [], 'Should return empty array for null');
+    });
+    
+    it('should recover from corrupted data', () => {
+      localStorage.setItem(STORAGE_KEY, '{invalid json}');
+      
+      const loaded = loadTasks();
+      
+      assertDeepEqual(loaded, [], 'Should return empty array on corrupted data');
+    });
+  });
+  
+  describe('Persistence Integration', () => {
+    it('should persist tasks across save/load cycles', () => {
+      const tasks = [
+        { text: 'Task 1', createdAt: Date.now() },
+        { text: 'Task 2', createdAt: Date.now() + 1 }
+      ];
+      
+      saveTasks(tasks);
+      const loaded = loadTasks();
+      
+      assertEqual(loaded.length, 2, 'Should have 2 tasks');
+      assertEqual(loaded[0].text, 'Task 1', 'First task should match');
+      assertEqual(loaded[1].text, 'Task 2', 'Second task should match');
+    });
+    
+    it('should persist after adding new task', () => {
+      const initialTasks = [{ text: 'Initial', createdAt: 1 }];
+      saveTasks(initialTasks);
+      
+      const loaded = loadTasks();
+      loaded.push({ text: 'New task', createdAt: 2 });
+      saveTasks(loaded);
+      
+      const finalLoaded = loadTasks();
+      assertEqual(finalLoaded.length, 2, 'Should have 2 tasks');
+      assertEqual(finalLoaded[1].text, 'New task', 'New task should be persisted');
+    });
+    
+    it('should persist after deleting task', () => {
+      const initialTasks = [
+        { text: 'Task 1', createdAt: 1 },
+        { text: 'Task 2', createdAt: 2 },
+        { text: 'Task 3', createdAt: 3 }
+      ];
+      saveTasks(initialTasks);
+      
+      const loaded = loadTasks();
+      loaded.splice(1, 1);
+      saveTasks(loaded);
+      
+      const finalLoaded = loadTasks();
+      assertEqual(finalLoaded.length, 2, 'Should have 2 tasks');
+      assertEqual(finalLoaded[0].text, 'Task 1', 'First task should remain');
+      assertEqual(finalLoaded[1].text, 'Task 3', 'Third task should shift to second position');
+    });
+    
+    it('should handle multiple save operations', () => {
+      saveTasks([{ text: 'First', createdAt: 1 }]);
+      saveTasks([{ text: 'Second', createdAt: 2 }]);
+      
+      const loaded = loadTasks();
+      assertEqual(loaded.length, 1, 'Should have 1 task');
+      assertEqual(loaded[0].text, 'Second', 'Should have the latest value');
     });
   });
 });
