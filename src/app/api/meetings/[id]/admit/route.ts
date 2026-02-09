@@ -124,19 +124,28 @@ export async function POST(
         }
     }
 
-    // First check if guest exists at all
-    const { data: guestExists } = await supabase
+    // First check if guest exists at all - use maybeSingle to handle no results gracefully
+    const { data: guestExists, error: guestCheckError } = await supabase
         .from('waiting_guests')
         .select('id, meeting_id, status')
         .eq('id', guestId)
-        .single()
+        .maybeSingle()
+
+    if (guestCheckError) {
+        console.error('Error checking guest:', guestCheckError)
+        return NextResponse.json({ error: 'Error checking guest' }, { status: 500 })
+    }
 
     if (!guestExists) {
+        console.log(`Guest ${guestId} not found in database`)
         return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
     }
 
+    console.log(`Found guest ${guestId} in meeting ${guestExists.meeting_id} with status ${guestExists.status}`)
+
     // Check if guest belongs to this meeting
     if (guestExists.meeting_id !== meetingId) {
+        console.log(`Guest mismatch: guest is in ${guestExists.meeting_id}, trying to admit from ${meetingId}`)
         return NextResponse.json({ 
             error: 'Guest does not belong to this meeting',
             details: `Guest is in meeting ${guestExists.meeting_id}, not ${meetingId}`
@@ -151,15 +160,8 @@ export async function POST(
         }, { status: 400 })
     }
 
-    // Get guest with join_token
-    const { data: existingGuest } = await supabase
-        .from('waiting_guests')
-        .select('id, join_token')
-        .eq('id', guestId)
-        .eq('meeting_id', meetingId)
-        .single()
-
-    const joinToken = existingGuest?.join_token || randomUUID()
+    // Generate join token
+    const joinToken = randomUUID()
 
     // Admit the guest
     const { data: guest, error } = await supabase

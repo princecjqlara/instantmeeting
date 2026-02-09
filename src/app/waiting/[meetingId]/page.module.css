@@ -672,25 +672,40 @@
         left: 10px;
         right: 10px;
         transform: none;
-        padding: 8px 10px;
+        padding: 10px 14px;
         gap: 8px;
-        font-size: 11px;
+        font-size: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
     }
 
     .joinBannerButton {
-        padding: 5px 10px;
+        padding: 6px 12px;
         font-size: 11px;
     }
 
     .waitBanner {
-        top: calc(52px + env(safe-area-inset-top));
+        top: calc(60px + env(safe-area-inset-top));
         left: 10px;
         right: 10px;
         transform: none;
+        padding: 10px 14px;
+        font-size: 12px;
     }
 
     .hostProfile {
-        top: calc(90px + env(safe-area-inset-top));
+        top: calc(110px + env(safe-area-inset-top));
+        left: 10px;
+        max-width: calc(100% - 20px);
+    }
+    
+    .occupiedBanner {
+        top: calc(155px + env(safe-area-inset-top));
+        left: 10px;
+        right: 10px;
+        transform: none;
+        font-size: 11px;
+        padding: 10px 14px;
     }
 }
 
