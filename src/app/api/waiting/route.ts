@@ -133,61 +133,7 @@ export async function POST(req: NextRequest) {
         )
     }
 
-    // Check if there's already a guest waiting or admitted
-    const { data: existingGuest } = await supabase
-        .from('waiting_guests')
-        .select('id, guest_name, status')
-        .eq('meeting_id', meetingId)
-        .in('status', ['waiting', 'admitted'])
-        .single()
-
-    // If room is occupied, create a new meeting room
-    if (existingGuest) {
-        // Check if this is a "(Guest)" room that might already have a guest
-        // If so, create another new room
-        let newMeetingTitle = `${originalMeeting.title} (Guest)`
-        
-        // Create new meeting room for this guest
-        const { data: newMeeting, error: meetingError } = await supabase
-            .from('meetings')
-            .insert({
-                user_id: originalMeeting.user_id,
-                title: newMeetingTitle,
-                status: 'pending',
-            })
-            .select()
-            .single()
-
-        if (meetingError || !newMeeting) {
-            return NextResponse.json(
-                { error: 'Failed to create new room' },
-                { status: 500 }
-            )
-        }
-
-        // Create waiting guest entry in the new room
-        const { data: guest, error } = await supabase
-            .from('waiting_guests')
-            .insert({
-                meeting_id: newMeeting.id,
-                guest_name: guestName,
-                status: 'waiting',
-            })
-            .select()
-            .single()
-
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 })
-        }
-
-        return NextResponse.json({
-            ...guest,
-            newMeetingId: newMeeting.id,
-            isNewRoom: true,
-        })
-    }
-
-    // Create waiting guest entry in original room
+    // Create waiting guest entry in the room (allow multiple guests)
     const { data: guest, error } = await supabase
         .from('waiting_guests')
         .insert({

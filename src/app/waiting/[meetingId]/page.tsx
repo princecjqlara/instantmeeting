@@ -114,20 +114,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     if (createRes.ok) {
                         const created = await createRes.json()
                         
-                        // If new room was created, store guest ID and redirect
-                        if (created.isNewRoom && created.newMeetingId) {
-                            const newGuestStorageKey = `waitingGuest:${created.newMeetingId}`
-                            try {
-                                localStorage.setItem(newGuestStorageKey, created.id)
-                            } catch {
-                                // ignore storage errors
-                            }
-                            if (isMounted) {
-                                router.push(`/waiting/${created.newMeetingId}`)
-                            }
-                            return
-                        }
-                        
                         try {
                             localStorage.setItem(guestStorageKey, created.id)
                         } catch {
