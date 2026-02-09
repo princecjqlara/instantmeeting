@@ -66,20 +66,17 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [showBookingModal, setShowBookingModal] = useState(false)
     const [showAdmitPopup, setShowAdmitPopup] = useState(false)
     const [showSchedulePopup, setShowSchedulePopup] = useState(false)
-    const [isClient, setIsClient] = useState(false)
     const hasAutoJoinedRef = useRef(false)
     const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const isCreatingGuestRef = useRef(false)
 
-    useEffect(() => {
-        setIsClient(true)
-    }, [])
+
 
     // Fetch waiting room data
     useEffect(() => {
-        if (!isClient) return
+        console.log('Fetching waiting room data for meeting:', meetingId)
         
         let isMounted = true
         let intervalId: ReturnType<typeof setInterval> | null = null
@@ -140,14 +137,18 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         const fetchData = async (guestIdParam?: string | null, isInitial = false) => {
             try {
                 const guestQuery = guestIdParam ? `&guestId=${guestIdParam}` : ''
-                const response = await fetch(`/api/waiting?meetingId=${meetingId}${guestQuery}`)
+                const url = `/api/waiting?meetingId=${meetingId}${guestQuery}`
+                console.log('Fetching waiting data from:', url)
+                const response = await fetch(url)
                 const result = await response.json()
 
                 if (!response.ok) {
+                    console.error('API error:', result.error)
                     setError(result.error || 'Meeting not found')
                     return
                 }
 
+                console.log('Waiting data received:', result)
                 if (isMounted) {
                     setData(result)
                     setLoading(false)
@@ -165,8 +166,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         intervalId = null
                     }
                 }
-            } catch {
-                if (isInitial && isMounted) {
+            } catch (error) {
+                console.error('Error fetching waiting room data:', error)
+                if (isMounted) {
                     setError('Failed to load waiting room')
                     setLoading(false)
                 }
@@ -213,8 +215,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }, [data?.guest?.status])
 
     useEffect(() => {
-        if (!isClient) return
-        
         const handleScroll = () => {
             if (!containerRef.current) return
 
@@ -248,7 +248,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 container.removeEventListener('scroll', handleScroll)
             }
         }
-    }, [data, isClient])
+    }, [data])
 
     if (loading && !data) {
         return (

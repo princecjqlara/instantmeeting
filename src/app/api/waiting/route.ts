@@ -5,10 +5,14 @@ import { createClient } from '@supabase/supabase-js'
 export const dynamic = 'force-dynamic'
 
 function getSupabaseClient() {
-    return createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    
+    if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Missing Supabase environment variables')
+    }
+    
+    return createClient(supabaseUrl, supabaseKey)
 }
 
 // GET: Get waiting room info and host's content
@@ -21,6 +25,8 @@ export async function GET(req: NextRequest) {
     if (!meetingId) {
         return NextResponse.json({ error: 'Meeting ID required' }, { status: 400 })
     }
+
+    console.log('Waiting API called with meetingId:', meetingId, 'guestId:', guestId)
 
     // Get meeting, host info, and content in parallel
     const [{ data: meeting, error: meetingError }, contentPromise, guestPromise, hostPromise, admittedGuestPromise] = await Promise.all([
