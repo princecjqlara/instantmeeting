@@ -294,9 +294,33 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
             if (Math.abs(diff) > 50) {
                 if (diff > 0) {
-                    goToNext()
+                    // Go to next
+                    if (currentIndex < reels.length - 1) {
+                        setCurrentIndex(prev => prev + 1)
+                        setScrollCount(prev => {
+                            const newCount = prev + 1
+                            const scrollThreshold = hostSettings?.scroll_threshold
+                            const availabilityMode = hostSettings?.availability_mode
+                            
+                            if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                                if (availabilityMode !== 'always' && !isGuestAdmitted) {
+                                    setShowBookingModal(true)
+                                    return 0
+                                }
+                            }
+                            return newCount
+                        })
+                    } else if (shouldLoopToStart) {
+                        setCurrentIndex(0)
+                        setScrollCount(0)
+                    } else {
+                        onEndReached?.()
+                    }
                 } else {
-                    goToPrev()
+                    // Go to prev
+                    if (currentIndex > 0) {
+                        setCurrentIndex(prev => prev - 1)
+                    }
                 }
             }
             isDragging = false
@@ -309,9 +333,33 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
             lastScrollTime = now
 
             if (e.deltaY > 0) {
-                goToNext()
+                // Go to next
+                if (currentIndex < reels.length - 1) {
+                    setCurrentIndex(prev => prev + 1)
+                    setScrollCount(prev => {
+                        const newCount = prev + 1
+                        const scrollThreshold = hostSettings?.scroll_threshold
+                        const availabilityMode = hostSettings?.availability_mode
+                        
+                        if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                            if (availabilityMode !== 'always' && !isGuestAdmitted) {
+                                setShowBookingModal(true)
+                                return 0
+                            }
+                        }
+                        return newCount
+                    })
+                } else if (shouldLoopToStart) {
+                    setCurrentIndex(0)
+                    setScrollCount(0)
+                } else {
+                    onEndReached?.()
+                }
             } else {
-                goToPrev()
+                // Go to prev
+                if (currentIndex > 0) {
+                    setCurrentIndex(prev => prev - 1)
+                }
             }
         }
 
@@ -324,17 +372,41 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
             container.removeEventListener('touchend', handleTouchEnd)
             container.removeEventListener('wheel', handleWheel)
         }
-    }, [goToNext, goToPrev])
+    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
 
     // Keyboard navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'ArrowUp') {
                 e.preventDefault()
-                goToPrev()
+                // Go to prev
+                if (currentIndex > 0) {
+                    setCurrentIndex(prev => prev - 1)
+                }
             } else if (e.key === 'ArrowDown') {
                 e.preventDefault()
-                goToNext()
+                // Go to next
+                if (currentIndex < reels.length - 1) {
+                    setCurrentIndex(prev => prev + 1)
+                    setScrollCount(prev => {
+                        const newCount = prev + 1
+                        const scrollThreshold = hostSettings?.scroll_threshold
+                        const availabilityMode = hostSettings?.availability_mode
+                        
+                        if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                            if (availabilityMode !== 'always' && !isGuestAdmitted) {
+                                setShowBookingModal(true)
+                                return 0
+                            }
+                        }
+                        return newCount
+                    })
+                } else if (shouldLoopToStart) {
+                    setCurrentIndex(0)
+                    setScrollCount(0)
+                } else {
+                    onEndReached?.()
+                }
             } else if (e.key === ' ') {
                 e.preventDefault()
                 setIsPlaying(prev => !prev)
@@ -343,7 +415,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [goToNext, goToPrev])
+    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
 
     if (!hasReels) {
         return (
