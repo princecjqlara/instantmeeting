@@ -550,6 +550,11 @@
     opacity: 0.9;
     animation: pulse 2s infinite ease-in-out;
     box-shadow: 0 4px 12px rgba(255, 51, 102, 0.5);
+    touch-action: manipulation;
+}
+
+.scrollIndicator:active {
+    transform: scale(0.95);
 }
 
 .scrollLabel {
@@ -667,51 +672,177 @@
 }
 
 @media (max-width: 480px) {
+    .container {
+        height: 100dvh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .reelSection {
-        padding-top: 120px;
+        padding-top: 0;
+        height: calc(100dvh - 120px);
+        min-height: calc(100dvh - 120px);
+    }
+
+    .hostProfile {
+        position: absolute;
+        top: calc(12px + env(safe-area-inset-top, 0px));
+        left: 12px;
+        margin: 0;
+        max-width: calc(100% - 24px);
+        backdrop-filter: blur(16px);
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 60;
     }
 
     .joinBanner {
-        top: calc(60px + env(safe-area-inset-top));
+        top: calc(env(safe-area-inset-top, 12px) + 60px);
         left: 50%;
         transform: translateX(-50%);
-        padding: 10px 16px;
+        padding: 12px 20px;
         font-size: 13px;
-        min-width: 200px;
+        min-width: min(280px, 90%);
         text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .waitBanner {
+        top: calc(env(safe-area-inset-top, 12px) + 60px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 16px;
+        font-size: 13px;
+        min-width: min(240px, 90%);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .joinBannerButton {
         padding: 6px 12px;
         font-size: 12px;
+        flex-shrink: 0;
     }
 
-    .waitBanner {
-        top: calc(60px + env(safe-area-inset-top));
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 10px 16px;
-        font-size: 13px;
-        min-width: 220px;
-        text-align: center;
-        white-space: nowrap;
+    .joinSection {
+        min-height: calc(100dvh - 120px);
+        padding: 24px 16px;
     }
 
-    .hostProfile {
-        position: relative;
-        top: auto;
-        left: auto;
-        margin: 16px auto;
-        max-width: 200px;
+    .joinCard,
+    .scheduleCard,
+    .occupiedCard {
+        padding: 32px 24px;
+        margin: 0 12px;
     }
-    
+
+    .scrollIndicator {
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        right: 16px;
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .admitOverlay {
+        padding: 16px;
+    }
+
+    .admitModal {
+        width: calc(100% - 32px);
+        margin: env(safe-area-inset-top, 0px) auto env(safe-area-inset-bottom, 0px);
+    }
+
     .occupiedBanner {
-        top: calc(100px + env(safe-area-inset-top));
+        top: calc(env(safe-area-inset-top, 12px) + 100px);
         left: 50%;
         transform: translateX(-50%);
         padding: 10px 16px;
         font-size: 12px;
         text-align: center;
+        max-width: 90%;
+    }
+}
+
+@media (max-width: 360px) {
+    .hostProfile {
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        left: 8px;
+        padding: 4px 8px;
+    }
+
+    .hostAvatar {
+        width: 32px;
+        height: 32px;
+    }
+
+    .hostName {
+        font-size: 12px;
+    }
+
+    .hostUsername {
+        font-size: 10px;
+    }
+
+    .joinBanner,
+    .waitBanner {
+        padding: 8px 12px;
+        font-size: 12px;
+        top: calc(env(safe-area-inset-top, 8px) + 56px);
+    }
+
+    .joinCard,
+    .scheduleCard,
+    .occupiedCard {
+        padding: 24px 16px;
+    }
+
+    .joinIcon,
+    .scheduleIcon,
+    .occupiedIcon {
+        width: 64px;
+        height: 64px;
+        font-size: 24px;
+    }
+
+    .joinCard h2,
+    .scheduleCard h2,
+    .occupiedCard h2 {
+        font-size: 20px;
+    }
+
+    .joinCard p,
+    .scheduleCard p,
+    .occupiedCard p {
+        font-size: 14px;
+    }
+
+    .admitModal h2 {
+        font-size: 18px;
+    }
+
+    .admitModal p {
+        font-size: 13px;
+    }
+}
+
+/* Tall phones */
+@media (min-height: 700px) and (max-width: 480px) {
+    .reelSection {
+        height: calc(100dvh - 140px);
+        min-height: calc(100dvh - 140px);
+    }
+
+    .joinSection {
+        min-height: calc(100dvh - 140px);
+    }
+
+    .joinCard,
+    .scheduleCard,
+    .occupiedCard {
+        padding: 40px 32px;
     }
 }
 

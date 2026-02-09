@@ -125,23 +125,42 @@ export async function POST(
     }
 
     // First check if guest exists at all - use maybeSingle to handle no results gracefully
+    console.log(`Admit API called for guest ${guestId} in meeting ${meetingId}`)
+    
     const { data: guestExists, error: guestCheckError } = await supabase
         .from('waiting_guests')
-        .select('id, meeting_id, status')
+        .select('id, meeting_id, status, guest_name, joined_at')
         .eq('id', guestId)
         .maybeSingle()
 
     if (guestCheckError) {
         console.error('Error checking guest:', guestCheckError)
-        return NextResponse.json({ error: 'Error checking guest' }, { status: 500 })
+        return NextResponse.json({ error: 'Error checking guest', details: guestCheckError.message }, { status: 500 })
     }
 
     if (!guestExists) {
-        console.log(`Guest ${guestId} not found in database`)
-        return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
+        console.log(`Guest ${guestId} not found in database. Checking all guests in meeting ${meetingId}...`)
+        
+        // Debug: List all guests in this meeting to see what's there
+        const { data: allGuests } = await supabase
+            .from('waiting_guests')
+            .select('id, guest_name, status, joined_at')
+            .eq('meeting_id', meetingId)
+            .order('joined_at', { ascending: false })
+        
+        console.log(`All guests in meeting ${meetingId}:`, allGuests)
+        
+        return NextResponse.json({ 
+            error: 'Guest not found',
+            debug: {
+                requestedGuestId: guestId,
+                meetingId,
+                allGuestsInMeeting: allGuests || []
+            }
+        }, { status: 404 })
     }
 
-    console.log(`Found guest ${guestId} in meeting ${guestExists.meeting_id} with status ${guestExists.status}`)
+    console.log(`Found guest ${guestId} (${guestExists.guest_name}) in meeting ${guestExists.meeting_id} with status ${guestExists.status}, joined at ${guestExists.joined_at}`)
 
     // Check if guest belongs to this meeting
     if (guestExists.meeting_id !== meetingId) {

@@ -79,8 +79,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
         const getStoredGuestId = () => {
             try {
-                return localStorage.getItem(guestStorageKey)
-            } catch {
+                if (typeof window === 'undefined') return null
+                const stored = localStorage.getItem(guestStorageKey)
+                console.log(`Retrieved guest ID from localStorage[${guestStorageKey}]:`, stored ? `yes (${stored})` : 'no')
+                return stored
+            } catch (error) {
+                console.error('Error accessing localStorage:', error)
                 return null
             }
         }
@@ -115,9 +119,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         const created = await createRes.json()
                         
                         try {
-                            localStorage.setItem(guestStorageKey, created.id)
-                        } catch {
-                            // ignore storage errors
+                            if (typeof window !== 'undefined') {
+                                localStorage.setItem(guestStorageKey, created.id)
+                                console.log(`Stored guest ID ${created.id} in localStorage[${guestStorageKey}]`)
+                            }
+                        } catch (error) {
+                            console.error('Error storing guest ID in localStorage:', error)
                         }
                         if (isMounted) {
                             setData(prev => prev ? {
