@@ -437,6 +437,14 @@
 }
 
 @media (max-width: 480px) {
+  .container {
+    max-width: 100%;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 9 / 16;
+    max-height: 100%;
+  }
+
   .bottomLeft {
     bottom: calc(16px + env(safe-area-inset-bottom));
     right: 70px;

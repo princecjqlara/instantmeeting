@@ -680,8 +680,11 @@
 
     .reelSection {
         padding-top: 0;
-        height: calc(100dvh - 120px);
-        min-height: calc(100dvh - 120px);
+        height: 100dvh;
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .hostProfile {
@@ -728,7 +731,7 @@
     }
 
     .joinSection {
-        min-height: calc(100dvh - 120px);
+        min-height: 100dvh;
         padding: 24px 16px;
     }
 
@@ -831,12 +834,12 @@
 /* Tall phones */
 @media (min-height: 700px) and (max-width: 480px) {
     .reelSection {
-        height: calc(100dvh - 140px);
-        min-height: calc(100dvh - 140px);
+        height: 100dvh;
+        min-height: 100dvh;
     }
 
     .joinSection {
-        min-height: calc(100dvh - 140px);
+        min-height: 100dvh;
     }
 
     .joinCard,
