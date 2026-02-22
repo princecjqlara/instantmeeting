@@ -24,6 +24,7 @@ interface AvailabilityData {
     booking_description?: string
     booking_note_placeholder?: string
     booking_form_fields?: BookingField[]
+    auto_admit?: boolean
 }
 
 export default function AvailabilitySettings() {
@@ -158,206 +159,208 @@ export default function AvailabilitySettings() {
                     <FaTimes />
                     Not Available
                 </button>
-                <button
-                    className={`${styles.modeBtn} ${settings.availability_mode === 'scheduled' ? styles.active : ''}`}
-                    onClick={() => setMode('scheduled')}
-                >
                     <FaClock />
                     Set Schedule
                 </button>
             </div>
 
-            {settings.availability_mode !== 'always' && (
-                <div className={styles.scheduleForm}>
-                    <div className={styles.settingsRow}>
-                        <div className={styles.settingGroup}>
-                            <label>Scrolls before prompt</label>
-                            <input
-                                type="number"
-                                min="1"
-                                max="20"
-                                value={settings.scroll_threshold || 3}
-                                onChange={(e) => setSettings(prev => ({ ...prev, scroll_threshold: parseInt(e.target.value) || 3 }))}
-                            />
-                        </div>
-                        <div className={styles.settingGroup}>
-                            <label>Meeting Duration (min)</label>
-                            <select
-                                value={settings.meeting_duration || 30}
-                                onChange={(e) => setSettings(prev => ({ ...prev, meeting_duration: parseInt(e.target.value) || 30 }))}
-                            >
-                                <option value="15">15 minutes</option>
-                                <option value="30">30 minutes</option>
-                                <option value="45">45 minutes</option>
-                                <option value="60">1 hour</option>
-                            </select>
-                        </div>
+            <div className={styles.autoAdmitSection}>
+                <div className={styles.toggleRow}>
+                    <div className={styles.toggleInfo}>
+                        <strong>Auto-admit Guests</strong>
+                        <p>Automatically admit guests when they join your room.</p>
                     </div>
-
-                    <div className={styles.bookingSettings}>
-                        <div className={styles.settingGroup}>
-                            <label>Form Title</label>
-                            <input
-                                type="text"
-                                value={settings.booking_title || ''}
-                                onChange={(e) => setSettings(prev => ({ ...prev, booking_title: e.target.value }))}
-                                placeholder="Schedule a Meeting"
-                            />
-                        </div>
-                        <div className={styles.settingGroup}>
-                            <label>Form Description</label>
-                            <textarea
-                                rows={2}
-                                value={settings.booking_description || ''}
-                                onChange={(e) => setSettings(prev => ({ ...prev, booking_description: e.target.value }))}
-                                placeholder="Share your details and pick a time that works."
-                            />
-                        </div>
-                        <div className={styles.settingGroup}>
-                            <label>Note Placeholder</label>
-                            <input
-                                type="text"
-                                value={settings.booking_note_placeholder || ''}
-                                onChange={(e) => setSettings(prev => ({ ...prev, booking_note_placeholder: e.target.value }))}
-                                placeholder="I'd like to discuss..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className={styles.fieldBuilder}>
-                        <div className={styles.fieldBuilderHeader}>
-                            <div>
-                                <h4>Custom Fields</h4>
-                                <p>Add questions to your booking form.</p>
-                            </div>
-                            <button type="button" className={styles.addFieldBtn} onClick={addField}>
-                                Add Field
-                            </button>
-                        </div>
-
-                        {(settings.booking_form_fields || []).length === 0 ? (
-                            <div className={styles.emptyFields}>No custom fields yet.</div>
-                        ) : (
-                            <div className={styles.fieldList}>
-                                {(settings.booking_form_fields || []).map((field) => (
-                                    <div key={field.id} className={styles.fieldCard}>
-                                        <div className={styles.fieldRow}>
-                                            <input
-                                                type="text"
-                                                value={field.label}
-                                                onChange={(e) => updateField(field.id, { label: e.target.value })}
-                                                placeholder="Field label"
-                                            />
-                                            <select
-                                                value={field.type}
-                                                onChange={(e) => updateField(field.id, { type: e.target.value as BookingField['type'] })}
-                                            >
-                                                <option value="short_text">Short Text</option>
-                                                <option value="long_text">Long Text</option>
-                                                <option value="email">Email</option>
-                                                <option value="phone">Phone Number</option>
-                                                <option value="number">Number</option>
-                                                <option value="date">Date</option>
-                                                <option value="time">Time</option>
-                                                <option value="multiple_choice">Multiple Choice</option>
-                                            </select>
-                                        </div>
-                                        <div className={styles.fieldRow}>
-                                            <input
-                                                type="text"
-                                                value={field.placeholder || ''}
-                                                onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
-                                                placeholder="Placeholder text (optional)"
-                                            />
-                                            <label className={styles.checkbox}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={field.required}
-                                                    onChange={(e) => updateField(field.id, { required: e.target.checked })}
-                                                />
-                                                <span>Required</span>
-                                            </label>
-                                            <button
-                                                type="button"
-                                                className={styles.removeBtn}
-                                                onClick={() => removeField(field.id)}
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                        <div className={styles.fieldRow}>
-                                            <label className={styles.checkbox}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={field.required}
-                                                    onChange={(e) => updateField(field.id, { required: e.target.checked })}
-                                                />
-                                                Required
-                                            </label>
-                                            <button
-                                                type="button"
-                                                className={styles.removeFieldBtn}
-                                                onClick={() => removeField(field.id)}
-                                            >
-                                                Remove
-                                            </button>
-                                        </div>
-                                        {field.type === 'multiple_choice' && (
-                                            <div className={styles.fieldRow}>
-                                                <input
-                                                    type="text"
-                                                    value={(field.options || []).join(', ')}
-                                                    onChange={(e) => updateField(field.id, {
-                                                        options: e.target.value
-                                                            .split(',')
-                                                            .map(option => option.trim())
-                                                            .filter(Boolean)
-                                                    })}
-                                                    placeholder="Options (comma separated)"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {settings.availability_mode === 'scheduled' && (
-                        <>
-                            <div className={styles.timeRow}>
-                                <div className={styles.timeInput}>
-                                    <label>Available from</label>
-                                    <input
-                                        type="time"
-                                        value={settings.available_from || '09:00'}
-                                        onChange={(e) => handleTimeChange('available_from', e.target.value)}
-                                    />
-                                </div>
-                                <span className={styles.to}>to</span>
-                                <div className={styles.timeInput}>
-                                    <label>Until</label>
-                                    <input
-                                        type="time"
-                                        value={settings.available_to || '17:00'}
-                                        onChange={(e) => handleTimeChange('available_to', e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className={styles.timezone}>
-                                Timezone: {settings.timezone || 'UTC'}
-                            </div>
-                        </>
-                    )}
-                    <button
-                        className={styles.saveScheduleBtn}
-                        onClick={saveSettings}
-                        disabled={saving}
-                    >
-                        {saving ? 'Saving...' : 'Save Settings'}
-                    </button>
+                    <label className={styles.switch}>
+                        <input
+                            type="checkbox"
+                            checked={settings.auto_admit || false}
+                            onChange={(e) => {
+                                const val = e.target.checked
+                                setSettings(prev => ({ ...prev, auto_admit: val }))
+                                updateAvailability({ auto_admit: val })
+                            }}
+                        />
+                        <span className={styles.slider}></span>
+                    </label>
                 </div>
-            )}
-        </div>
+            </div>
+
+            {
+        settings.availability_mode !== 'always' && (
+            <div className={styles.scheduleForm}>
+                <div className={styles.settingsRow}>
+                    <div className={styles.settingGroup}>
+                        <label>Scrolls before prompt</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={settings.scroll_threshold || 3}
+                            onChange={(e) => setSettings(prev => ({ ...prev, scroll_threshold: parseInt(e.target.value) || 3 }))}
+                        />
+                    </div>
+                    <div className={styles.settingGroup}>
+                        <label>Meeting Duration (min)</label>
+                        <select
+                            value={settings.meeting_duration || 30}
+                            onChange={(e) => setSettings(prev => ({ ...prev, meeting_duration: parseInt(e.target.value) || 30 }))}
+                        >
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">1 hour</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div className={styles.bookingSettings}>
+                    <div className={styles.settingGroup}>
+                        <label>Form Title</label>
+                        <input
+                            type="text"
+                            value={settings.booking_title || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, booking_title: e.target.value }))}
+                            placeholder="Schedule a Meeting"
+                        />
+                    </div>
+                    <div className={styles.settingGroup}>
+                        <label>Form Description</label>
+                        <textarea
+                            rows={2}
+                            value={settings.booking_description || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, booking_description: e.target.value }))}
+                            placeholder="Share your details and pick a time that works."
+                        />
+                    </div>
+                    <div className={styles.settingGroup}>
+                        <label>Note Placeholder</label>
+                        <input
+                            type="text"
+                            value={settings.booking_note_placeholder || ''}
+                            onChange={(e) => setSettings(prev => ({ ...prev, booking_note_placeholder: e.target.value }))}
+                            placeholder="I'd like to discuss..."
+                        />
+                    </div>
+                </div>
+
+                <div className={styles.fieldBuilder}>
+                    <div className={styles.fieldBuilderHeader}>
+                        <div>
+                            <h4>Custom Fields</h4>
+                            <p>Add questions to your booking form.</p>
+                        </div>
+                        <button type="button" className={styles.addFieldBtn} onClick={addField}>
+                            Add Field
+                        </button>
+                    </div>
+
+                    {(settings.booking_form_fields || []).length === 0 ? (
+                        <div className={styles.emptyFields}>No custom fields yet.</div>
+                    ) : (
+                        <div className={styles.fieldList}>
+                            {(settings.booking_form_fields || []).map((field) => (
+                                <div key={field.id} className={styles.fieldCard}>
+                                    <div className={styles.fieldRow}>
+                                        <input
+                                            type="text"
+                                            value={field.label}
+                                            onChange={(e) => updateField(field.id, { label: e.target.value })}
+                                            placeholder="Field label"
+                                        />
+                                        <select
+                                            value={field.type}
+                                            onChange={(e) => updateField(field.id, { type: e.target.value as BookingField['type'] })}
+                                        >
+                                            <option value="short_text">Short Text</option>
+                                            <option value="long_text">Long Text</option>
+                                            <option value="email">Email</option>
+                                            <option value="phone">Phone Number</option>
+                                            <option value="number">Number</option>
+                                            <option value="date">Date</option>
+                                            <option value="time">Time</option>
+                                            <option value="multiple_choice">Multiple Choice</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.fieldRow}>
+                                        <input
+                                            type="text"
+                                            value={field.placeholder || ''}
+                                            onChange={(e) => updateField(field.id, { placeholder: e.target.value })}
+                                            placeholder="Placeholder text (optional)"
+                                        />
+                                        <label className={styles.checkbox}>
+                                            <input
+                                                type="checkbox"
+                                                checked={field.required}
+                                                onChange={(e) => updateField(field.id, { required: e.target.checked })}
+                                            />
+                                            <span>Required</span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className={styles.removeBtn}
+                                            onClick={() => removeField(field.id)}
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                    {field.type === 'multiple_choice' && (
+                                        <div className={styles.fieldRow}>
+                                            <input
+                                                type="text"
+                                                value={(field.options || []).join(', ')}
+                                                onChange={(e) => updateField(field.id, {
+                                                    options: e.target.value
+                                                        .split(',')
+                                                        .map(option => option.trim())
+                                                        .filter(Boolean)
+                                                })}
+                                                placeholder="Options (comma separated)"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {settings.availability_mode === 'scheduled' && (
+                    <>
+                        <div className={styles.timeRow}>
+                            <div className={styles.timeInput}>
+                                <label>Available from</label>
+                                <input
+                                    type="time"
+                                    value={settings.available_from || '09:00'}
+                                    onChange={(e) => handleTimeChange('available_from', e.target.value)}
+                                />
+                            </div>
+                            <span className={styles.to}>to</span>
+                            <div className={styles.timeInput}>
+                                <label>Until</label>
+                                <input
+                                    type="time"
+                                    value={settings.available_to || '17:00'}
+                                    onChange={(e) => handleTimeChange('available_to', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className={styles.timezone}>
+                            Timezone: {settings.timezone || 'UTC'}
+                        </div>
+                    </>
+                )}
+                <button
+                    className={styles.saveScheduleBtn}
+                    onClick={saveSettings}
+                    disabled={saving}
+                >
+                    {saving ? 'Saving...' : 'Save Settings'}
+                </button>
+            </div>
+        )
+    }
+        </div >
     )
 }

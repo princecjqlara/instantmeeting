@@ -7,6 +7,7 @@ import { FaCheckCircle, FaTimes } from 'react-icons/fa'
 interface BookingModalProps {
     host: BookingHost
     onClose: () => void
+    onSuccess?: () => void
     meetingId?: string
     guestId?: string
     mode?: 'new' | 'reschedule'
@@ -32,7 +33,7 @@ interface BookingHost {
     availability_mode?: 'always' | 'never' | 'scheduled'
 }
 
-export default function BookingModal({ host, onClose, meetingId, guestId, mode = 'new' }: BookingModalProps) {
+export default function BookingModal({ host, onClose, onSuccess, meetingId, guestId, mode = 'new' }: BookingModalProps) {
     const [step, setStep] = useState(1)
     const [formData, setFormData] = useState({
         name: '',
@@ -90,7 +91,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                 label: field.label,
                 value: customAnswers[field.id] || ''
             }))
-            .filter(field => field.value.trim() !== '')
+                .filter(field => field.value.trim() !== '')
 
             const endpoint = mode === 'reschedule' && meetingId
                 ? `/api/meetings/${meetingId}/reschedule/guest`
@@ -118,6 +119,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
 
             if (res.ok) {
                 setSuccess(true)
+                onSuccess?.()
             } else {
                 const error = await res.json()
                 console.error('Booking failed:', error)
@@ -164,7 +166,7 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
         const value = customAnswers[field.id]
         return !value || value.trim() === ''
     })
-    
+
     // Check if name is missing
     const nameMissing = !formData.name.trim()
 
@@ -317,18 +319,18 @@ export default function BookingModal({ host, onClose, meetingId, guestId, mode =
                                 </div>
                             )}
 
-                             {error && (
-                                 <div className={styles.error}>
-                                     {error}
-                                 </div>
-                             )}
-                             <button
-                                 className={styles.actionBtn}
-                                 onClick={handleSubmit}
-                                 disabled={!selectedDate || !selectedTime || submitting}
-                             >
-                                 {submitting ? 'Booking...' : 'Confirm Booking'}
-                             </button>
+                            {error && (
+                                <div className={styles.error}>
+                                    {error}
+                                </div>
+                            )}
+                            <button
+                                className={styles.actionBtn}
+                                onClick={handleSubmit}
+                                disabled={!selectedDate || !selectedTime || submitting}
+                            >
+                                {submitting ? 'Booking...' : 'Confirm Booking'}
+                            </button>
                         </div>
                     )}
                 </div>

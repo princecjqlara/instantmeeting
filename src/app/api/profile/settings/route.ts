@@ -23,7 +23,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
         .from('users')
-        .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
         .eq('email', session.user.email)
         .single()
 
@@ -57,7 +57,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { username, name, bio, followers, following } = body
+    const { username, name, bio, followers, following, auto_admit } = body
 
     // Validate username only if it's a non-empty string
     if (username && username.length > 0) {
@@ -87,6 +87,7 @@ export async function PATCH(req: NextRequest) {
     if (bio !== undefined) updateData.bio = bio || null
     if (followers !== undefined) updateData.followers = followers
     if (following !== undefined) updateData.following = following
+    if (auto_admit !== undefined) updateData.auto_admit = auto_admit
 
     // First check if user exists
     const { data: existingUser } = await supabase
@@ -100,7 +101,7 @@ export async function PATCH(req: NextRequest) {
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({ email: session.user.email, ...updateData })
-            .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+            .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
             .single()
 
         if (createError) {
@@ -113,6 +114,7 @@ export async function PATCH(req: NextRequest) {
             bio: newUser.bio || '',
             avatar_url: newUser.avatar_url,
             availability_mode: newUser.availability_mode || 'always',
+            auto_admit: newUser.auto_admit || false,
             available_from: newUser.available_from || null,
             available_to: newUser.available_to || null,
             timezone: newUser.timezone || 'UTC',
@@ -127,7 +129,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('username, name, bio, avatar_url, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
         .single()
 
     if (error) {

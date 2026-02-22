@@ -77,7 +77,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     // Fetch waiting room data
     useEffect(() => {
         console.log('Fetching waiting room data for meeting:', meetingId)
-        
+
         let isMounted = true
         let intervalId: ReturnType<typeof setInterval> | null = null
         const guestStorageKey = `waitingGuest:${meetingId}`
@@ -93,7 +93,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
         const createGuest = async () => {
             if (isCreatingGuestRef.current) return
-            
+
             isCreatingGuestRef.current = true
             try {
                 const createRes = await fetch('/api/waiting', {
@@ -107,7 +107,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
                 if (createRes.ok) {
                     const created = await createRes.json()
-                    
+
                     try {
                         localStorage.setItem(guestStorageKey, created.id)
                     } catch (error) {
@@ -177,17 +177,17 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
         const storedGuestId = getStoredGuestId()
         fetchData(storedGuestId, true)
-        
+
         // Only poll if guest is waiting or we don't have guest data yet
         const startPolling = () => {
             if (intervalId) return
-            
+
             intervalId = setInterval(() => {
                 const currentGuestId = getStoredGuestId()
                 fetchData(currentGuestId, false)
             }, 15000)
         }
-        
+
         // Start polling after initial load
         setTimeout(startPolling, 1000)
 
@@ -215,26 +215,23 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }, [data?.guest?.status])
 
     useEffect(() => {
+        const canAutoJoin = Boolean(
+            data?.guest?.status === 'admitted' &&
+            data?.meetLink &&
+            data?.meeting?.host_joined_at &&
+            data?.meeting?.status !== 'completed'
+        )
+
+        if (canAutoJoin && data?.meetLink && !hasAutoJoinedRef.current) {
+            hasAutoJoinedRef.current = true
+            window.location.assign(data.meetLink)
+        }
+
         const handleScroll = () => {
             if (!containerRef.current) return
-
             const scrollTop = containerRef.current.scrollTop
             const windowHeight = window.innerHeight
             setShowScrollIndicator(scrollTop < windowHeight / 2)
-
-            const canAutoJoin = Boolean(
-                data?.guest?.status === 'admitted' &&
-                data?.meetLink &&
-                data?.meeting?.host_joined_at &&
-                data?.meeting?.status !== 'completed'
-            )
-            if (canAutoJoin && data?.meetLink && !hasAutoJoinedRef.current && joinSectionRef.current) {
-                const joinTop = joinSectionRef.current.offsetTop
-                if (scrollTop + windowHeight >= joinTop + 40) {
-                    hasAutoJoinedRef.current = true
-                    window.location.assign(data.meetLink)
-                }
-            }
         }
 
         const container = containerRef.current
@@ -261,6 +258,39 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             return () => clearTimeout(timer)
         }
     }, [data, showSchedulePopup])
+
+    // Mark guest as 'left' when they navigate away
+    useEffect(() => {
+        const guestStorageKey = `waitingGuest:${meetingId}`
+
+        const markAsLeft = () => {
+            try {
+                const guestId = localStorage.getItem(guestStorageKey)
+                if (!guestId) return
+                // Use fetch with keepalive for reliability during page unload
+                fetch('/api/waiting', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guestId, status: 'left' }),
+                    keepalive: true
+                }).catch(() => { })
+            } catch { }
+        }
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'hidden') {
+                markAsLeft()
+            }
+        }
+
+        window.addEventListener('pagehide', markAsLeft)
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+
+        return () => {
+            window.removeEventListener('pagehide', markAsLeft)
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
+        }
+    }, [meetingId])
 
     if (loading && !data) {
         return (
@@ -345,23 +375,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         }
                     }}
                 />
-                {canJoin && data?.meetLink && (
-                    <div className={styles.joinBanner}>
-                        <span>Admitted — scroll down to join</span>
-                        <button
-                            type="button"
-                            className={styles.joinBannerButton}
-                            onClick={() => {
-                                if (meetLink) window.open(meetLink, '_blank')
-                            }}
-                        >
-                            Join now
-                        </button>
-                    </div>
-                )}
-                {!canJoin && isAdmitted && !meetingEnded && (
-                    <div className={styles.joinBanner}>
-                        <span>Admitted — waiting for host to join</span>
+                {!meetingEnded && isWaiting && !canJoin && !rescheduleRequested && (
+                    <div className={styles.waitBanner}>
+                        <span>Waiting for {hostDisplayName} to admit you</span>
                     </div>
                 )}
                 {!meetingEnded && isWaiting && !canJoin && !rescheduleRequested && (
@@ -457,27 +473,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 )}
             </div>
 
-            {/* Scroll Indicator - Only show when host is available */}
-            {!isAdmitted && isHostFree && showScrollIndicator && (
-                <div 
-                    className={styles.scrollIndicator}
-                    onClick={scrollToSchedule}
-                    title="Scroll down"
-                >
-                    <FaArrowDown />
-                </div>
-            )}
-            
-            {/* Up scroll indicator when not at top */}
-            {!isAdmitted && !showScrollIndicator && (
-                <div 
-                    className={styles.scrollIndicator}
-                    onClick={scrollToReels}
-                    title="Scroll up to reels"
-                >
-                    <FaArrowUp />
-                </div>
-            )}
+            {/* Removed scroll indicators per request */}
 
             {showBookingModal && data?.host && (
                 <BookingModal
@@ -486,6 +482,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     meetingId={data?.meeting?.id}
                     guestId={data?.guest?.id}
                     mode={rescheduleRequested ? 'reschedule' : 'new'}
+                    onSuccess={() => {
+                        // Mark the guest as 'left' after booking form is submitted
+                        const guestStorageKey = `waitingGuest:${meetingId}`
+                        const storedGuestId = localStorage.getItem(guestStorageKey)
+                        if (storedGuestId) {
+                            fetch('/api/waiting', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ guestId: storedGuestId, status: 'left' })
+                            }).catch(() => { })
+                        }
+                        setShowBookingModal(false)
+                    }}
                 />
             )}
 

@@ -42,7 +42,7 @@ export default function Dashboard() {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null)
     const [selectedDateMeetings, setSelectedDateMeetings] = useState<Meeting[]>([])
     const supabase = createClient()
-    
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
     const meetingsPerPage = 9
@@ -106,11 +106,28 @@ export default function Dashboard() {
                     schema: 'public',
                     table: 'waiting_guests',
                 },
-                () => {
+                (payload: any) => {
                     // Refresh meetings when guests change
                     fetch('/api/meetings')
                         .then(res => res.json())
-                        .then(data => setMeetings(data))
+                        .then(data => {
+                            setMeetings(data)
+
+                            // Check if a guest has JUST been admitted for an active/pending meeting
+                            if (payload.eventType === 'UPDATE' && payload.new.status === 'admitted' && payload.old.status !== 'admitted') {
+                                const guest = payload.new
+                                const meeting = data.find((m: any) => m.id === guest.meeting_id)
+
+                                if (meeting && meeting.google_meet_link && meeting.status !== 'completed') {
+                                    // Use storage to prevent repeated redirects for the same admission
+                                    const redirectKey = `redirected:${guest.id}`
+                                    if (!localStorage.getItem(redirectKey)) {
+                                        localStorage.setItem(redirectKey, 'true')
+                                        window.open(meeting.google_meet_link, '_blank')
+                                    }
+                                }
+                            }
+                        })
                 }
             )
             .subscribe()
@@ -120,13 +137,15 @@ export default function Dashboard() {
         }
     }, [session, supabase])
 
-    // Get all waiting guests with meeting titles
+    // Get all waiting guests with meeting titles (excluding left/admitted)
     const allWaitingGuests: WaitingGuestWithMeeting[] = meetings.flatMap(meeting =>
-        (meeting.waiting_guests || []).map(guest => ({
-            ...guest,
-            meeting_title: meeting.title,
-            meeting_id: guest.meeting_id || meeting.id
-        }))
+        (meeting.waiting_guests || [])
+            .filter(guest => guest.status === 'waiting')
+            .map(guest => ({
+                ...guest,
+                meeting_title: meeting.title,
+                meeting_id: guest.meeting_id || meeting.id
+            }))
     )
 
     const createMeeting = async () => {
@@ -426,151 +445,151 @@ export default function Dashboard() {
                 const indexOfFirstMeeting = indexOfLastMeeting - meetingsPerPage
                 const currentMeetings = meetings.slice(indexOfFirstMeeting, indexOfLastMeeting)
                 const totalPages = Math.ceil(meetings.length / meetingsPerPage)
-                
+
                 return (
-            <section className={styles.meetingsSection}>
-                <div className={styles.meetingsHeader}>
-                    <h2>Your Meetings</h2>
-                    <span className={styles.meetingsCount}>{meetings.length} total</span>
-                </div>
+                    <section className={styles.meetingsSection}>
+                        <div className={styles.meetingsHeader}>
+                            <h2>Your Meetings</h2>
+                            <span className={styles.meetingsCount}>{meetings.length} total</span>
+                        </div>
 
-                {meetings.length === 0 ? (
-                    <div className={styles.emptyState}>
-                        <FaVideo className={styles.emptyIcon} />
-                        <p>No meetings yet</p>
-                        <span>Create your first meeting to get started!</span>
-                    </div>
-                ) : (
-                    <>
-                    <div className={styles.meetingsGrid}>
-                        {currentMeetings.map((meeting) => {
-                            const waitingGuests = meeting.waiting_guests?.filter(
-                                g => g.status === 'waiting'
-                            ) || []
-                            const admittedGuest = meeting.waiting_guests?.find(
-                                g => g.status === 'admitted'
-                            )
-                            const hasAdmittedGuest = !!admittedGuest
+                        {meetings.length === 0 ? (
+                            <div className={styles.emptyState}>
+                                <FaVideo className={styles.emptyIcon} />
+                                <p>No meetings yet</p>
+                                <span>Create your first meeting to get started!</span>
+                            </div>
+                        ) : (
+                            <>
+                                <div className={styles.meetingsGrid}>
+                                    {currentMeetings.map((meeting) => {
+                                        const waitingGuests = meeting.waiting_guests?.filter(
+                                            g => g.status === 'waiting'
+                                        ) || []
+                                        const admittedGuest = meeting.waiting_guests?.find(
+                                            g => g.status === 'admitted'
+                                        )
+                                        const hasAdmittedGuest = !!admittedGuest
 
-                            return (
-                                <div key={meeting.id} className={`${styles.meetingCard} ${meeting.status === 'active' ? styles.active : ''} ${waitingGuests.length > 0 ? styles.hasWaiting : ''}`}>
-                                    <div className={styles.meetingHeader}>
-                                        <h3>{meeting.title}</h3>
-                                        <span className={`${styles.status} ${styles[meeting.status]}`}>
-                                            {meeting.status}
-                                        </span>
-                                    </div>
+                                        return (
+                                            <div key={meeting.id} className={`${styles.meetingCard} ${meeting.status === 'active' ? styles.active : ''} ${waitingGuests.length > 0 ? styles.hasWaiting : ''}`}>
+                                                <div className={styles.meetingHeader}>
+                                                    <h3>{meeting.title}</h3>
+                                                    <span className={`${styles.status} ${styles[meeting.status]}`}>
+                                                        {meeting.status}
+                                                    </span>
+                                                </div>
 
-                                    <div className={styles.meetingActions}>
-                                        <button
-                                            onClick={() => copyWaitingLink(meeting.id)}
-                                            className={styles.actionBtn}
-                                            title="Copy waiting room link"
-                                        >
-                                            {copiedId === meeting.id ? <FaCheck /> : <FaCopy />}
-                                            <span>Waiting Link</span>
-                                        </button>
+                                                <div className={styles.meetingActions}>
+                                                    <button
+                                                        onClick={() => copyWaitingLink(meeting.id)}
+                                                        className={styles.actionBtn}
+                                                        title="Copy waiting room link"
+                                                    >
+                                                        {copiedId === meeting.id ? <FaCheck /> : <FaCopy />}
+                                                        <span>Waiting Link</span>
+                                                    </button>
 
-                                        {meeting.google_meet_link && (
-                                            <button
-                                                className={styles.actionBtn}
-                                                onClick={() => startMeeting(meeting.id, meeting.google_meet_link)}
-                                                disabled={meeting.status === 'completed'}
-                                            >
-                                                <FaLink />
-                                                <span>{meeting.status === 'completed' ? 'Meeting Ended' : 'Join Meet'}</span>
-                                            </button>
-                                        )}
-                                        <button
-                                            className={styles.actionBtn}
-                                            onClick={() => endMeeting(meeting.id)}
-                                            disabled={meeting.status === 'completed'}
-                                        >
-                                            <FaTimes />
-                                            <span>End Meeting</span>
-                                        </button>
-                                        <button
-                                            className={styles.actionBtn}
-                                            onClick={() => requestReschedule(meeting.id)}
-                                            disabled={meeting.status === 'completed'}
-                                        >
-                                            <FaCalendarAlt />
-                                            <span>Request Reschedule</span>
-                                        </button>
-                                    </div>
-
-                                    {/* Waiting Guests - 1 guest per room */}
-                                    {waitingGuests.length > 0 && (
-                                        <div className={styles.waitingGuests}>
-                                            <div className={styles.guestsHeader}>
-                                                <FaUsers />
-                                                <span>1 waiting</span>
-                                            </div>
-
-                                            <div className={styles.guestsList}>
-                                                {waitingGuests.map((guest) => (
-                                                    <div key={guest.id} className={styles.guestItem}>
-                                                        <span className={styles.guestName}>{guest.guest_name}</span>
+                                                    {meeting.google_meet_link && (
                                                         <button
-                                                            onClick={() => admitGuest(meeting.id, guest.id)}
-                                                            className={styles.admitBtn}
+                                                            className={styles.actionBtn}
+                                                            onClick={() => startMeeting(meeting.id, meeting.google_meet_link)}
                                                             disabled={meeting.status === 'completed'}
                                                         >
-                                                            <FaUserCheck />
-                                                            Admit
+                                                            <FaLink />
+                                                            <span>{meeting.status === 'completed' ? 'Meeting Ended' : 'Join Meet'}</span>
                                                         </button>
+                                                    )}
+                                                    <button
+                                                        className={styles.actionBtn}
+                                                        onClick={() => endMeeting(meeting.id)}
+                                                        disabled={meeting.status === 'completed'}
+                                                    >
+                                                        <FaTimes />
+                                                        <span>End Meeting</span>
+                                                    </button>
+                                                    <button
+                                                        className={styles.actionBtn}
+                                                        onClick={() => requestReschedule(meeting.id)}
+                                                        disabled={meeting.status === 'completed'}
+                                                    >
+                                                        <FaCalendarAlt />
+                                                        <span>Request Reschedule</span>
+                                                    </button>
+                                                </div>
+
+                                                {/* Waiting Guests - 1 guest per room */}
+                                                {waitingGuests.length > 0 && (
+                                                    <div className={styles.waitingGuests}>
+                                                        <div className={styles.guestsHeader}>
+                                                            <FaUsers />
+                                                            <span>1 waiting</span>
+                                                        </div>
+
+                                                        <div className={styles.guestsList}>
+                                                            {waitingGuests.map((guest) => (
+                                                                <div key={guest.id} className={styles.guestItem}>
+                                                                    <span className={styles.guestName}>{guest.guest_name}</span>
+                                                                    <button
+                                                                        onClick={() => admitGuest(meeting.id, guest.id)}
+                                                                        className={styles.admitBtn}
+                                                                        disabled={meeting.status === 'completed'}
+                                                                    >
+                                                                        <FaUserCheck />
+                                                                        Admit
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+
+                                {/* Pagination */}
+                                {(() => {
+                                    const totalPages = Math.ceil(meetings.length / meetingsPerPage)
+                                    if (totalPages <= 1) return null
+
+                                    return (
+                                        <div className={styles.pagination}>
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                disabled={currentPage === 1}
+                                                className={styles.pageBtn}
+                                            >
+                                                Previous
+                                            </button>
+
+                                            <div className={styles.pageNumbers}>
+                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                                    <button
+                                                        key={page}
+                                                        onClick={() => setCurrentPage(page)}
+                                                        className={`${styles.pageNumber} ${currentPage === page ? styles.active : ''}`}
+                                                    >
+                                                        {page}
+                                                    </button>
                                                 ))}
                                             </div>
+
+                                            <button
+                                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className={styles.pageBtn}
+                                            >
+                                                Next
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                            )
-                        })}
-                    </div>
-                    
-                    {/* Pagination */}
-                    {(() => {
-                        const totalPages = Math.ceil(meetings.length / meetingsPerPage)
-                        if (totalPages <= 1) return null
-                        
-                        return (
-                            <div className={styles.pagination}>
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                    disabled={currentPage === 1}
-                                    className={styles.pageBtn}
-                                >
-                                    Previous
-                                </button>
-                                
-                                <div className={styles.pageNumbers}>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                        <button
-                                            key={page}
-                                            onClick={() => setCurrentPage(page)}
-                                            className={`${styles.pageNumber} ${currentPage === page ? styles.active : ''}`}
-                                        >
-                                            {page}
-                                        </button>
-                                    ))}
-                                </div>
-                                
-                                <button
-                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={currentPage === totalPages}
-                                    className={styles.pageBtn}
-                                >
-                                    Next
-                                </button>
-                            </div>
-                        )
-                    })()}
-                    </>
-                )}
-            </section>
-        )
-    })()}
+                                    )
+                                })()}
+                            </>
+                        )}
+                    </section>
+                )
+            })()}
 
             {/* Preview Modal */}
             {showPreview && (

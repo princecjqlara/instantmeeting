@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { admitGuestLogic } from '@/lib/admit-logic'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -7,11 +8,11 @@ export const dynamic = 'force-dynamic'
 function getSupabaseClient() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    
+
     if (!supabaseUrl || !supabaseKey) {
         throw new Error('Missing Supabase environment variables')
     }
-    
+
     return createClient(supabaseUrl, supabaseKey)
 }
 
@@ -45,21 +46,21 @@ export async function GET(req: NextRequest) {
             `)
             .eq('id', meetingId)
             .single(),
-        
+
         // Content query - we'll execute it if meeting exists
         Promise.resolve(null),
-        
+
         // Guest status if guestId provided
         guestId ? supabase
             .from('waiting_guests')
             .select('*')
             .eq('id', guestId)
-            .single() 
-        : Promise.resolve({ data: null, error: null }),
-        
+            .single()
+            : Promise.resolve({ data: null, error: null }),
+
         // Host info - we'll execute it if meeting exists
         Promise.resolve(null),
-        
+
         // Admitted guest check
         supabase
             .from('waiting_guests')
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
         )
     }
 
-    // Create waiting guest entry in the room (allow multiple guests)
+    // Create waiting guest entry in the room
     const { data: guest, error } = await supabase
         .from('waiting_guests')
         .insert({
@@ -161,5 +162,57 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // Check for auto-admit
+    const { data: host } = await supabase
+        .from('users')
+        .select('auto_admit')
+        .eq('id', originalMeeting.user_id)
+        .single()
+
+    if (host?.auto_admit) {
+        try {
+            const result = await admitGuestLogic(meetingId, guest.id)
+            return NextResponse.json({
+                ...guest,
+                status: 'admitted',
+                admitted_at: result.guest.admitted_at,
+                join_token: result.join_token,
+                meet_link: result.meet_link
+            })
+        } catch (admitError) {
+            console.error('Auto-admit failed:', admitError)
+            // If auto-admit fails, guest stays in waiting room
+        }
+    }
+
     return NextResponse.json(guest)
+}
+
+// PATCH: Guest leaves waiting room (navigates away or submits booking form)
+export async function PATCH(req: NextRequest) {
+    const supabase = getSupabaseClient()
+    const body = await req.json()
+    const { guestId, status } = body
+
+    if (!guestId) {
+        return NextResponse.json({ error: 'Guest ID required' }, { status: 400 })
+    }
+
+    const allowedStatuses = ['left']
+    if (!allowedStatuses.includes(status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+
+    const { data, error } = await supabase
+        .from('waiting_guests')
+        .update({ status, left_at: new Date().toISOString() })
+        .eq('id', guestId)
+        .select()
+        .single()
+
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(data)
 }

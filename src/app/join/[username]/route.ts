@@ -55,35 +55,23 @@ export async function GET(
 
     console.log('Found user:', user.name, user.username, user.id)
 
-    // Get or create active meeting
-    let { data: meeting } = await supabase
+    // Create a NEW meeting for every guest to ensure privacy and "1 guest, 1 room"
+    const { data: newMeeting, error: createError } = await supabase
         .from('meetings')
+        .insert({
+            user_id: user.id,
+            title: `${user.name || normalizedUsername}'s Room`,
+            status: 'active'
+        })
         .select('id')
-        .eq('user_id', user.id)
-        .in('status', ['active', 'pending'])
-        .order('created_at', { ascending: false })
-        .limit(1)
         .single()
 
-    // Auto-create meeting if none exists
-    if (!meeting) {
-        const { data: newMeeting, error: createError } = await supabase
-            .from('meetings')
-            .insert({
-                user_id: user.id,
-                title: `${user.name || normalizedUsername}'s Room`,
-                status: 'active'
-            })
-            .select('id')
-            .single()
-        
-        if (createError || !newMeeting) {
-            console.error('Failed to create meeting:', createError)
-            return NextResponse.redirect(new URL(`/?error=create_failed&username=${encodeURIComponent(normalizedUsername)}`, req.url))
-        }
-        
-        meeting = newMeeting
+    if (createError || !newMeeting) {
+        console.error('Failed to create meeting:', createError)
+        return NextResponse.redirect(new URL(`/?error=create_failed&username=${encodeURIComponent(normalizedUsername)}`, req.url))
     }
+
+    const meeting = newMeeting
 
     console.log('Redirecting to waiting room:', meeting.id)
 

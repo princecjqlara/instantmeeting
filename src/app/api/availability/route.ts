@@ -23,13 +23,14 @@ export async function GET() {
 
     const { data: user } = await supabase
         .from('users')
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+        .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
         .eq('email', session.user.email)
         .maybeSingle()
 
     if (!user) {
         return NextResponse.json({
             availability_mode: 'always',
+            auto_admit: false,
             available_from: null,
             available_to: null,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -44,6 +45,7 @@ export async function GET() {
 
     return NextResponse.json({
         availability_mode: user.availability_mode || 'always',
+        auto_admit: user.auto_admit || false,
         available_from: user.available_from || null,
         available_to: user.available_to || null,
         timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -69,6 +71,7 @@ export async function PATCH(req: NextRequest) {
 
     const updateData: Record<string, unknown> = {}
     if (body.availability_mode !== undefined) updateData.availability_mode = body.availability_mode
+    if (body.auto_admit !== undefined) updateData.auto_admit = body.auto_admit
     if (body.available_from !== undefined) updateData.available_from = body.available_from
     if (body.available_to !== undefined) updateData.available_to = body.available_to
     if (body.timezone !== undefined) updateData.timezone = body.timezone
@@ -94,7 +97,7 @@ export async function PATCH(req: NextRequest) {
                 name: session.user.name,
                 ...updateData
             })
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+            .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
             .single()
 
         if (createError) {
@@ -103,6 +106,7 @@ export async function PATCH(req: NextRequest) {
 
         return NextResponse.json({
             availability_mode: newUser.availability_mode || 'always',
+            auto_admit: newUser.auto_admit || false,
             available_from: newUser.available_from || null,
             available_to: newUser.available_to || null,
             timezone: newUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -119,7 +123,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+        .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
         .single()
 
     if (error) {
@@ -128,6 +132,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
         availability_mode: updatedUser.availability_mode || 'always',
+        auto_admit: updatedUser.auto_admit || false,
         available_from: updatedUser.available_from || null,
         available_to: updatedUser.available_to || null,
         timezone: updatedUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,

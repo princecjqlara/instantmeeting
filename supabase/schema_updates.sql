@@ -1,5 +1,6 @@
 -- Add missing columns to users table (idempotent)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS availability_mode TEXT DEFAULT 'always' CHECK (availability_mode IN ('always', 'never', 'scheduled'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS auto_admit BOOLEAN DEFAULT false;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS available_from TIME;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS available_to TIME;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC';
@@ -41,6 +42,7 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT 
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS join_token TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'admitted', 'left'));
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 
