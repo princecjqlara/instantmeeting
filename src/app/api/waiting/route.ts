@@ -203,12 +203,29 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    // Try updating with left_at first; fall back to status-only if column doesn't exist yet
+    let data, error
+    const withLeftAt = await supabase
         .from('waiting_guests')
         .update({ status, left_at: new Date().toISOString() })
         .eq('id', guestId)
         .select()
         .single()
+
+    if (withLeftAt.error && withLeftAt.error.message.includes('left_at')) {
+        // left_at column doesn't exist yet — update status only
+        const fallback = await supabase
+            .from('waiting_guests')
+            .update({ status })
+            .eq('id', guestId)
+            .select()
+            .single()
+        data = fallback.data
+        error = fallback.error
+    } else {
+        data = withLeftAt.data
+        error = withLeftAt.error
+    }
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

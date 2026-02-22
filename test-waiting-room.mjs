@@ -198,7 +198,56 @@ async function scenarioC(meetingId) {
     await httpPatch('/api/waiting', { guestId, status: 'left' })
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ─── SCENARIO D: Real booking form POST + onSuccess PATCH ───────────────────
+async function scenarioD(meetingId, hostId) {
+    sep('Scenario D — Real booking form POST then onSuccess PATCH (full flow)')
+
+    // Step 1: Guest joins waiting room
+    const join = await httpPost('/api/waiting', { meetingId, guestName: 'Form Filler Guest' })
+    if (join.status !== 200) { fail(`Join failed: ${JSON.stringify(join.data)}`); return null }
+    const guestId = join.data.id
+    pass(`Guest joined waiting room  id=${guestId}`)
+
+    // Step 2: Guest fills and submits the booking form (simulates BookingModal submit)
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dateStr = tomorrow.toISOString().split('T')[0]  // e.g. 2026-02-23
+    const timeStr = '10:00'
+
+    const formRes = await httpPost('/api/meetings/public', {
+        hostId,
+        guestName: 'Form Filler Guest',
+        guestEmail: 'test@example.com',
+        note: 'This is a test booking from the simulation script',
+        date: dateStr,
+        time: timeStr,
+        customFields: []
+    })
+
+    if (formRes.status !== 200) {
+        fail(`Booking form POST failed (HTTP ${formRes.status}): ${JSON.stringify(formRes.data)}`)
+        return null
+    }
+    const bookingMeetingId = formRes.data.id
+    pass(`Booking form submitted successfully  new meeting_id=${bookingMeetingId}`)
+
+    // Step 3: Simulate BookingModal onSuccess -> PATCH /api/waiting
+    const leave = await httpPatch('/api/waiting', { guestId, status: 'left' })
+    if (leave.status !== 200) {
+        fail(`onSuccess PATCH failed: ${JSON.stringify(leave.data)}`)
+        return bookingMeetingId
+    }
+    pass(`onSuccess PATCH fired  status=${leave.data.status}  left_at=${leave.data.left_at}`)
+
+    // Step 4: Verify in DB
+    const row = await sbSelect('waiting_guests', { id: guestId })
+    row?.status === 'left'
+        ? pass(`DB confirms guest removed from waiting room after form submit`)
+        : fail(`DB still shows status=${row?.status}`)
+
+    return bookingMeetingId
+}
+
 async function main() {
     console.log(`\n${C.bold}${C.cyan}╔════════════════════════════════════════════════╗`)
     console.log(`║   Waiting Room Auto-Remove Simulation          ║`)
@@ -220,8 +269,14 @@ async function main() {
         await scenarioA(meetingId)
         await scenarioB(meetingId)
         await scenarioC(meetingId)
+        const extraMeetingId = await scenarioD(meetingId, hostId)
+        if (extraMeetingId) {
+            // cleanup the booking meeting created by scenarioD
+            await sbDelete('waiting_guests', { meeting_id: extraMeetingId })
+            await sbDelete('meetings', { id: extraMeetingId })
+        }
     } catch (err) {
-        console.error(`\n${C.red}  💥 Unexpected error:${C.reset}`, err.message)
+        console.error('  [ERROR] Unexpected error:', err.message)
     } finally {
         // ─── Cleanup: Delete all test records ─────────────────────────────────
         sep('Cleanup')
