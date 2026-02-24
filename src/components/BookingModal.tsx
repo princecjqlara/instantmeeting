@@ -61,24 +61,23 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
         return dates
     }, [])
 
-    // Generate time slots based on host settings
+    // Generate time slots based on host settings (default to 09:00-17:00 if not configured)
     const timeSlots = useMemo(() => {
-        if (!host.available_from || !host.available_to) return []
+        const fromTime = host.available_from || '09:00'
+        const toTime = host.available_to || '17:00'
 
         const slots = []
-        const start = parseInt(host.available_from.split(':')[0])
-        const end = parseInt(host.available_to.split(':')[0])
+        const [startHour, startMin] = fromTime.split(':').map(Number)
+        const [endHour, endMin] = toTime.split(':').map(Number)
         const duration = host.meeting_duration || 30
+        const startTotal = startHour * 60 + (startMin || 0)
+        const endTotal = endHour * 60 + (endMin || 0)
 
-        // Simple slot generation
-        for (let hour = start; hour < end; hour++) {
-            for (let min = 0; min < 60; min += duration) {
-                // Ensure we don't go past end time
-                if (hour === end && min > 0) break;
-
-                const timeString = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`
-                slots.push(timeString)
-            }
+        for (let t = startTotal; t + duration <= endTotal; t += duration) {
+            const h = Math.floor(t / 60)
+            const m = t % 60
+            const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+            slots.push(timeString)
         }
         return slots
     }, [host.available_from, host.available_to, host.meeting_duration])

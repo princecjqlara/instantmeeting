@@ -1,0 +1,23 @@
+project:
+  name: "example-project"
+  language: "JavaScript"
+  framework: "Vanilla"
+
+commands:
+  test: "echo 'No tests configured'"
+  lint: "echo 'No lint configured'"
+  build: "echo 'No build configured'"
+
+rules:
+  - "Use modern ES6+ JavaScript"
+  - "Follow semantic HTML5 standards"
+  - "Write clean, commented code"
+  - "Use descriptive variable names"
+
+boundaries:
+  never_touch:
+    - "node_modules/"
+    - "*.lock"
+
+capabilities:
+  browser: "auto"
