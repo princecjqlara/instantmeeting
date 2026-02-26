@@ -97,14 +97,19 @@ export default function ProfileSettingsPage() {
             })
 
             if (response.ok) {
+                const data = await response.json()
+                setSettings(prev => ({ ...prev, ...data }))
                 setSaved(true)
                 setTimeout(() => setSaved(false), 2000)
+                return true
             } else {
                 const data = await response.json()
                 setError(data.error || 'Failed to save')
+                return false
             }
         } catch {
             setError('Failed to save settings')
+            return false
         } finally {
             setSaving(false)
         }
@@ -298,7 +303,12 @@ export default function ProfileSettingsPage() {
                         {error && <div className={styles.error}>{error}</div>}
                         <button
                             className={styles.saveBtn}
-                            onClick={() => { handleSave(); setEditing(false); }}
+                            onClick={async () => {
+                                const didSave = await handleSave()
+                                if (didSave) {
+                                    setEditing(false)
+                                }
+                            }}
                             disabled={saving}
                         >
                             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}

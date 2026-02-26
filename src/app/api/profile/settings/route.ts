@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { normalizeProfileSettings } from '@/lib/profile-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,27 +26,15 @@ export async function GET() {
         .from('users')
         .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
         .eq('email', session.user.email)
-        .single()
+        .maybeSingle()
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-        username: user.username || '',
-        name: user.name || '',
-        bio: user.bio || '',
-        avatar_url: user.avatar_url,
-        availability_mode: user.availability_mode || 'always',
-        available_from: user.available_from || null,
-        available_to: user.available_to || null,
-        timezone: user.timezone || 'UTC',
-        scroll_threshold: user.scroll_threshold || 3,
-        meeting_duration: user.meeting_duration || 30,
-        followers: user.followers || 0,
-        following: user.following || 0,
-        welcome_audio_url: user.welcome_audio_url || null
-    })
+    return NextResponse.json(
+        normalizeProfileSettings(user, { fallbackName: session.user.name || '' })
+    )
 }
 
 // PATCH: Update profile settings
@@ -63,12 +52,16 @@ export async function PATCH(req: NextRequest) {
     // Validate username only if it's a non-empty string
     if (username && username.length > 0) {
         // Check if username is already taken by another user
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
             .from('users')
             .select('email')
             .eq('username', username)
             .neq('email', session.user.email)
-            .single()
+            .maybeSingle()
+
+        if (existingError) {
+            return NextResponse.json({ error: existingError.message }, { status: 500 })
+        }
 
         if (existing) {
             return NextResponse.json({ error: 'Username already taken' }, { status: 400 })
@@ -91,11 +84,15 @@ export async function PATCH(req: NextRequest) {
     if (auto_admit !== undefined) updateData.auto_admit = auto_admit
 
     // First check if user exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: existingUserError } = await supabase
         .from('users')
         .select('id')
         .eq('email', session.user.email)
-        .single()
+        .maybeSingle()
+
+    if (existingUserError) {
+        return NextResponse.json({ error: existingUserError.message }, { status: 500 })
+    }
 
     if (!existingUser) {
         // Create user if doesn't exist
@@ -109,22 +106,9 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: createError.message }, { status: 500 })
         }
 
-        return NextResponse.json({
-            username: newUser.username || '',
-            name: newUser.name || '',
-            bio: newUser.bio || '',
-            avatar_url: newUser.avatar_url,
-            availability_mode: newUser.availability_mode || 'always',
-            auto_admit: newUser.auto_admit || false,
-            available_from: newUser.available_from || null,
-            available_to: newUser.available_to || null,
-            timezone: newUser.timezone || 'UTC',
-            scroll_threshold: newUser.scroll_threshold || 3,
-            meeting_duration: newUser.meeting_duration || 30,
-            followers: newUser.followers || 0,
-            following: newUser.following || 0,
-            welcome_audio_url: newUser.welcome_audio_url || null
-        })
+        return NextResponse.json(
+            normalizeProfileSettings(newUser, { fallbackName: session.user.name || '' })
+        )
     }
 
     const { data: user, error } = await supabase
@@ -138,19 +122,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-        username: user.username || '',
-        name: user.name || '',
-        bio: user.bio || '',
-        avatar_url: user.avatar_url,
-        availability_mode: user.availability_mode || 'always',
-        available_from: user.available_from || null,
-        available_to: user.available_to || null,
-        timezone: user.timezone || 'UTC',
-        scroll_threshold: user.scroll_threshold || 3,
-        meeting_duration: user.meeting_duration || 30,
-        followers: user.followers || 0,
-        following: user.following || 0,
-        welcome_audio_url: user.welcome_audio_url || null
-    })
+    return NextResponse.json(
+        normalizeProfileSettings(user, { fallbackName: session.user.name || '' })
+    )
 }

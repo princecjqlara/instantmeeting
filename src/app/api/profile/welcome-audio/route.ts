@@ -71,8 +71,13 @@ export async function POST(req: NextRequest) {
         // Update user's welcome_audio_url in database
         const { error: updateError } = await supabase
             .from('users')
-            .update({ welcome_audio_url: uploadResult.secure_url })
-            .eq('email', session.user.email)
+            .upsert(
+                {
+                    email: session.user.email,
+                    welcome_audio_url: uploadResult.secure_url,
+                },
+                { onConflict: 'email' }
+            )
 
         if (updateError) {
             console.error('Database update error:', updateError)
@@ -100,8 +105,13 @@ export async function DELETE() {
 
     const { error } = await supabase
         .from('users')
-        .update({ welcome_audio_url: null })
-        .eq('email', session.user.email)
+        .upsert(
+            {
+                email: session.user.email,
+                welcome_audio_url: null,
+            },
+            { onConflict: 'email' }
+        )
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

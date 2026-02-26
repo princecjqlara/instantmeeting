@@ -20,6 +20,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
+import { appendChatMessage, ChatMessage, createChatMessage } from '@/lib/chat-messages'
 
 // ─── ICE Server Configuration ────────────────────────────────────────────────
 // Google's free STUN servers for NAT traversal.
@@ -53,12 +54,14 @@ interface PeerData {
 interface UseWebRTCReturn {
     localStream: MediaStream | null
     remoteStreams: RemoteStream[]
+    chatMessages: ChatMessage[]
     isMuted: boolean
     isCameraOff: boolean
     isConnecting: boolean
     error: string | null
     toggleMute: () => void
     toggleCamera: () => void
+    sendChatMessage: (text: string) => boolean
     leaveRoom: () => void
 }
 
@@ -69,11 +72,13 @@ type SignalMessage =
     | { type: 'offer'; from: string; to: string; name: string; sdp: RTCSessionDescriptionInit }
     | { type: 'answer'; from: string; to: string; sdp: RTCSessionDescriptionInit }
     | { type: 'candidate'; from: string; to: string; candidate: RTCIceCandidateInit }
+    | { type: 'chat'; from: string; name: string; text: string; timestamp: string; messageId: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null)
     const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
     const [isMuted, setIsMuted] = useState(false)
     const [isCameraOff, setIsCameraOff] = useState(false)
     const [isConnecting, setIsConnecting] = useState(true)
@@ -84,6 +89,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const localStreamRef = useRef<MediaStream | null>(null)
     const peerIdRef = useRef<string>('')
     const channelRef = useRef<RealtimeChannel | null>(null)
+    const sendSignalRef = useRef<((message: SignalMessage) => void) | null>(null)
     const cleanupRef = useRef<(() => void) | null>(null)
 
     // ─── Toggle Mute ────────────────────────────────────────────────────────
@@ -107,6 +113,39 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
             }
         }
     }, [])
+
+    // ─── Send Chat Message ──────────────────────────────────────────────────
+    const sendChatMessage = useCallback((text: string) => {
+        const peerId = peerIdRef.current
+        const sendSignal = sendSignalRef.current
+        if (!peerId || !sendSignal) {
+            return false
+        }
+
+        const outgoingMessage = createChatMessage({
+            peerId,
+            name: displayName,
+            text,
+            isLocal: true,
+        })
+
+        if (!outgoingMessage) {
+            return false
+        }
+
+        setChatMessages(prev => appendChatMessage(prev, outgoingMessage))
+
+        sendSignal({
+            type: 'chat',
+            from: peerId,
+            name: outgoingMessage.name,
+            text: outgoingMessage.text,
+            timestamp: outgoingMessage.timestamp,
+            messageId: outgoingMessage.id,
+        })
+
+        return true
+    }, [displayName])
 
     // ─── Leave Room ─────────────────────────────────────────────────────────
     const leaveRoom = useCallback(() => {
@@ -135,6 +174,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 payload: message,
             })
         }
+        sendSignalRef.current = sendSignal
 
         /**
          * Create a new RTCPeerConnection for a remote peer.
@@ -336,6 +376,25 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                 handleCandidate(message.from, message.candidate)
                             }
                             break
+
+                        case 'chat':
+                            if (message.from === peerId) {
+                                break
+                            }
+
+                            const incomingMessage = createChatMessage({
+                                id: message.messageId,
+                                peerId: message.from,
+                                name: message.name,
+                                text: message.text,
+                                timestamp: message.timestamp,
+                                isLocal: false,
+                            })
+
+                            if (incomingMessage) {
+                                setChatMessages(prev => appendChatMessage(prev, incomingMessage))
+                            }
+                            break
                     }
                 })
 
@@ -389,6 +448,9 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 supabase.removeChannel(channelRef.current)
                 channelRef.current = null
             }
+
+            sendSignalRef.current = null
+            setChatMessages([])
         }
 
         cleanupRef.current = cleanup
@@ -396,18 +458,19 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         return () => {
             cleanup()
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId, displayName])
 
     return {
         localStream,
         remoteStreams,
+        chatMessages,
         isMuted,
         isCameraOff,
         isConnecting,
         error,
         toggleMute,
         toggleCamera,
+        sendChatMessage,
         leaveRoom,
     }
 }

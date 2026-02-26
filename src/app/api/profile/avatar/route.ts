@@ -78,8 +78,14 @@ export async function POST(req: NextRequest) {
                         console.error('Cloudinary upload error:', error)
                         reject(error)
                     } else {
-                        console.log('Cloudinary upload success:', (result as any).secure_url)
-                        resolve(result as { secure_url: string })
+                        const uploadedUrl = result?.secure_url
+                        if (!uploadedUrl) {
+                            reject(new Error('Cloudinary upload did not return a secure URL'))
+                            return
+                        }
+
+                        console.log('Cloudinary upload success:', uploadedUrl)
+                        resolve({ secure_url: uploadedUrl })
                     }
                 }
             ).end(buffer)
@@ -93,7 +99,6 @@ export async function POST(req: NextRequest) {
             .upsert({
                 email: session.user.email,
                 avatar_url: uploadResult.secure_url,
-                name: session.user.name
             }, { onConflict: 'email' })
             .select()
 

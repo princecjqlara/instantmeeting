@@ -10,7 +10,7 @@
 
 'use client'
 
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useWebRTC, RemoteStream } from '@/hooks/useWebRTC'
 import {
     FaMicrophone,
@@ -18,6 +18,8 @@ import {
     FaVideo,
     FaVideoSlash,
     FaPhoneSlash,
+    FaComments,
+    FaPaperPlane,
     FaSpinner,
     FaExclamationTriangle,
 } from 'react-icons/fa'
@@ -93,20 +95,60 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
     const {
         localStream,
         remoteStreams,
+        chatMessages,
         isMuted,
         isCameraOff,
         isConnecting,
         error,
         toggleMute,
         toggleCamera,
+        sendChatMessage,
         leaveRoom,
     } = useWebRTC(roomId, displayName)
+
+    const [isChatOpen, setIsChatOpen] = useState(false)
+    const [chatInput, setChatInput] = useState('')
+    const chatScrollRef = useRef<HTMLDivElement>(null)
+    const unreadCount = isChatOpen
+        ? 0
+        : chatMessages.reduce(
+            (count, message) => (message.isLocal ? count : count + 1),
+            0
+        )
 
     // Handle leave: clean up WebRTC, then call parent callback
     const handleLeave = () => {
         leaveRoom()
         onLeave()
     }
+
+    const handleChatSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        const sent = sendChatMessage(chatInput)
+        if (sent) {
+            setChatInput('')
+        }
+    }
+
+    const formatMessageTime = (timestamp: string) => {
+        const parsed = new Date(timestamp)
+        if (Number.isNaN(parsed.getTime())) {
+            return ''
+        }
+
+        return parsed.toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+    }
+
+    useEffect(() => {
+        if (!isChatOpen || !chatScrollRef.current) {
+            return
+        }
+
+        chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+    }, [chatMessages, isChatOpen])
 
     // ─── Error State ────────────────────────────────────────────────────────
     if (error) {
@@ -174,6 +216,52 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                 </div>
             )}
 
+            {/* ─── Chat Panel ─────────────────────────────────────────────────── */}
+            <aside className={`${styles.chatPanel} ${isChatOpen ? styles.chatPanelOpen : ''}`}>
+                <div className={styles.chatHeader}>
+                    <h3>In-call Chat</h3>
+                    <button
+                        type="button"
+                        className={styles.chatCloseBtn}
+                        onClick={() => setIsChatOpen(false)}
+                    >
+                        Close
+                    </button>
+                </div>
+
+                <div ref={chatScrollRef} className={styles.chatMessages}>
+                    {chatMessages.length === 0 ? (
+                        <p className={styles.chatEmpty}>No messages yet. Say hi.</p>
+                    ) : (
+                        chatMessages.map((message) => (
+                            <div
+                                key={message.id}
+                                className={`${styles.chatMessage} ${message.isLocal ? styles.chatMessageLocal : ''}`}
+                            >
+                                <div className={styles.chatMeta}>
+                                    <strong>{message.isLocal ? 'You' : message.name}</strong>
+                                    <span>{formatMessageTime(message.timestamp)}</span>
+                                </div>
+                                <p>{message.text}</p>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <form className={styles.chatComposer} onSubmit={handleChatSubmit}>
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(event) => setChatInput(event.target.value)}
+                        placeholder="Type a message"
+                        maxLength={400}
+                    />
+                    <button type="submit" disabled={!chatInput.trim()}>
+                        <FaPaperPlane />
+                    </button>
+                </form>
+            </aside>
+
             {/* ─── Control Bar ────────────────────────────────────────────────── */}
             <div className={styles.controlBar}>
                 <button
@@ -190,6 +278,15 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                     title={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
                 >
                     {isCameraOff ? <FaVideoSlash /> : <FaVideo />}
+                </button>
+
+                <button
+                    onClick={() => setIsChatOpen(prev => !prev)}
+                    className={`${styles.controlBtn} ${isChatOpen ? styles.controlBtnActive : ''}`}
+                    title={isChatOpen ? 'Hide chat' : 'Show chat'}
+                >
+                    <FaComments />
+                    {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
                 </button>
 
                 <button

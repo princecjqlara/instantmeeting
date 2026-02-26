@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:node": "node --test \"test/*.test.mjs\"",
+    "simulate:waiting-room": "node test-waiting-room.mjs"
   },
   "dependencies": {
     "@next-auth/supabase-adapter": "^0.2.1",
