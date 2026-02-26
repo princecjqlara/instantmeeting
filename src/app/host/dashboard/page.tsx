@@ -198,8 +198,17 @@ export default function Dashboard() {
         }
     }
 
-    const admitGuest = async (meetingId: string, guestId: string) => {
+    const admitGuest = async (meetingId: string, guestId: string, assignedMemberId?: string) => {
         try {
+            // If a specific member was selected, assign them first
+            if (assignedMemberId) {
+                await fetch('/api/team/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ meeting_id: meetingId, member_id: assignedMemberId })
+                })
+            }
+
             const response = await fetch(`/api/meetings/${meetingId}/admit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -213,6 +222,7 @@ export default function Dashboard() {
             }
 
             const result = await response.json()
+            const assignedName = result.assigned_member?.name
             setMeetings(prev => prev.map(meeting => {
                 if (meeting.id !== meetingId) return meeting
                 return {
@@ -226,6 +236,10 @@ export default function Dashboard() {
                     )
                 }
             }))
+            if (assignedName) {
+                // Brief toast-like notification
+                alert(`Assigned to ${assignedName}`)
+            }
         } catch (error) {
             console.error('Error admitting guest:', error)
         }
@@ -819,6 +833,7 @@ export default function Dashboard() {
                     <WaitingRoomTable
                         guests={allWaitingGuests}
                         onAdmit={admitGuest}
+                        teamMembers={teamMembers}
                     />
                 </div>
             </section>

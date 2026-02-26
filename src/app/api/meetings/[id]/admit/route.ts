@@ -49,6 +49,7 @@ export async function POST(
             guest: result.guest,
             meet_link: result.meet_link,
             join_link: `${req.nextUrl.origin}/api/join/${result.join_token}`,
+            assigned_member: result.assigned_member || null,
         })
     } catch (error: any) {
         console.error('Admit error:', error)

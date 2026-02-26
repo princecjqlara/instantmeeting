@@ -1,8 +1,15 @@
 'use client'
 
-import { WaitingGuest, Meeting } from '@/lib/types'
+import { WaitingGuest } from '@/lib/types'
 import styles from './WaitingRoomTable.module.css'
-import { FaUserCheck, FaClock, FaUsers } from 'react-icons/fa'
+import { FaUserCheck, FaClock, FaUsers, FaUserTag } from 'react-icons/fa'
+import { useState } from 'react'
+
+interface TeamMemberOption {
+    id: string
+    name: string
+    is_clocked_in?: boolean
+}
 
 interface WaitingGuestWithMeeting extends WaitingGuest {
     meeting_title?: string
@@ -10,10 +17,13 @@ interface WaitingGuestWithMeeting extends WaitingGuest {
 
 interface WaitingRoomTableProps {
     guests: WaitingGuestWithMeeting[]
-    onAdmit: (meetingId: string, guestId: string) => void
+    onAdmit: (meetingId: string, guestId: string, assignedMemberId?: string) => void
+    teamMembers?: TeamMemberOption[]
 }
 
-export default function WaitingRoomTable({ guests, onAdmit }: WaitingRoomTableProps) {
+export default function WaitingRoomTable({ guests, onAdmit, teamMembers = [] }: WaitingRoomTableProps) {
+    const [assignSelections, setAssignSelections] = useState<Record<string, string>>({})
+
     const formatWaitTime = (joinedAt: string) => {
         const joined = new Date(joinedAt)
         const now = new Date()
@@ -51,6 +61,7 @@ export default function WaitingRoomTable({ guests, onAdmit }: WaitingRoomTablePr
                         <th>Guest</th>
                         <th>Meeting</th>
                         <th>Waiting</th>
+                        {teamMembers.length > 0 && <th>Assign To</th>}
                         <th>Action</th>
                     </tr>
                 </thead>
@@ -63,10 +74,36 @@ export default function WaitingRoomTable({ guests, onAdmit }: WaitingRoomTablePr
                                 <FaClock />
                                 {formatWaitTime(guest.joined_at)}
                             </td>
+                            {teamMembers.length > 0 && (
+                                <td>
+                                    <select
+                                        value={assignSelections[guest.id] || 'auto'}
+                                        onChange={e => setAssignSelections(prev => ({ ...prev, [guest.id]: e.target.value }))}
+                                        style={{
+                                            background: '#1a1a2e', color: '#fff', border: '1px solid #333',
+                                            borderRadius: 6, padding: '4px 8px', fontSize: '0.8rem', minWidth: 120
+                                        }}
+                                    >
+                                        <option value="auto">🔄 Auto (Round-Robin)</option>
+                                        {teamMembers.map(m => (
+                                            <option key={m.id} value={m.id}>
+                                                {m.is_clocked_in ? '🟢' : '⚫'} {m.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </td>
+                            )}
                             <td>
                                 <button
                                     className={styles.admitBtn}
-                                    onClick={() => onAdmit(guest.meeting_id, guest.id)}
+                                    onClick={() => {
+                                        const selectedMember = assignSelections[guest.id]
+                                        onAdmit(
+                                            guest.meeting_id,
+                                            guest.id,
+                                            selectedMember && selectedMember !== 'auto' ? selectedMember : undefined
+                                        )
+                                    }}
                                 >
                                     <FaUserCheck />
                                     Admit
