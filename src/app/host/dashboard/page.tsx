@@ -13,7 +13,7 @@ import AvailabilitySettings from '@/components/AvailabilitySettings'
 import CalendarDayModal from '@/components/CalendarDayModal'
 import styles from './page.module.css'
 import {
-    FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
+    FaPlus, FaSignOutAlt, FaSignInAlt, FaLink, FaCopy, FaCheck,
     FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser,
     FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt, FaMicrophone, FaTrash, FaPlay, FaStop
 } from 'react-icons/fa'
@@ -733,6 +733,7 @@ export default function Dashboard() {
                                             <span style={{
                                                 width: 10, height: 10, borderRadius: '50%',
                                                 background: member.is_clocked_in ? '#2ed573' : '#666',
+                                                boxShadow: member.is_clocked_in ? '0 0 6px #2ed573' : 'none',
                                                 flexShrink: 0
                                             }} />
                                             <span style={{ fontWeight: 500, flex: 1, minWidth: 80 }}>{member.name}</span>
@@ -762,6 +763,32 @@ export default function Dashboard() {
                                                     />
                                                 </label>
                                             )}
+                                            {/* Clock In/Out Button */}
+                                            <button
+                                                className="button-secondary"
+                                                style={{
+                                                    fontSize: '0.75rem', padding: '2px 10px',
+                                                    color: member.is_clocked_in ? '#ff4757' : '#2ed573',
+                                                    borderColor: member.is_clocked_in ? '#ff4757' : '#2ed573',
+                                                }}
+                                                onClick={async () => {
+                                                    const method = member.is_clocked_in ? 'PATCH' : 'POST'
+                                                    const res = await fetch('/api/team/clock', {
+                                                        method,
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ member_id: member.id })
+                                                    })
+                                                    if (res.ok) {
+                                                        setTeamMembers(prev => prev.map(m =>
+                                                            m.id === member.id
+                                                                ? { ...m, is_clocked_in: !m.is_clocked_in, clocked_in_at: m.is_clocked_in ? null : new Date().toISOString() }
+                                                                : m
+                                                        ))
+                                                    }
+                                                }}
+                                            >
+                                                {member.is_clocked_in ? <><FaSignOutAlt /> Out</> : <><FaSignInAlt /> In</>}
+                                            </button>
                                             <button
                                                 className="button-secondary"
                                                 style={{ color: '#ff4757', fontSize: '0.75rem', padding: '2px 8px' }}
