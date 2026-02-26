@@ -116,3 +116,75 @@ ALTER PUBLICATION supabase_realtime ADD TABLE meetings;
 
 -- Success!
 SELECT 'Database schema created successfully!' as message;
+
+-- =========================================
+-- Welcome Audio & Team System
+-- =========================================
+
+-- Add welcome audio to users
+ALTER TABLE users ADD COLUMN IF NOT EXISTS welcome_audio_url TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'tenant';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS scroll_threshold INTEGER DEFAULT 3;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meeting_duration INTEGER DEFAULT 30;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_title TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_description TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_note_placeholder TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS booking_form_fields JSONB;
+
+-- Add columns to meetings
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS host_joined_at TIMESTAMPTZ;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reschedule_requested BOOLEAN DEFAULT false;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS reschedule_requested_at TIMESTAMPTZ;
+
+-- Add columns to waiting_guests
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_email TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS guest_phone TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS custom_fields JSONB;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS join_token TEXT;
+
+-- Teams table
+CREATE TABLE IF NOT EXISTS teams (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT 'My Team',
+    round_robin_index INT DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS teams_owner_id_idx ON teams(owner_id);
+
+-- Team members
+CREATE TABLE IF NOT EXISTS team_members (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    email TEXT,
+    avatar_url TEXT,
+    welcome_audio_url TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Clock sessions
+CREATE TABLE IF NOT EXISTS clock_sessions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    member_id UUID NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+    clocked_in_at TIMESTAMPTZ DEFAULT now(),
+    clocked_out_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Assigned team member on meetings
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS assigned_member_id UUID REFERENCES team_members(id);
+
+-- Enable RLS on new tables
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clock_sessions ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies for new tables (service role bypasses RLS, these allow general access)
+CREATE POLICY IF NOT EXISTS "Allow all teams" ON teams FOR ALL USING (true);
+CREATE POLICY IF NOT EXISTS "Allow all team_members" ON team_members FOR ALL USING (true);
+CREATE POLICY IF NOT EXISTS "Allow all clock_sessions" ON clock_sessions FOR ALL USING (true);

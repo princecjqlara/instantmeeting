@@ -33,47 +33,52 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = getSupabaseClient()
+    try {
+        const supabase = getSupabaseClient()
 
-    const { data: team } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('owner_id', user.id)
-        .single()
+        const { data: team, error: teamError } = await supabase
+            .from('teams')
+            .select('*')
+            .eq('owner_id', user.id)
+            .single()
 
-    if (!team) {
+        if (teamError || !team) {
+            return NextResponse.json({ team: null, members: [] })
+        }
+
+        // Get members with clock-in status
+        const { data: members } = await supabase
+            .from('team_members')
+            .select('*')
+            .eq('team_id', team.id)
+            .eq('is_active', true)
+            .order('created_at', { ascending: true })
+
+        // Check clock-in status for each member
+        const membersWithClock = await Promise.all(
+            (members || []).map(async (member) => {
+                const { data: openSession } = await supabase
+                    .from('clock_sessions')
+                    .select('id, clocked_in_at')
+                    .eq('member_id', member.id)
+                    .is('clocked_out_at', null)
+                    .order('clocked_in_at', { ascending: false })
+                    .limit(1)
+                    .single()
+
+                return {
+                    ...member,
+                    is_clocked_in: !!openSession,
+                    clocked_in_at: openSession?.clocked_in_at || null,
+                }
+            })
+        )
+
+        return NextResponse.json({ team, members: membersWithClock })
+    } catch {
+        // Table may not exist yet
         return NextResponse.json({ team: null, members: [] })
     }
-
-    // Get members with clock-in status
-    const { data: members } = await supabase
-        .from('team_members')
-        .select('*')
-        .eq('team_id', team.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true })
-
-    // Check clock-in status for each member
-    const membersWithClock = await Promise.all(
-        (members || []).map(async (member) => {
-            const { data: openSession } = await supabase
-                .from('clock_sessions')
-                .select('id, clocked_in_at')
-                .eq('member_id', member.id)
-                .is('clocked_out_at', null)
-                .order('clocked_in_at', { ascending: false })
-                .limit(1)
-                .single()
-
-            return {
-                ...member,
-                is_clocked_in: !!openSession,
-                clocked_in_at: openSession?.clocked_in_at || null,
-            }
-        })
-    )
-
-    return NextResponse.json({ team, members: membersWithClock })
 }
 
 // POST: Create a team
