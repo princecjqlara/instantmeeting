@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { FaClock, FaSignInAlt, FaSignOutAlt, FaUsers } from 'react-icons/fa'
 
@@ -14,6 +14,18 @@ interface MemberStatus {
 }
 
 export default function TeamClockPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0a0a1a', color: '#fff' }}>
+                <div style={{ width: 40, height: 40, border: '3px solid #333', borderTopColor: '#6c5ce7', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            </div>
+        }>
+            <TeamClockInner />
+        </Suspense>
+    )
+}
+
+function TeamClockInner() {
     const searchParams = useSearchParams()
     const teamId = searchParams.get('team')
     const [members, setMembers] = useState<MemberStatus[]>([])
