@@ -342,6 +342,15 @@ export default function Dashboard() {
                         <FaUpload />
                         Upload
                     </button>
+                    {(session?.user as { role?: string })?.role === 'organizer' && (
+                        <button
+                            onClick={() => router.push('/admin')}
+                            className="button-secondary"
+                        >
+                            <FaUsers />
+                            Admin
+                        </button>
+                    )}
                     <button
                         onClick={() => signOut({ callbackUrl: '/' })}
                         className={styles.logoutBtn}

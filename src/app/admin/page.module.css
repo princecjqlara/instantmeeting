@@ -1,0 +1,224 @@
+.container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    padding: 2rem;
+    color: #fff;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 2rem;
+}
+
+.title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.backLink {
+    color: #888;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+}
+
+.backLink:hover {
+    color: #fff;
+}
+
+.content {
+    max-width: 900px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 768px) {
+    .content {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Create Tenant Form */
+.createCard {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.createCard h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #e0e0e0;
+}
+
+.formGroup {
+    margin-bottom: 1rem;
+}
+
+.formGroup label {
+    display: block;
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 0.3rem;
+}
+
+.formGroup input {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.formGroup input:focus {
+    border-color: #667eea;
+}
+
+.createBtn {
+    width: 100%;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.createBtn:hover {
+    opacity: 0.9;
+}
+
+.createBtn:active {
+    transform: scale(0.98);
+}
+
+.createBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.successMsg {
+    color: #4ade80;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.errorMsg {
+    color: #f87171;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+/* Tenant List */
+.listCard {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+}
+
+.listCard h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #e0e0e0;
+}
+
+.tenantList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.tenantItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tenantInfo {
+    flex: 1;
+}
+
+.tenantName {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #fff;
+}
+
+.tenantEmail {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.deleteBtn {
+    padding: 0.4rem 0.8rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: #f87171;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.deleteBtn:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+.emptyMsg {
+    color: #666;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #888;
+    font-size: 1.1rem;
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

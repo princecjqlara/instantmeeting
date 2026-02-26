@@ -22,6 +22,8 @@ export interface User {
     username: string | null
     bio: string | null
     avatar_url: string | null
+    password_hash: string | null
+    role: 'organizer' | 'tenant'
     google_access_token: string | null
     google_refresh_token: string | null
     availability_mode: 'always' | 'never' | 'scheduled'

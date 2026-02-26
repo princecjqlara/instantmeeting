@@ -2,13 +2,17 @@
 
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { FaGoogle, FaVideo, FaClock, FaPlay } from 'react-icons/fa'
-import { useEffect } from 'react'
+import { FaVideo, FaClock, FaPlay, FaEnvelope, FaLock } from 'react-icons/fa'
+import { useState, useEffect } from 'react'
 import styles from './page.module.css'
 
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loggingIn, setLoggingIn] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,6 +67,25 @@ export default function Home() {
     return null
   }
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoggingIn(true)
+
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    })
+
+    if (result?.error) {
+      setError(result.error === 'CredentialsSignin' ? 'Invalid email or password' : result.error)
+      setLoggingIn(false)
+    } else {
+      router.push('/host/dashboard')
+    }
+  }
+
   return (
     <main className={styles.main}>
       {/* Parallax Background Particles */}
@@ -90,15 +113,39 @@ export default function Home() {
             while waiting. No more boring lobby screens.
           </p>
 
-          <div className={styles.cta}>
+          {/* Login Form */}
+          <form className={styles.loginForm} onSubmit={handleLogin}>
+            <div className={styles.inputGroup}>
+              <FaEnvelope className={styles.inputIcon} />
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={styles.loginInput}
+                required
+              />
+            </div>
+            <div className={styles.inputGroup}>
+              <FaLock className={styles.inputIcon} />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={styles.loginInput}
+                required
+              />
+            </div>
+            {error && <p className={styles.loginError}>{error}</p>}
             <button
-              onClick={() => signIn('google')}
+              type="submit"
               className="button-primary"
+              disabled={loggingIn}
             >
-              <FaGoogle />
-              Get Started with Google
+              {loggingIn ? 'Signing in...' : 'Sign In'}
             </button>
-          </div>
+          </form>
         </div>
 
         <div className={styles.heroVisual}>

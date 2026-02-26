@@ -1,6 +1,7 @@
 import { NextAuthOptions } from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { createClient } from '@supabase/supabase-js'
+import bcrypt from 'bcryptjs'
 
 function getSupabaseClient() {
     return createClient(
@@ -11,76 +12,67 @@ function getSupabaseClient() {
 
 export const authOptions: NextAuthOptions = {
     providers: [
-        GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-            authorization: {
-                params: {
-                    scope: 'openid email profile https://www.googleapis.com/auth/calendar',
-                    access_type: 'offline',
-                    prompt: 'consent',
-                },
+        CredentialsProvider({
+            name: 'Email & Password',
+            credentials: {
+                email: { label: 'Email', type: 'email', placeholder: 'you@example.com' },
+                password: { label: 'Password', type: 'password' },
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) {
+                    throw new Error('Email and password are required')
+                }
+
+                const supabase = getSupabaseClient()
+                const { data: user, error } = await supabase
+                    .from('users')
+                    .select('id, email, name, avatar_url, password_hash, role')
+                    .eq('email', credentials.email.toLowerCase().trim())
+                    .single()
+
+                if (error || !user) {
+                    throw new Error('Invalid email or password')
+                }
+
+                if (!user.password_hash) {
+                    throw new Error('Account not configured. Contact your organizer.')
+                }
+
+                const isValid = await bcrypt.compare(credentials.password, user.password_hash)
+                if (!isValid) {
+                    throw new Error('Invalid email or password')
+                }
+
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    image: user.avatar_url,
+                    role: user.role,
+                }
             },
         }),
     ],
     callbacks: {
-        async signIn({ user, account }) {
-            if (account?.provider === 'google') {
-                try {
-                    const supabase = getSupabaseClient()
-                    const { error } = await supabase
-                        .from('users')
-                        .upsert({
-                            email: user.email!,
-                            name: user.name,
-                            avatar_url: user.image,
-                            google_access_token: account.access_token,
-                            google_refresh_token: account.refresh_token,
-                        }, {
-                            onConflict: 'email'
-                        })
-
-                    if (error) {
-                        console.error('Error upserting user:', error)
-                        return false
-                    }
-                } catch (err) {
-                    console.error('Error in signIn callback:', err)
-                    return false
-                }
-            }
-            return true
-        },
-        async jwt({ token, account, user }) {
-            if (account) {
-                token.accessToken = account.access_token
-                token.refreshToken = account.refresh_token
-            }
+        async jwt({ token, user }) {
             if (user) {
+                token.id = user.id
                 token.email = user.email
+                token.role = (user as { role?: string }).role || 'tenant'
             }
             return token
         },
         async session({ session, token }) {
             if (session.user) {
-                session.user.email = token.email as string
-                const supabase = getSupabaseClient()
-                const { data } = await supabase
-                    .from('users')
-                    .select('id')
-                    .eq('email', token.email)
-                    .single()
-
-                if (data) {
-                    (session.user as { id?: string }).id = data.id
-                }
+                (session.user as { id?: string }).id = token.id as string
+                session.user.email = token.email as string;
+                (session.user as { role?: string }).role = token.role as string
             }
-            (session as { accessToken?: string }).accessToken = token.accessToken as string
             return session
         },
     },
     pages: {
-        signIn: '/auth/signin',
+        signIn: '/',
     },
     session: {
         strategy: 'jwt',
