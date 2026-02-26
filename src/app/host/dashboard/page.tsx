@@ -118,12 +118,13 @@ export default function Dashboard() {
                                 const guest = payload.new
                                 const meeting = data.find((m: any) => m.id === guest.meeting_id)
 
-                                if (meeting && meeting.google_meet_link && meeting.status !== 'completed') {
+                                if (meeting && meeting.status !== 'completed') {
                                     // Use storage to prevent repeated redirects for the same admission
                                     const redirectKey = `redirected:${guest.id}`
                                     if (!localStorage.getItem(redirectKey)) {
                                         localStorage.setItem(redirectKey, 'true')
-                                        window.open(meeting.google_meet_link, '_blank')
+                                        // Navigate to in-app WebRTC video room
+                                        router.push(`/room/${guest.meeting_id}`)
                                     }
                                 }
                             }
@@ -204,12 +205,8 @@ export default function Dashboard() {
         }
     }
 
-    const startMeeting = async (meetingId: string, meetLink?: string | null) => {
-        if (!meetLink) {
-            alert('Meeting link not available')
-            return
-        }
-
+    // Start meeting and navigate to the in-app video room
+    const startMeeting = async (meetingId: string) => {
         try {
             const response = await fetch(`/api/meetings/${meetingId}/start`, {
                 method: 'POST',
@@ -228,7 +225,8 @@ export default function Dashboard() {
                     : meeting
             ))
 
-            window.open(meetLink, '_blank')
+            // Navigate to in-app WebRTC video room instead of Google Meet
+            router.push(`/room/${meetingId}`)
         } catch (error) {
             console.error('Error starting meeting:', error)
         }
@@ -490,14 +488,13 @@ export default function Dashboard() {
                                                         <span>Waiting Link</span>
                                                     </button>
 
-                                                    {meeting.google_meet_link && (
+                                                    {meeting.status !== 'completed' && (
                                                         <button
                                                             className={styles.actionBtn}
-                                                            onClick={() => startMeeting(meeting.id, meeting.google_meet_link)}
-                                                            disabled={meeting.status === 'completed'}
+                                                            onClick={() => startMeeting(meeting.id)}
                                                         >
-                                                            <FaLink />
-                                                            <span>{meeting.status === 'completed' ? 'Meeting Ended' : 'Join Meet'}</span>
+                                                            <FaVideo />
+                                                            <span>Join Room</span>
                                                         </button>
                                                     )}
                                                     <button

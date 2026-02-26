@@ -52,7 +52,7 @@ interface WaitingData {
         id: string
         guest_name: string
     } | null
-    meetLink: string | null
+    meetLink: string | null  // Now stores in-app room link (/room/{meetingId})
     hostAvailable?: boolean
 }
 
@@ -217,14 +217,16 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     useEffect(() => {
         const canAutoJoin = Boolean(
             data?.guest?.status === 'admitted' &&
-            data?.meetLink &&
             data?.meeting?.host_joined_at &&
             data?.meeting?.status !== 'completed'
         )
 
-        if (canAutoJoin && data?.meetLink && !hasAutoJoinedRef.current) {
+        // Auto-join: navigate to in-app video room instead of external Google Meet
+        if (canAutoJoin && !hasAutoJoinedRef.current) {
             hasAutoJoinedRef.current = true
-            window.location.assign(data.meetLink)
+            // Store guest name for the video room page to use
+            try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+            router.push(`/room/${meetingId}`)
         }
 
         const handleScroll = () => {
@@ -341,13 +343,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }
 
-    const meetLink = data?.meetLink || null
+    // Room link is now always /room/{meetingId} (in-app WebRTC room)
+    const roomLink = `/room/${meetingId}`
     const isAdmitted = data?.guest?.status === 'admitted'
     const isWaiting = data?.guest?.status === 'waiting'
     const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
     const canJoin = Boolean(
         isAdmitted &&
-        meetLink &&
         data?.meeting?.host_joined_at &&
         data?.meeting?.status !== 'completed' &&
         !rescheduleRequested
@@ -369,9 +371,10 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostSettings={data?.host || undefined}
                     guestStatus={data?.guest?.status}
                     onEndReached={() => {
-                        if (canJoin && meetLink && !hasAutoJoinedRef.current) {
+                        if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
-                            window.location.assign(meetLink)
+                            try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                            router.push(roomLink)
                         }
                     }}
                 />
@@ -432,7 +435,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             type="button"
                             className="button-primary"
                             onClick={() => {
-                                if (meetLink) window.open(meetLink, '_blank')
+                                try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                                router.push(roomLink)
                             }}
                         >
                             Join Meeting
@@ -510,11 +514,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <p>The host will start the meeting soon.</p>
                         )}
                         <div className={styles.admitActions}>
-                            {canJoin && meetLink ? (
+                            {canJoin ? (
                                 <button
                                     type="button"
                                     className={styles.admitPrimary}
-                                    onClick={() => window.location.assign(meetLink)}
+                                    onClick={() => {
+                                        try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                                        router.push(roomLink)
+                                    }}
                                 >
                                     Join now
                                 </button>

@@ -1,5 +1,15 @@
+/**
+ * Admit Logic — Handles guest admission to a meeting
+ * 
+ * Updated to use in-app WebRTC video rooms instead of Google Meet.
+ * The room link is simply /room/{meetingId} — no external APIs needed.
+ * 
+ * NOTE: Google Calendar integration has been removed for the video call.
+ * If you still need Calendar events for scheduling purposes, that logic
+ * should be handled separately (e.g., in the booking flow).
+ */
+
 import { createClient } from '@supabase/supabase-js'
-import { google } from 'googleapis'
 import { randomUUID } from 'crypto'
 
 function getSupabaseClient() {
@@ -12,7 +22,7 @@ function getSupabaseClient() {
 export async function admitGuestLogic(meetingId: string, guestId: string) {
     const supabase = getSupabaseClient()
 
-    // 1. Fetch meeting and host tokens
+    // 1. Fetch meeting data
     const { data: meeting, error: meetingError } = await supabase
         .from('meetings')
         .select('*, users(*)')
@@ -32,63 +42,27 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
         throw new Error('Host not found')
     }
 
-    // 2. Create Google Meet link if missing
-    let meetLink = meeting.google_meet_link
-    if (!meetLink) {
-        if (!host.google_access_token || !host.google_refresh_token) {
-            throw new Error('Missing Google tokens for host')
-        }
+    // 2. Generate in-app room link (replaces Google Meet link)
+    // The room link is a simple path to our WebRTC video room page
+    const roomLink = `/room/${meetingId}`
 
-        try {
-            const oauth2Client = new google.auth.OAuth2(
-                process.env.GOOGLE_CLIENT_ID,
-                process.env.GOOGLE_CLIENT_SECRET
-            )
-
-            oauth2Client.setCredentials({
-                access_token: host.google_access_token,
-                refresh_token: host.google_refresh_token,
+    // Update meeting status to active if it was pending
+    if (meeting.status === 'pending') {
+        await supabase
+            .from('meetings')
+            .update({
+                status: 'active',
+                // Store the room link in google_meet_link field for backward compatibility
+                // TODO: Consider renaming this column to 'room_link' in a future migration
+                google_meet_link: roomLink,
             })
-
-            const calendar = google.calendar({ version: 'v3', auth: oauth2Client })
-
-            const event = await calendar.events.insert({
-                calendarId: 'primary',
-                conferenceDataVersion: 1,
-                requestBody: {
-                    summary: meeting.title || 'Instant Meeting',
-                    start: {
-                        dateTime: new Date().toISOString(),
-                        timeZone: 'UTC',
-                    },
-                    end: {
-                        dateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-                        timeZone: 'UTC',
-                    },
-                    conferenceData: {
-                        createRequest: {
-                            requestId: `meeting-${Date.now()}`,
-                            conferenceSolutionKey: { type: 'hangoutsMeet' },
-                        },
-                    },
-                },
-            })
-
-            meetLink = event.data.hangoutLink
-
-            await supabase
-                .from('meetings')
-                .update({
-                    google_meet_link: meetLink,
-                    google_event_id: event.data.id,
-                    status: meeting.status === 'pending' ? 'active' : meeting.status,
-                })
-                .eq('id', meetingId)
-
-        } catch (error) {
-            console.error('Error creating Google Meet:', error)
-            throw new Error('Failed to create Google Meet')
-        }
+            .eq('id', meetingId)
+    } else if (!meeting.google_meet_link) {
+        // Ensure room link is stored even for already-active meetings
+        await supabase
+            .from('meetings')
+            .update({ google_meet_link: roomLink })
+            .eq('id', meetingId)
     }
 
     // 3. Verify guest and admit
@@ -104,7 +78,7 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
     }
 
     if (guest.status === 'admitted') {
-        return { guest, meet_link: meetLink }
+        return { guest, meet_link: roomLink }
     }
 
     const joinToken = randomUUID()
@@ -125,7 +99,7 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
 
     return {
         guest: admittedGuest,
-        meet_link: meetLink,
+        meet_link: roomLink,
         join_token: joinToken
     }
 }

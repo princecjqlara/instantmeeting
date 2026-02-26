@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { google } from 'googleapis'
-import { randomUUID } from 'crypto'
 import { admitGuestLogic } from '@/lib/admit-logic'
 
 // Force dynamic to prevent static generation
@@ -56,5 +54,4 @@ export async function POST(
         console.error('Admit error:', error)
         return NextResponse.json({ error: error.message || 'Failed to admit guest' }, { status: 400 })
     }
-}
 }

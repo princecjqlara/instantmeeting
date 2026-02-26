@@ -1,0 +1,202 @@
+/**
+ * VideoChat Component
+ * 
+ * Renders a fullscreen video chat interface with:
+ * - Local video (mirrored, self-muted)
+ * - Remote participant video tiles (auto-grid for 1-3 peers)
+ * - Control bar: mute/unmute mic, toggle camera, leave room
+ * - Visual indicators for muted mic / camera off states
+ */
+
+'use client'
+
+import { useRef, useEffect } from 'react'
+import { useWebRTC, RemoteStream } from '@/hooks/useWebRTC'
+import {
+    FaMicrophone,
+    FaMicrophoneSlash,
+    FaVideo,
+    FaVideoSlash,
+    FaPhoneSlash,
+    FaSpinner,
+    FaExclamationTriangle,
+} from 'react-icons/fa'
+import styles from './VideoChat.module.css'
+
+interface VideoChatProps {
+    /** Room ID for the video call (typically the meeting ID) */
+    roomId: string
+    /** Display name shown to other participants */
+    displayName: string
+    /** Callback when user leaves the room */
+    onLeave: () => void
+}
+
+/**
+ * VideoTile — renders a single video stream with a name label.
+ * Used for both local (mirrored) and remote participants.
+ */
+function VideoTile({
+    stream,
+    name,
+    muted,
+    mirrored,
+    isCameraOff,
+}: {
+    stream: MediaStream | null
+    name: string
+    muted: boolean
+    mirrored?: boolean
+    isCameraOff?: boolean
+}) {
+    const videoRef = useRef<HTMLVideoElement>(null)
+
+    // Attach the MediaStream to the <video> element whenever it changes
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream
+        }
+    }, [stream])
+
+    return (
+        <div className={styles.videoTile}>
+            {isCameraOff ? (
+                // Show avatar placeholder when camera is off
+                <div className={styles.cameraOff}>
+                    <div className={styles.avatarCircle}>
+                        {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className={styles.cameraOffLabel}>Camera off</span>
+                </div>
+            ) : (
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted={muted}
+                    className={`${styles.video} ${mirrored ? styles.mirrored : ''}`}
+                />
+            )}
+
+            {/* Participant name label */}
+            <div className={styles.nameLabel}>
+                <span>{name}</span>
+                {muted && <FaMicrophoneSlash className={styles.mutedIcon} />}
+            </div>
+        </div>
+    )
+}
+
+export default function VideoChat({ roomId, displayName, onLeave }: VideoChatProps) {
+    const {
+        localStream,
+        remoteStreams,
+        isMuted,
+        isCameraOff,
+        isConnecting,
+        error,
+        toggleMute,
+        toggleCamera,
+        leaveRoom,
+    } = useWebRTC(roomId, displayName)
+
+    // Handle leave: clean up WebRTC, then call parent callback
+    const handleLeave = () => {
+        leaveRoom()
+        onLeave()
+    }
+
+    // ─── Error State ────────────────────────────────────────────────────────
+    if (error) {
+        return (
+            <div className={styles.errorContainer}>
+                <FaExclamationTriangle className={styles.errorIcon} />
+                <h2>Something went wrong</h2>
+                <p>{error}</p>
+                <button onClick={onLeave} className={styles.leaveBtn}>
+                    Go Back
+                </button>
+            </div>
+        )
+    }
+
+    // ─── Loading State ──────────────────────────────────────────────────────
+    if (isConnecting) {
+        return (
+            <div className={styles.loadingContainer}>
+                <FaSpinner className={styles.spinner} />
+                <p>Connecting to room...</p>
+            </div>
+        )
+    }
+
+    // Determine grid layout class based on participant count
+    const totalParticipants = 1 + remoteStreams.length // local + remotes
+    const gridClass =
+        totalParticipants === 1
+            ? styles.gridSolo
+            : totalParticipants === 2
+                ? styles.gridDuo
+                : styles.gridTrio
+
+    return (
+        <div className={styles.container}>
+            {/* ─── Video Grid ─────────────────────────────────────────────────── */}
+            <div className={`${styles.videoGrid} ${gridClass}`}>
+                {/* Local video tile — always first, mirrored so it feels natural */}
+                <VideoTile
+                    stream={localStream}
+                    name={`${displayName} (You)`}
+                    muted={true} // Always muted locally to prevent feedback
+                    mirrored={true}
+                    isCameraOff={isCameraOff}
+                />
+
+                {/* Remote participant tiles */}
+                {remoteStreams.map((remote: RemoteStream) => (
+                    <VideoTile
+                        key={remote.peerId}
+                        stream={remote.stream}
+                        name={remote.name}
+                        muted={false}
+                    />
+                ))}
+            </div>
+
+            {/* ─── Waiting Indicator ──────────────────────────────────────────── */}
+            {remoteStreams.length === 0 && (
+                <div className={styles.waitingOverlay}>
+                    <div className={styles.waitingPulse} />
+                    <p>Waiting for others to join...</p>
+                </div>
+            )}
+
+            {/* ─── Control Bar ────────────────────────────────────────────────── */}
+            <div className={styles.controlBar}>
+                <button
+                    onClick={toggleMute}
+                    className={`${styles.controlBtn} ${isMuted ? styles.controlBtnDanger : ''}`}
+                    title={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                >
+                    {isMuted ? <FaMicrophoneSlash /> : <FaMicrophone />}
+                </button>
+
+                <button
+                    onClick={toggleCamera}
+                    className={`${styles.controlBtn} ${isCameraOff ? styles.controlBtnDanger : ''}`}
+                    title={isCameraOff ? 'Turn camera on' : 'Turn camera off'}
+                >
+                    {isCameraOff ? <FaVideoSlash /> : <FaVideo />}
+                </button>
+
+                <button
+                    onClick={handleLeave}
+                    className={`${styles.controlBtn} ${styles.leaveBtn}`}
+                    title="Leave room"
+                >
+                    <FaPhoneSlash />
+                </button>
+            </div>
+        </div>
+    )
+}

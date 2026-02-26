@@ -48,7 +48,7 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
         }
     }
 
-    const waitingGuests = meetings.reduce((acc, meeting) => 
+    const waitingGuests = meetings.reduce((acc, meeting) =>
         acc + (meeting.waiting_guests?.length || 0), 0
     )
 
@@ -60,7 +60,7 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                     <button className={styles.navBtn} onClick={onPrevDay}>
                         <FaChevronLeft />
                     </button>
-                    
+
                     <div className={styles.dateHeader}>
                         <FaCalendarAlt />
                         <div>
@@ -96,7 +96,7 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                 {/* Meetings Timeline */}
                 <div className={styles.timeline}>
                     <h3 className={styles.timelineTitle}>Schedule</h3>
-                    
+
                     {meetings.length === 0 ? (
                         <div className={styles.emptyState}>
                             <FaCalendarAlt className={styles.emptyIcon} />
@@ -108,53 +108,51 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                             {meetings
                                 .sort((a, b) => getMeetingDate(a).getTime() - getMeetingDate(b).getTime())
                                 .map((meeting, index) => (
-                                <div 
-                                    key={meeting.id} 
-                                    className={styles.meetingItem}
-                                    onClick={() => setSelectedMeeting(meeting)}
-                                >
-                                    <div className={styles.timelineLine}>
-                                        <div className={styles.timelineDot} />
-                                        {index < meetings.length - 1 && <div className={styles.timelineConnector} />}
-                                    </div>
-                                    
-                                    <div className={styles.meetingCard}>
-                                        <div className={styles.meetingTime}>
-                                            <FaClock />
-                                            <span>{formatTime(getMeetingDate(meeting).toISOString())}</span>
-                                        </div>
-                                        
-                                        <h4 className={styles.meetingTitle}>{meeting.title}</h4>
-                                        
-                                        <div className={styles.meetingMeta}>
-                                            <span className={`${styles.statusBadge} ${styles[meeting.status]}`}>
-                                                {getStatusIcon(meeting.status)}
-                                                {getStatusLabel(meeting.status)}
-                                            </span>
-                                            
-                                            {meeting.waiting_guests && meeting.waiting_guests.length > 0 && (
-                                                <span className={styles.guestCount}>
-                                                    <FaUsers />
-                                                    {meeting.waiting_guests.length} waiting
-                                                </span>
-                                            )}
+                                    <div
+                                        key={meeting.id}
+                                        className={styles.meetingItem}
+                                        onClick={() => setSelectedMeeting(meeting)}
+                                    >
+                                        <div className={styles.timelineLine}>
+                                            <div className={styles.timelineDot} />
+                                            {index < meetings.length - 1 && <div className={styles.timelineConnector} />}
                                         </div>
 
-                                        {meeting.google_meet_link && (
-                                            <a 
-                                                href={meeting.google_meet_link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={styles.meetLink}
-                                                onClick={e => e.stopPropagation()}
-                                            >
-                                                <FaLink />
-                                                Join Google Meet
-                                            </a>
-                                        )}
+                                        <div className={styles.meetingCard}>
+                                            <div className={styles.meetingTime}>
+                                                <FaClock />
+                                                <span>{formatTime(getMeetingDate(meeting).toISOString())}</span>
+                                            </div>
+
+                                            <h4 className={styles.meetingTitle}>{meeting.title}</h4>
+
+                                            <div className={styles.meetingMeta}>
+                                                <span className={`${styles.statusBadge} ${styles[meeting.status]}`}>
+                                                    {getStatusIcon(meeting.status)}
+                                                    {getStatusLabel(meeting.status)}
+                                                </span>
+
+                                                {meeting.waiting_guests && meeting.waiting_guests.length > 0 && (
+                                                    <span className={styles.guestCount}>
+                                                        <FaUsers />
+                                                        {meeting.waiting_guests.length} waiting
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {meeting.google_meet_link && (
+                                                <a
+                                                    href={meeting.google_meet_link}
+                                                    className={styles.meetLink}
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <FaLink />
+                                                    Join Room
+                                                </a>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
                         </div>
                     )}
                 </div>
@@ -209,14 +207,12 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                             )}
 
                             {selectedMeeting.google_meet_link && (
-                                <a 
+                                <a
                                     href={selectedMeeting.google_meet_link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
                                     className={styles.joinButton}
                                 >
                                     <FaLink />
-                                    Join Meeting
+                                    Join Room
                                 </a>
                             )}
 

@@ -37,17 +37,20 @@ export async function GET(
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
     }
 
-    const waitingUrl = `${req.nextUrl.origin}/waiting/${guest.meeting_id}`
+    const origin = req.nextUrl.origin
+    const waitingUrl = `${origin}/waiting/${guest.meeting_id}`
 
     if (
         guest.status !== 'admitted' ||
         meeting.status === 'completed' ||
         !meeting.host_joined_at ||
-        meeting.reschedule_requested ||
-        !meeting.google_meet_link
+        meeting.reschedule_requested
     ) {
         return NextResponse.redirect(waitingUrl)
     }
 
-    return NextResponse.redirect(meeting.google_meet_link)
+    // Redirect to the in-app video room
+    // google_meet_link now stores a relative path like /room/{meetingId}
+    const roomPath = meeting.google_meet_link || `/room/${guest.meeting_id}`
+    return NextResponse.redirect(`${origin}${roomPath}`)
 }

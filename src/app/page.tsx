@@ -14,7 +14,7 @@ export default function Home() {
     const handleScroll = () => {
       const scrollPosition = window.scrollY
       const windowHeight = window.innerHeight
-      
+
       // Parallax effect for phone frame
       const phoneFrame = document.querySelector(`.${styles.phoneFrame}`) as HTMLElement
       if (phoneFrame) {
@@ -22,7 +22,7 @@ export default function Home() {
         const phoneOffset = scrollPosition * phoneSpeed
         phoneFrame.style.transform = `translateY(${phoneOffset}px)`
       }
-      
+
       // Parallax effect for features
       const features = document.querySelectorAll(`.${styles.feature}`)
       features.forEach((feature, index) => {
@@ -30,7 +30,7 @@ export default function Home() {
         const rect = element.getBoundingClientRect()
         const elementTop = rect.top + scrollPosition
         const elementCenter = elementTop + rect.height / 2
-        
+
         // Only animate when element is in viewport
         if (elementCenter < scrollPosition + windowHeight && elementTop > scrollPosition) {
           const featureSpeed = 0.2 + (index * 0.1)
@@ -38,7 +38,7 @@ export default function Home() {
           element.style.transform = `translateY(${featureOffset}px)`
         }
       })
-      
+
       // Floating particles parallax
       const particles = document.querySelectorAll(`.${styles.parallaxParticle}`)
       particles.forEach((particle, index) => {
@@ -51,7 +51,7 @@ export default function Home() {
 
     window.addEventListener('scroll', handleScroll)
     handleScroll() // Initial call
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll)
     }
@@ -134,8 +134,8 @@ export default function Home() {
 
         <div className={styles.feature}>
           <div className={styles.featureIcon}>🔗</div>
-          <h3>Google Meet</h3>
-          <p>Seamless integration. One click to join the meeting.</p>
+          <h3>In-Browser Video</h3>
+          <p>No external apps needed. P2P video chat right inside the app.</p>
         </div>
       </section>
 
