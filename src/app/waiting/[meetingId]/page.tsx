@@ -6,7 +6,7 @@ import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
-import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaArrowUp } from 'react-icons/fa'
+import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaArrowUp, FaMicrophone } from 'react-icons/fa'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -21,6 +21,7 @@ interface WaitingData {
         ended_at?: string | null
         reschedule_requested?: boolean
         reschedule_requested_at?: string | null
+        assigned_member_id?: string | null
     }
     host: {
         id: string
@@ -42,6 +43,7 @@ interface WaitingData {
             required: boolean
             options?: string[]
         }> | null
+        welcome_audio_url?: string | null
     } | null
     content: Content[]
     guest: {
@@ -54,6 +56,12 @@ interface WaitingData {
     } | null
     meetLink: string | null  // Now stores in-app room link (/room/{meetingId})
     hostAvailable?: boolean
+    assignedMember?: {
+        id: string
+        name: string
+        avatar_url: string | null
+        welcome_audio_url: string | null
+    } | null
 }
 
 export default function WaitingRoom({ params }: WaitingPageProps) {
@@ -71,6 +79,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
     const isCreatingGuestRef = useRef(false)
+    const welcomeAudioRef = useRef<HTMLAudioElement | null>(null)
+    const [welcomeAudioPlaying, setWelcomeAudioPlaying] = useState(false)
+    const hasPlayedWelcomeRef = useRef(false)
 
 
 
@@ -261,6 +272,40 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         }
     }, [data, showSchedulePopup])
 
+    // Auto-play welcome audio when guest enters
+    // Prefer assigned member's audio, fallback to host's
+    useEffect(() => {
+        const audioUrl = data?.assignedMember?.welcome_audio_url || data?.host?.welcome_audio_url
+        if (!audioUrl || hasPlayedWelcomeRef.current) return
+
+        hasPlayedWelcomeRef.current = true
+        const audio = new Audio(audioUrl)
+        welcomeAudioRef.current = audio
+
+        audio.addEventListener('playing', () => setWelcomeAudioPlaying(true))
+        audio.addEventListener('ended', () => setWelcomeAudioPlaying(false))
+        audio.addEventListener('pause', () => setWelcomeAudioPlaying(false))
+        audio.addEventListener('error', () => setWelcomeAudioPlaying(false))
+
+        // Try autoplay; if blocked, user interaction will be needed
+        audio.play().catch(() => {
+            // Autoplay blocked — try playing on first user interaction
+            const playOnInteraction = () => {
+                audio.play().catch(() => { })
+                document.removeEventListener('click', playOnInteraction)
+                document.removeEventListener('touchstart', playOnInteraction)
+            }
+            document.addEventListener('click', playOnInteraction, { once: true })
+            document.addEventListener('touchstart', playOnInteraction, { once: true })
+        })
+
+        return () => {
+            audio.pause()
+            audio.src = ''
+            welcomeAudioRef.current = null
+        }
+    }, [data?.assignedMember?.welcome_audio_url, data?.host?.welcome_audio_url])
+
     // Mark guest as 'left' when they navigate away
     useEffect(() => {
         const guestStorageKey = `waitingGuest:${meetingId}`
@@ -383,14 +428,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <span>Waiting for {hostDisplayName} to admit you</span>
                     </div>
                 )}
-                {!meetingEnded && isWaiting && !canJoin && !rescheduleRequested && (
-                    <div className={styles.waitBanner}>
-                        <span>Waiting for {hostDisplayName} to admit you</span>
-                    </div>
-                )}
                 {rescheduleRequested && (
                     <div className={styles.waitBanner}>
                         <span>{hostDisplayName} requested a new time</span>
+                    </div>
+                )}
+                {welcomeAudioPlaying && (
+                    <div className={styles.waitBanner} style={{ background: 'linear-gradient(135deg, rgba(255,71,87,0.9), rgba(255,107,129,0.9))' }}>
+                        <FaMicrophone style={{ animation: 'pulse 1s ease-in-out infinite' }} />
+                        <span>{data?.assignedMember?.name || hostDisplayName} is speaking...</span>
                     </div>
                 )}
             </div>

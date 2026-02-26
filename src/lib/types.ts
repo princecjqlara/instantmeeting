@@ -70,6 +70,7 @@ export interface Meeting {
     ended_at?: string | null
     reschedule_requested?: boolean
     reschedule_requested_at?: string | null
+    assigned_member_id?: string | null
     created_at: string
     waiting_guests?: WaitingGuest[]
 }
@@ -86,6 +87,36 @@ export interface WaitingGuest {
     status: 'waiting' | 'admitted' | 'left'
     joined_at: string
     admitted_at: string | null
+}
+
+export interface Team {
+    id: string
+    owner_id: string
+    name: string
+    round_robin_index: number
+    created_at: string
+}
+
+export interface TeamMember {
+    id: string
+    team_id: string
+    name: string
+    email: string | null
+    avatar_url: string | null
+    welcome_audio_url: string | null
+    is_active: boolean
+    created_at: string
+    // Computed at runtime
+    is_clocked_in?: boolean
+    clocked_in_at?: string | null
+}
+
+export interface ClockSession {
+    id: string
+    member_id: string
+    clocked_in_at: string
+    clocked_out_at: string | null
+    created_at: string
 }
 
 export interface Database {
@@ -110,6 +141,21 @@ export interface Database {
                 Row: WaitingGuest
                 Insert: Omit<WaitingGuest, 'id' | 'joined_at'>
                 Update: Partial<Omit<WaitingGuest, 'id' | 'joined_at'>>
+            }
+            teams: {
+                Row: Team
+                Insert: Omit<Team, 'id' | 'created_at'>
+                Update: Partial<Omit<Team, 'id' | 'created_at'>>
+            }
+            team_members: {
+                Row: TeamMember
+                Insert: Omit<TeamMember, 'id' | 'created_at'>
+                Update: Partial<Omit<TeamMember, 'id' | 'created_at'>>
+            }
+            clock_sessions: {
+                Row: ClockSession
+                Insert: Omit<ClockSession, 'id' | 'created_at'>
+                Update: Partial<Omit<ClockSession, 'id' | 'created_at'>>
             }
         }
     }

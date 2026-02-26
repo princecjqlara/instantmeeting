@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { Meeting, WaitingGuest, Content } from '@/lib/types'
+import { Meeting, WaitingGuest, Content, Team, TeamMember } from '@/lib/types'
 import { createClient } from '@/lib/supabase/client'
 import Calendar from '@/components/Calendar'
 import WaitingRoomTable from '@/components/WaitingRoomTable'
@@ -15,7 +15,7 @@ import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaLink, FaCopy, FaCheck,
     FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser,
-    FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt
+    FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt, FaMicrophone, FaTrash, FaPlay, FaStop
 } from 'react-icons/fa'
 
 interface MeetingWithGuests extends Meeting {
@@ -41,6 +41,19 @@ export default function Dashboard() {
     const [showPreview, setShowPreview] = useState(false)
     const [selectedDate, setSelectedDate] = useState<Date | null>(null)
     const [selectedDateMeetings, setSelectedDateMeetings] = useState<Meeting[]>([])
+    const [welcomeAudioUrl, setWelcomeAudioUrl] = useState<string | null>(null)
+    const [uploadingAudio, setUploadingAudio] = useState(false)
+    const [playingPreview, setPlayingPreview] = useState(false)
+    const [isRecording, setIsRecording] = useState(false)
+    const [recordingTime, setRecordingTime] = useState(0)
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const recordingChunksRef = useRef<Blob[]>([])
+    const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const [team, setTeam] = useState<Team | null>(null)
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+    const [newMemberName, setNewMemberName] = useState('')
+    const [newMemberEmail, setNewMemberEmail] = useState('')
+    const [copiedClockLink, setCopiedClockLink] = useState(false)
     const supabase = createClient()
 
     // Pagination state
@@ -79,6 +92,19 @@ export default function Dashboard() {
                     const profileData = await profileRes.json()
                     if (profileData.username) {
                         setUsername(profileData.username)
+                    }
+                    if (profileData.welcome_audio_url) {
+                        setWelcomeAudioUrl(profileData.welcome_audio_url)
+                    }
+                }
+
+                // Fetch team data
+                const teamRes = await fetch('/api/team')
+                if (teamRes.ok) {
+                    const teamData = await teamRes.json()
+                    if (teamData.team) {
+                        setTeam(teamData.team)
+                        setTeamMembers(teamData.members || [])
                     }
                 }
             } catch (error) {
@@ -286,6 +312,124 @@ export default function Dashboard() {
         setTimeout(() => setCopiedId(null), 2000)
     }
 
+    const handleWelcomeAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploadingAudio(true)
+        try {
+            const formData = new FormData()
+            formData.append('file', file)
+
+            const response = await fetch('/api/profile/welcome-audio', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setWelcomeAudioUrl(data.welcome_audio_url)
+            } else {
+                const data = await response.json()
+                alert(data.error || 'Failed to upload audio')
+            }
+        } catch {
+            alert('Failed to upload audio')
+        } finally {
+            setUploadingAudio(false)
+            e.target.value = ''
+        }
+    }
+
+    const handleDeleteWelcomeAudio = async () => {
+        if (!confirm('Remove your welcome voice message?')) return
+
+        try {
+            const response = await fetch('/api/profile/welcome-audio', {
+                method: 'DELETE'
+            })
+
+            if (response.ok) {
+                setWelcomeAudioUrl(null)
+            }
+        } catch {
+            alert('Failed to remove audio')
+        }
+    }
+
+    const uploadAudioBlob = async (blob: Blob) => {
+        setUploadingAudio(true)
+        try {
+            const formData = new FormData()
+            formData.append('file', blob, 'welcome-recording.webm')
+
+            const response = await fetch('/api/profile/welcome-audio', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                setWelcomeAudioUrl(data.welcome_audio_url)
+            } else {
+                const data = await response.json()
+                alert(data.error || 'Failed to upload recording')
+            }
+        } catch {
+            alert('Failed to upload recording')
+        } finally {
+            setUploadingAudio(false)
+        }
+    }
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+            const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+            mediaRecorderRef.current = mediaRecorder
+            recordingChunksRef.current = []
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordingChunksRef.current.push(e.data)
+                }
+            }
+
+            mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(t => t.stop())
+                const blob = new Blob(recordingChunksRef.current, { type: 'audio/webm' })
+                uploadAudioBlob(blob)
+            }
+
+            mediaRecorder.start()
+            setIsRecording(true)
+            setRecordingTime(0)
+
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1)
+            }, 1000)
+        } catch {
+            alert('Microphone access denied. Please allow mic access and try again.')
+        }
+    }
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop()
+        }
+        setIsRecording(false)
+        if (recordingTimerRef.current) {
+            clearInterval(recordingTimerRef.current)
+            recordingTimerRef.current = null
+        }
+    }
+
+    const formatRecordingTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60)
+        const s = seconds % 60
+        return `${m}:${s.toString().padStart(2, '0')}`
+    }
+
     if (status === 'loading' || loading) {
         return (
             <div className={styles.loading}>
@@ -387,6 +531,248 @@ export default function Dashboard() {
                     </div>
                 </section>
             )}
+
+            {/* Welcome Voice Message */}
+            <section className={styles.createSection}>
+                <div className={styles.createCard}>
+                    <h2><FaMicrophone style={{ marginRight: 8, color: '#ff4757' }} /> Welcome Voice Message</h2>
+                    <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        Record a greeting that plays when guests enter your waiting room — buys you time to prepare!
+                    </p>
+                    {isRecording ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{
+                                    width: 12, height: 12, borderRadius: '50%', background: '#ff4757',
+                                    animation: 'pulse 1s ease-in-out infinite', display: 'inline-block'
+                                }} />
+                                <span style={{ color: '#ff4757', fontWeight: 600, fontFamily: 'monospace', fontSize: '1.1rem' }}>
+                                    {formatRecordingTime(recordingTime)}
+                                </span>
+                                <span style={{ color: '#aaa', fontSize: '0.85rem' }}>Recording...</span>
+                            </div>
+                            <button
+                                onClick={stopRecording}
+                                className="button-primary"
+                                style={{ background: '#ff4757' }}
+                            >
+                                <FaStop /> Stop & Save
+                            </button>
+                        </div>
+                    ) : uploadingAudio ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div className={styles.spinner} style={{ width: 20, height: 20 }}></div>
+                            <span style={{ color: '#aaa' }}>Uploading...</span>
+                        </div>
+                    ) : welcomeAudioUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <audio
+                                src={welcomeAudioUrl}
+                                controls
+                                style={{ flex: 1, minWidth: 200, maxWidth: 400, height: 36, borderRadius: 8 }}
+                            />
+                            <button
+                                onClick={handleDeleteWelcomeAudio}
+                                className="button-secondary"
+                                style={{ color: '#ff4757' }}
+                            >
+                                <FaTrash /> Remove
+                            </button>
+                            <button
+                                onClick={startRecording}
+                                className="button-secondary"
+                            >
+                                <FaMicrophone /> Re-record
+                            </button>
+                            <label className="button-secondary" style={{ cursor: 'pointer' }}>
+                                <FaUpload /> Replace File
+                                <input
+                                    type="file"
+                                    accept="audio/*"
+                                    onChange={handleWelcomeAudioUpload}
+                                    style={{ display: 'none' }}
+                                />
+                            </label>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <button
+                                onClick={startRecording}
+                                className="button-primary"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                            >
+                                <FaMicrophone /> Record
+                            </button>
+                            <label className="button-secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <FaUpload /> Attach File
+                                <input
+                                    type="file"
+                                    accept="audio/*"
+                                    onChange={handleWelcomeAudioUpload}
+                                    style={{ display: 'none' }}
+                                />
+                            </label>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>MP3, M4A, WAV — max 10 MB</span>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Team Management */}
+            <section className={styles.createSection}>
+                <div className={styles.createCard}>
+                    <h2><FaUsers style={{ marginRight: 8, color: '#3742fa' }} /> Team</h2>
+                    {!team ? (
+                        <div>
+                            <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                                Create a team to add members who can clock in and handle meetings via round-robin.
+                            </p>
+                            <button
+                                className="button-primary"
+                                onClick={async () => {
+                                    const res = await fetch('/api/team', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ name: 'My Team' })
+                                    })
+                                    if (res.ok) {
+                                        const data = await res.json()
+                                        setTeam(data.team)
+                                        setTeamMembers([])
+                                    }
+                                }}
+                            >
+                                <FaPlus /> Create Team
+                            </button>
+                        </div>
+                    ) : (
+                        <div>
+                            {/* Clock-in Link */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                                <code style={{ fontSize: '0.8rem', background: '#1a1a2e', padding: '4px 8px', borderRadius: 4 }}>
+                                    {typeof window !== 'undefined' ? window.location.origin : ''}/team/clock?team={team.id}
+                                </code>
+                                <button
+                                    className="button-secondary"
+                                    style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(`${window.location.origin}/team/clock?team=${team.id}`)
+                                        setCopiedClockLink(true)
+                                        setTimeout(() => setCopiedClockLink(false), 2000)
+                                    }}
+                                >
+                                    {copiedClockLink ? <><FaCheck /> Copied</> : <><FaCopy /> Copy Clock-In Link</>}
+                                </button>
+                            </div>
+
+                            {/* Add Member Form */}
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                                <input
+                                    type="text"
+                                    value={newMemberName}
+                                    onChange={e => setNewMemberName(e.target.value)}
+                                    placeholder="Member name"
+                                    className="input"
+                                    style={{ flex: 1, minWidth: 120 }}
+                                />
+                                <input
+                                    type="email"
+                                    value={newMemberEmail}
+                                    onChange={e => setNewMemberEmail(e.target.value)}
+                                    placeholder="Email (optional)"
+                                    className="input"
+                                    style={{ flex: 1, minWidth: 120 }}
+                                />
+                                <button
+                                    className="button-primary"
+                                    disabled={!newMemberName.trim()}
+                                    onClick={async () => {
+                                        const res = await fetch('/api/team/members', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ name: newMemberName.trim(), email: newMemberEmail.trim() || null })
+                                        })
+                                        if (res.ok) {
+                                            const member = await res.json()
+                                            setTeamMembers(prev => [...prev, { ...member, is_clocked_in: false }])
+                                            setNewMemberName('')
+                                            setNewMemberEmail('')
+                                        }
+                                    }}
+                                >
+                                    <FaPlus /> Add
+                                </button>
+                            </div>
+
+                            {/* Member List */}
+                            {teamMembers.length === 0 ? (
+                                <p style={{ color: '#666', fontSize: '0.85rem' }}>No team members yet.</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {teamMembers.map(member => (
+                                        <div key={member.id} style={{
+                                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                                            padding: '0.5rem 0.75rem', background: '#1a1a2e', borderRadius: 8,
+                                            flexWrap: 'wrap'
+                                        }}>
+                                            {/* Clock status dot */}
+                                            <span style={{
+                                                width: 10, height: 10, borderRadius: '50%',
+                                                background: member.is_clocked_in ? '#2ed573' : '#666',
+                                                flexShrink: 0
+                                            }} />
+                                            <span style={{ fontWeight: 500, flex: 1, minWidth: 80 }}>{member.name}</span>
+                                            {member.email && <span style={{ color: '#888', fontSize: '0.8rem' }}>{member.email}</span>}
+                                            {member.welcome_audio_url ? (
+                                                <span style={{ color: '#2ed573', fontSize: '0.75rem' }}>✓ Audio</span>
+                                            ) : (
+                                                <label className="button-secondary" style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '2px 8px' }}>
+                                                    <FaMicrophone /> Audio
+                                                    <input
+                                                        type="file"
+                                                        accept="audio/*"
+                                                        style={{ display: 'none' }}
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0]
+                                                            if (!file) return
+                                                            const fd = new FormData()
+                                                            fd.append('file', file)
+                                                            fd.append('member_id', member.id)
+                                                            const res = await fetch('/api/team/members/welcome-audio', { method: 'POST', body: fd })
+                                                            if (res.ok) {
+                                                                const data = await res.json()
+                                                                setTeamMembers(prev => prev.map(m => m.id === member.id ? { ...m, welcome_audio_url: data.welcome_audio_url } : m))
+                                                            }
+                                                            e.target.value = ''
+                                                        }}
+                                                    />
+                                                </label>
+                                            )}
+                                            <button
+                                                className="button-secondary"
+                                                style={{ color: '#ff4757', fontSize: '0.75rem', padding: '2px 8px' }}
+                                                onClick={async () => {
+                                                    if (!confirm(`Remove ${member.name}?`)) return
+                                                    const res = await fetch('/api/team/members', {
+                                                        method: 'DELETE',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ id: member.id })
+                                                    })
+                                                    if (res.ok) {
+                                                        setTeamMembers(prev => prev.filter(m => m.id !== member.id))
+                                                    }
+                                                }}
+                                            >
+                                                <FaTimes />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </section>
 
             {/* Create Meeting */}
             <section className={styles.createSection}>

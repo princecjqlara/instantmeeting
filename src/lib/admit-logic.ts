@@ -97,9 +97,69 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
         throw new Error(updateError.message)
     }
 
+    // 4. Round-robin team member assignment
+    let assignedMember = null
+    try {
+        const { data: team } = await supabase
+            .from('teams')
+            .select('id, round_robin_index')
+            .eq('owner_id', meeting.user_id)
+            .single()
+
+        if (team) {
+            // Get clocked-in members
+            const { data: members } = await supabase
+                .from('team_members')
+                .select('id, name, welcome_audio_url')
+                .eq('team_id', team.id)
+                .eq('is_active', true)
+                .order('created_at', { ascending: true })
+
+            if (members && members.length > 0) {
+                // Filter to only clocked-in members
+                const clockedInMembers = []
+                for (const member of members) {
+                    const { data: openSession } = await supabase
+                        .from('clock_sessions')
+                        .select('id')
+                        .eq('member_id', member.id)
+                        .is('clocked_out_at', null)
+                        .limit(1)
+                        .single()
+
+                    if (openSession) {
+                        clockedInMembers.push(member)
+                    }
+                }
+
+                if (clockedInMembers.length > 0) {
+                    // Round-robin: pick next available member
+                    const index = team.round_robin_index % clockedInMembers.length
+                    assignedMember = clockedInMembers[index]
+
+                    // Assign member to meeting
+                    await supabase
+                        .from('meetings')
+                        .update({ assigned_member_id: assignedMember.id })
+                        .eq('id', meetingId)
+
+                    // Increment round-robin index
+                    await supabase
+                        .from('teams')
+                        .update({ round_robin_index: team.round_robin_index + 1 })
+                        .eq('id', team.id)
+                }
+            }
+        }
+    } catch (err) {
+        // Non-fatal: if team assignment fails, host handles the meeting
+        console.error('Team assignment error (non-fatal):', err)
+    }
+
     return {
         guest: admittedGuest,
         meet_link: roomLink,
-        join_token: joinToken
+        join_token: joinToken,
+        assigned_member: assignedMember
     }
 }

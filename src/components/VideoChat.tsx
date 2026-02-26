@@ -42,12 +42,14 @@ function VideoTile({
     muted,
     mirrored,
     isCameraOff,
+    isMicMuted,
 }: {
     stream: MediaStream | null
     name: string
     muted: boolean
     mirrored?: boolean
     isCameraOff?: boolean
+    isMicMuted?: boolean
 }) {
     const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -81,7 +83,7 @@ function VideoTile({
             {/* Participant name label */}
             <div className={styles.nameLabel}>
                 <span>{name}</span>
-                {muted && <FaMicrophoneSlash className={styles.mutedIcon} />}
+                {isMicMuted && <FaMicrophoneSlash className={styles.mutedIcon} />}
             </div>
         </div>
     )
@@ -150,6 +152,7 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                     muted={true} // Always muted locally to prevent feedback
                     mirrored={true}
                     isCameraOff={isCameraOff}
+                    isMicMuted={isMuted}
                 />
 
                 {/* Remote participant tiles */}

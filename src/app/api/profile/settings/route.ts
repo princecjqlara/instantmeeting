@@ -23,7 +23,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
         .from('users')
-        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
         .eq('email', session.user.email)
         .single()
 
@@ -43,7 +43,8 @@ export async function GET() {
         scroll_threshold: user.scroll_threshold || 3,
         meeting_duration: user.meeting_duration || 30,
         followers: user.followers || 0,
-        following: user.following || 0
+        following: user.following || 0,
+        welcome_audio_url: user.welcome_audio_url || null
     })
 }
 
@@ -101,7 +102,7 @@ export async function PATCH(req: NextRequest) {
         const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({ email: session.user.email, ...updateData })
-            .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+            .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
             .single()
 
         if (createError) {
@@ -121,7 +122,8 @@ export async function PATCH(req: NextRequest) {
             scroll_threshold: newUser.scroll_threshold || 3,
             meeting_duration: newUser.meeting_duration || 30,
             followers: newUser.followers || 0,
-            following: newUser.following || 0
+            following: newUser.following || 0,
+            welcome_audio_url: newUser.welcome_audio_url || null
         })
     }
 
@@ -129,7 +131,7 @@ export async function PATCH(req: NextRequest) {
         .from('users')
         .update(updateData)
         .eq('email', session.user.email)
-        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following')
+        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
         .single()
 
     if (error) {
@@ -148,6 +150,7 @@ export async function PATCH(req: NextRequest) {
         scroll_threshold: user.scroll_threshold || 3,
         meeting_duration: user.meeting_duration || 30,
         followers: user.followers || 0,
-        following: user.following || 0
+        following: user.following || 0,
+        welcome_audio_url: user.welcome_audio_url || null
     })
 }

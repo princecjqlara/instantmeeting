@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
                 ended_at,
                 reschedule_requested,
                 reschedule_requested_at,
-                user_id
+                user_id,
+                assigned_member_id
             `)
             .eq('id', meetingId)
             .single(),
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
             .order('order_index', { ascending: true }),
         supabase
             .from('users')
-            .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
+            .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields, welcome_audio_url')
             .eq('id', meeting.user_id)
             .single(),
         guestPromise
@@ -91,6 +92,20 @@ export async function GET(req: NextRequest) {
 
     const { data: admittedGuest } = admittedGuestPromise
     const origin = req.nextUrl.origin
+
+    // If meeting has an assigned team member, fetch their data
+    let assignedMember = null
+    if (meeting.assigned_member_id) {
+        const { data: member } = await supabase
+            .from('team_members')
+            .select('id, name, avatar_url, welcome_audio_url')
+            .eq('id', meeting.assigned_member_id)
+            .single()
+
+        if (member) {
+            assignedMember = member
+        }
+    }
 
     return NextResponse.json({
         meeting: {
@@ -101,8 +116,10 @@ export async function GET(req: NextRequest) {
             ended_at: meeting.ended_at,
             reschedule_requested: meeting.reschedule_requested,
             reschedule_requested_at: meeting.reschedule_requested_at,
+            assigned_member_id: meeting.assigned_member_id,
         },
         host,
+        assignedMember,
         content: content || [],
         guest: guestStatus,
         admittedGuest: admittedGuest || null,
