@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { normalizeProfileSettings } from '@/lib/profile-settings'
+import { normalizeProfileSettings, type ProfileSettingsRecord } from '@/lib/profile-settings'
+import { isMissingUsersColumnError } from '@/lib/users-column-compat'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,120 @@ function getSupabaseClient() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+}
+
+const AUTO_ADMIT_COLUMN = 'auto_admit'
+
+const PROFILE_SETTINGS_COLUMNS = [
+    'username',
+    'name',
+    'bio',
+    'avatar_url',
+    'availability_mode',
+    AUTO_ADMIT_COLUMN,
+    'available_from',
+    'available_to',
+    'timezone',
+    'scroll_threshold',
+    'meeting_duration',
+    'followers',
+    'following',
+    'welcome_audio_url',
+]
+
+interface ProfileSettingsQueryResult {
+    data: Partial<ProfileSettingsRecord> | null
+    error: { message: string } | null
+}
+
+function profileSettingsSelect(includeAutoAdmit: boolean) {
+    const columns = includeAutoAdmit
+        ? PROFILE_SETTINGS_COLUMNS
+        : PROFILE_SETTINGS_COLUMNS.filter(column => column !== AUTO_ADMIT_COLUMN)
+
+    return columns.join(', ')
+}
+
+async function fetchProfileSettingsByEmail(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    includeAutoAdmit = true
+): Promise<ProfileSettingsQueryResult> {
+    const queryResult = await supabase
+        .from('users')
+        .select(profileSettingsSelect(includeAutoAdmit))
+        .eq('email', email)
+        .maybeSingle()
+
+    if (
+        includeAutoAdmit &&
+        isMissingUsersColumnError(queryResult.error, AUTO_ADMIT_COLUMN)
+    ) {
+        return fetchProfileSettingsByEmail(supabase, email, false)
+    }
+
+    return {
+        data: queryResult.data as Partial<ProfileSettingsRecord> | null,
+        error: queryResult.error ? { message: queryResult.error.message } : null,
+    }
+}
+
+async function insertProfileSettings(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    updateData: Record<string, unknown>
+) {
+    const payload = {
+        email,
+        ...updateData,
+    }
+
+    let result = await supabase
+        .from('users')
+        .insert(payload)
+
+    if (
+        result.error &&
+        AUTO_ADMIT_COLUMN in payload &&
+        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
+    ) {
+        const fallbackPayload = { ...payload }
+        delete fallbackPayload[AUTO_ADMIT_COLUMN]
+
+        result = await supabase
+            .from('users')
+            .insert(fallbackPayload)
+    }
+
+    return result
+}
+
+async function updateProfileSettings(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    updateData: Record<string, unknown>
+) {
+    const payload = { ...updateData }
+
+    let result = await supabase
+        .from('users')
+        .update(payload)
+        .eq('email', email)
+
+    if (
+        result.error &&
+        AUTO_ADMIT_COLUMN in payload &&
+        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
+    ) {
+        delete payload[AUTO_ADMIT_COLUMN]
+
+        result = await supabase
+            .from('users')
+            .update(payload)
+            .eq('email', email)
+    }
+
+    return result
 }
 
 // GET: Get current user's profile settings
@@ -22,11 +137,10 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
-        .eq('email', session.user.email)
-        .maybeSingle()
+    const { data: user, error } = await fetchProfileSettingsByEmail(
+        supabase,
+        session.user.email
+    )
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
@@ -96,27 +210,31 @@ export async function PATCH(req: NextRequest) {
 
     if (!existingUser) {
         // Create user if doesn't exist
-        const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({ email: session.user.email, ...updateData })
-            .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
-            .single()
+        const { error: createError } = await insertProfileSettings(
+            supabase,
+            session.user.email,
+            updateData
+        )
 
         if (createError) {
             return NextResponse.json({ error: createError.message }, { status: 500 })
         }
-
-        return NextResponse.json(
-            normalizeProfileSettings(newUser, { fallbackName: session.user.name || '' })
+    } else {
+        const { error: updateError } = await updateProfileSettings(
+            supabase,
+            session.user.email,
+            updateData
         )
+
+        if (updateError) {
+            return NextResponse.json({ error: updateError.message }, { status: 500 })
+        }
     }
 
-    const { data: user, error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('email', session.user.email)
-        .select('username, name, bio, avatar_url, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, followers, following, welcome_audio_url')
-        .single()
+    const { data: user, error } = await fetchProfileSettingsByEmail(
+        supabase,
+        session.user.email
+    )
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })

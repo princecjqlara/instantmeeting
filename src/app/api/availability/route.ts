@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { isMissingUsersColumnError } from '@/lib/users-column-compat'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,6 +11,155 @@ function getSupabaseClient() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+}
+
+const AUTO_ADMIT_COLUMN = 'auto_admit'
+
+const AVAILABILITY_COLUMNS = [
+    'availability_mode',
+    AUTO_ADMIT_COLUMN,
+    'available_from',
+    'available_to',
+    'timezone',
+    'scroll_threshold',
+    'meeting_duration',
+    'booking_title',
+    'booking_description',
+    'booking_note_placeholder',
+    'booking_form_fields',
+]
+
+interface AvailabilityQueryResult {
+    data: Record<string, unknown> | null
+    error: { message: string } | null
+}
+
+function availabilitySelect(includeAutoAdmit: boolean) {
+    const columns = includeAutoAdmit
+        ? AVAILABILITY_COLUMNS
+        : AVAILABILITY_COLUMNS.filter(column => column !== AUTO_ADMIT_COLUMN)
+
+    return columns.join(', ')
+}
+
+function defaultAvailabilityResponse() {
+    return {
+        availability_mode: 'always',
+        auto_admit: false,
+        available_from: null,
+        available_to: null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        scroll_threshold: 3,
+        meeting_duration: 30,
+        booking_title: 'Schedule a Meeting',
+        booking_description: 'Share your details and pick a time that works.',
+        booking_note_placeholder: "I'd like to discuss...",
+        booking_form_fields: [],
+    }
+}
+
+function toAvailabilityResponse(user: Record<string, unknown> | null) {
+    if (!user) {
+        return defaultAvailabilityResponse()
+    }
+
+    return {
+        availability_mode: (user.availability_mode as string | null | undefined) || 'always',
+        auto_admit: (user.auto_admit as boolean | null | undefined) ?? false,
+        available_from: (user.available_from as string | null | undefined) || null,
+        available_to: (user.available_to as string | null | undefined) || null,
+        timezone: (user.timezone as string | null | undefined) || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        scroll_threshold: (user.scroll_threshold as number | null | undefined) || 3,
+        meeting_duration: (user.meeting_duration as number | null | undefined) || 30,
+        booking_title: (user.booking_title as string | null | undefined) || 'Schedule a Meeting',
+        booking_description: (user.booking_description as string | null | undefined) || 'Share your details and pick a time that works.',
+        booking_note_placeholder: (user.booking_note_placeholder as string | null | undefined) || "I'd like to discuss...",
+        booking_form_fields: (user.booking_form_fields as unknown[] | null | undefined) || [],
+    }
+}
+
+async function fetchAvailabilityByEmail(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    includeAutoAdmit = true
+): Promise<AvailabilityQueryResult> {
+    const queryResult = await supabase
+        .from('users')
+        .select(availabilitySelect(includeAutoAdmit))
+        .eq('email', email)
+        .maybeSingle()
+
+    if (
+        includeAutoAdmit &&
+        isMissingUsersColumnError(queryResult.error, AUTO_ADMIT_COLUMN)
+    ) {
+        return fetchAvailabilityByEmail(supabase, email, false)
+    }
+
+    return {
+        data: queryResult.data as Record<string, unknown> | null,
+        error: queryResult.error ? { message: queryResult.error.message } : null,
+    }
+}
+
+async function insertAvailability(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    name: string | null | undefined,
+    updateData: Record<string, unknown>
+) {
+    const payload: Record<string, unknown> = {
+        email,
+        name,
+        ...updateData,
+    }
+
+    let result = await supabase
+        .from('users')
+        .insert(payload)
+
+    if (
+        result.error &&
+        AUTO_ADMIT_COLUMN in payload &&
+        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
+    ) {
+        const fallbackPayload = { ...payload }
+        delete fallbackPayload[AUTO_ADMIT_COLUMN]
+
+        result = await supabase
+            .from('users')
+            .insert(fallbackPayload)
+    }
+
+    return result
+}
+
+async function updateAvailability(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    updateData: Record<string, unknown>
+) {
+    const payload = { ...updateData }
+
+    let result = await supabase
+        .from('users')
+        .update(payload)
+        .eq('email', email)
+
+    if (
+        result.error &&
+        AUTO_ADMIT_COLUMN in payload &&
+        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
+    ) {
+        delete payload[AUTO_ADMIT_COLUMN]
+
+        result = await supabase
+            .from('users')
+            .update(payload)
+            .eq('email', email)
+    }
+
+    return result
 }
 
 // GET: Get current availability settings
@@ -21,41 +171,16 @@ export async function GET() {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: user } = await supabase
-        .from('users')
-        .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
-        .eq('email', session.user.email)
-        .maybeSingle()
+    const { data: user, error } = await fetchAvailabilityByEmail(
+        supabase,
+        session.user.email
+    )
 
-    if (!user) {
-        return NextResponse.json({
-            availability_mode: 'always',
-            auto_admit: false,
-            available_from: null,
-            available_to: null,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            scroll_threshold: 3,
-            meeting_duration: 30,
-            booking_title: 'Schedule a Meeting',
-            booking_description: 'Share your details and pick a time that works.',
-            booking_note_placeholder: "I'd like to discuss...",
-            booking_form_fields: []
-        })
+    if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-        availability_mode: user.availability_mode || 'always',
-        auto_admit: user.auto_admit || false,
-        available_from: user.available_from || null,
-        available_to: user.available_to || null,
-        timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        scroll_threshold: user.scroll_threshold || 3,
-        meeting_duration: user.meeting_duration || 30,
-        booking_title: user.booking_title || 'Schedule a Meeting',
-        booking_description: user.booking_description || 'Share your details and pick a time that works.',
-        booking_note_placeholder: user.booking_note_placeholder || "I'd like to discuss...",
-        booking_form_fields: user.booking_form_fields || []
-    })
+    return NextResponse.json(toAvailabilityResponse(user))
 }
 
 // PATCH: Update availability settings
@@ -83,64 +208,47 @@ export async function PATCH(req: NextRequest) {
     if (body.booking_form_fields !== undefined) updateData.booking_form_fields = body.booking_form_fields
 
 
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: existingUserError } = await supabase
         .from('users')
         .select('id')
         .eq('email', session.user.email)
         .maybeSingle()
 
+    if (existingUserError) {
+        return NextResponse.json({ error: existingUserError.message }, { status: 500 })
+    }
+
     if (!existingUser) {
-        const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-                email: session.user.email,
-                name: session.user.name,
-                ...updateData
-            })
-            .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
-            .single()
+        const { error: createError } = await insertAvailability(
+            supabase,
+            session.user.email,
+            session.user.name,
+            updateData
+        )
 
         if (createError) {
             return NextResponse.json({ error: createError.message }, { status: 500 })
         }
+    } else {
+        const { error: updateError } = await updateAvailability(
+            supabase,
+            session.user.email,
+            updateData
+        )
 
-        return NextResponse.json({
-            availability_mode: newUser.availability_mode || 'always',
-            auto_admit: newUser.auto_admit || false,
-            available_from: newUser.available_from || null,
-            available_to: newUser.available_to || null,
-            timezone: newUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-            scroll_threshold: newUser.scroll_threshold || 3,
-            meeting_duration: newUser.meeting_duration || 30,
-            booking_title: newUser.booking_title || 'Schedule a Meeting',
-            booking_description: newUser.booking_description || 'Share your details and pick a time that works.',
-            booking_note_placeholder: newUser.booking_note_placeholder || "I'd like to discuss...",
-            booking_form_fields: newUser.booking_form_fields || []
-        })
+        if (updateError) {
+            return NextResponse.json({ error: updateError.message }, { status: 500 })
+        }
     }
 
-    const { data: updatedUser, error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('email', session.user.email)
-        .select('availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields')
-        .single()
+    const { data: updatedUser, error: fetchError } = await fetchAvailabilityByEmail(
+        supabase,
+        session.user.email
+    )
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    if (fetchError) {
+        return NextResponse.json({ error: fetchError.message }, { status: 500 })
     }
 
-    return NextResponse.json({
-        availability_mode: updatedUser.availability_mode || 'always',
-        auto_admit: updatedUser.auto_admit || false,
-        available_from: updatedUser.available_from || null,
-        available_to: updatedUser.available_to || null,
-        timezone: updatedUser.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        scroll_threshold: updatedUser.scroll_threshold || 3,
-        meeting_duration: updatedUser.meeting_duration || 30,
-        booking_title: updatedUser.booking_title || 'Schedule a Meeting',
-        booking_description: updatedUser.booking_description || 'Share your details and pick a time that works.',
-        booking_note_placeholder: updatedUser.booking_note_placeholder || "I'd like to discuss...",
-        booking_form_fields: updatedUser.booking_form_fields || []
-    })
+    return NextResponse.json(toAvailabilityResponse(updatedUser))
 }
