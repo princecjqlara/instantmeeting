@@ -1,7 +1,7 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { createClient } from '@supabase/supabase-js'
-import bcrypt from 'bcryptjs'
+import { isValidCredentialPassword } from '@/lib/password-auth'
 
 function getSupabaseClient() {
     return createClient(
@@ -38,7 +38,10 @@ export const authOptions: NextAuthOptions = {
                     throw new Error('Account not configured. Contact your organizer.')
                 }
 
-                const isValid = await bcrypt.compare(credentials.password, user.password_hash)
+                const isValid = await isValidCredentialPassword(
+                    credentials.password,
+                    user.password_hash
+                )
                 if (!isValid) {
                     throw new Error('Invalid email or password')
                 }
