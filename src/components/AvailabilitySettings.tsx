@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FaClock, FaCheck, FaTimes } from 'react-icons/fa'
 import styles from './AvailabilitySettings.module.css'
 
@@ -40,13 +40,23 @@ export default function AvailabilitySettings() {
     })
     const [saving, setSaving] = useState(false)
     const [saved, setSaved] = useState(false)
+    const latestRequestIdRef = useRef(0)
 
     useEffect(() => {
+        let isMounted = true
+
         const fetchSettings = async () => {
+            const requestId = ++latestRequestIdRef.current
+
             try {
                 const response = await fetch('/api/availability')
                 if (response.ok) {
                     const data = await response.json()
+
+                    if (!isMounted || requestId !== latestRequestIdRef.current) {
+                        return
+                    }
+
                     setSettings(prev => ({
                         ...prev,
                         ...data,
@@ -57,19 +67,32 @@ export default function AvailabilitySettings() {
                 console.error('Error fetching availability:', error)
             }
         }
+
         fetchSettings()
+
+        return () => {
+            isMounted = false
+        }
     }, [])
 
     const updateAvailability = async (updates: Partial<AvailabilityData>) => {
+        const requestId = ++latestRequestIdRef.current
         setSaving(true)
+
         try {
             const response = await fetch('/api/availability', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updates)
             })
+
             if (response.ok) {
                 const data = await response.json()
+
+                if (requestId !== latestRequestIdRef.current) {
+                    return
+                }
+
                 setSettings(prev => ({ ...prev, ...data }))
                 setSaved(true)
                 setTimeout(() => setSaved(false), 2000)
@@ -77,7 +100,9 @@ export default function AvailabilitySettings() {
         } catch (error) {
             console.error('Error updating availability:', error)
         } finally {
-            setSaving(false)
+            if (requestId === latestRequestIdRef.current) {
+                setSaving(false)
+            }
         }
     }
 

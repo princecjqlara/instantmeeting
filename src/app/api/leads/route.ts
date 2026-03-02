@@ -63,3 +63,56 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(leads)
 }
+
+// DELETE: Delete a lead owned by current host
+export async function DELETE(req: NextRequest) {
+    const supabase = getSupabaseClient()
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.email) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const leadId = searchParams.get('id')
+
+    if (!leadId) {
+        return NextResponse.json({ error: 'Lead ID required' }, { status: 400 })
+    }
+
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+    if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    const { data: lead, error: leadError } = await supabase
+        .from('waiting_guests')
+        .select('id, meetings!inner(user_id)')
+        .eq('id', leadId)
+        .eq('meetings.user_id', user.id)
+        .maybeSingle()
+
+    if (leadError) {
+        return NextResponse.json({ error: leadError.message }, { status: 500 })
+    }
+
+    if (!lead) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 })
+    }
+
+    const { error: deleteError } = await supabase
+        .from('waiting_guests')
+        .delete()
+        .eq('id', leadId)
+
+    if (deleteError) {
+        return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+}

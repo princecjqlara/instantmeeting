@@ -7,7 +7,7 @@ import styles from './page.module.css'
 import {
     FaArrowLeft, FaUsers, FaFilter, FaCalendarAlt, FaClock,
     FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
-    FaTimesCircle, FaSearch, FaDownload, FaPhone
+    FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash
 } from 'react-icons/fa'
 
 interface Lead {
@@ -37,6 +37,7 @@ export default function LeadsPage() {
     const [statusFilter, setStatusFilter] = useState<'all' | 'waiting' | 'admitted' | 'left'>('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
+    const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null)
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
@@ -126,6 +127,33 @@ export default function LeadsPage() {
         waiting: leads.filter(l => l.status === 'waiting').length,
         admitted: leads.filter(l => l.status === 'admitted').length,
         left: leads.filter(l => l.status === 'left').length
+    }
+
+    const deleteLead = async (lead: Lead) => {
+        const confirmed = window.confirm(`Delete lead "${lead.guest_name}"? This cannot be undone.`)
+        if (!confirmed) return
+
+        setDeletingLeadId(lead.id)
+
+        try {
+            const response = await fetch(`/api/leads?id=${encodeURIComponent(lead.id)}`, {
+                method: 'DELETE',
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => null)
+                alert(errorData?.error || 'Failed to delete lead')
+                return
+            }
+
+            setLeads(prev => prev.filter(item => item.id !== lead.id))
+            setSelectedLead(prev => (prev?.id === lead.id ? null : prev))
+        } catch (error) {
+            console.error('Error deleting lead:', error)
+            alert('Failed to delete lead')
+        } finally {
+            setDeletingLeadId(null)
+        }
     }
 
     if (status === 'loading' || loading) {
@@ -262,9 +290,24 @@ export default function LeadsPage() {
                                     <div className={styles.leadAvatar}>
                                         {lead.guest_name.charAt(0).toUpperCase()}
                                     </div>
-                                    <div className={styles.leadStatus}>
-                                        {getStatusIcon(lead.status)}
-                                        <span>{getStatusLabel(lead.status)}</span>
+                                    <div className={styles.leadHeaderRight}>
+                                        <div className={styles.leadStatus}>
+                                            {getStatusIcon(lead.status)}
+                                            <span>{getStatusLabel(lead.status)}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={styles.deleteLeadBtn}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                deleteLead(lead)
+                                            }}
+                                            disabled={deletingLeadId === lead.id}
+                                            title="Delete lead"
+                                            aria-label="Delete lead"
+                                        >
+                                            <FaTrash />
+                                        </button>
                                     </div>
                                 </div>
 
@@ -341,9 +384,20 @@ export default function LeadsPage() {
                     <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
                         <div className={styles.modalHeader}>
                             <h2>Lead Details</h2>
-                            <button className={styles.closeBtn} onClick={() => setSelectedLead(null)}>
-                                ×
-                            </button>
+                            <div className={styles.modalActions}>
+                                <button
+                                    type="button"
+                                    className={`${styles.deleteLeadBtn} ${styles.deleteLeadBtnDanger}`}
+                                    onClick={() => deleteLead(selectedLead)}
+                                    disabled={deletingLeadId === selectedLead.id}
+                                >
+                                    <FaTrash />
+                                    {deletingLeadId === selectedLead.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                                <button className={styles.closeBtn} onClick={() => setSelectedLead(null)}>
+                                    ×
+                                </button>
+                            </div>
                         </div>
 
                         <div className={styles.modalBody}>

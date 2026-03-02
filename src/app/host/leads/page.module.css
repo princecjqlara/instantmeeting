@@ -264,6 +264,12 @@
     margin-bottom: 16px;
 }
 
+.leadHeaderRight {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .leadAvatar {
     width: 48px;
     height: 48px;
@@ -286,6 +292,37 @@
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
+}
+
+.deleteLeadBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 10px;
+    color: #f87171;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.deleteLeadBtn:hover:not(:disabled) {
+    background: rgba(248, 113, 113, 0.2);
+    border-color: rgba(248, 113, 113, 0.5);
+}
+
+.deleteLeadBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.deleteLeadBtnDanger {
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
 }
 
 .leadInfo {
@@ -405,6 +442,12 @@
     align-items: center;
     padding: 24px;
     border-bottom: 1px solid var(--border-color);
+}
+
+.modalActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .modalHeader h2 {
