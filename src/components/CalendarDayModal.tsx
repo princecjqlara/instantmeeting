@@ -9,15 +9,28 @@ import {
     FaChevronLeft, FaChevronRight
 } from 'react-icons/fa'
 
+interface TeamMemberOption {
+    id: string
+    name: string
+}
+
 interface CalendarDayModalProps {
     date: Date
     meetings: Meeting[]
+    teamMembers?: TeamMemberOption[]
     onClose: () => void
     onPrevDay: () => void
     onNextDay: () => void
 }
 
-export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, onNextDay }: CalendarDayModalProps) {
+export default function CalendarDayModal({
+    date,
+    meetings,
+    teamMembers = [],
+    onClose,
+    onPrevDay,
+    onNextDay
+}: CalendarDayModalProps) {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null)
 
     const formatTime = (dateString: string) => {
@@ -28,6 +41,13 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
     }
 
     const getMeetingDate = (meeting: Meeting) => new Date(meeting.scheduled_at || meeting.created_at)
+
+    const getAssignedMemberName = (meeting: Meeting) => {
+        if (!meeting.assigned_member_id) return null
+
+        const assignedMember = teamMembers.find(member => member.id === meeting.assigned_member_id)
+        return assignedMember?.name || 'Team member'
+    }
 
 
     const getStatusIcon = (status: string) => {
@@ -51,6 +71,8 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
     const waitingGuests = meetings.reduce((acc, meeting) =>
         acc + (meeting.waiting_guests?.length || 0), 0
     )
+
+    const selectedMeetingAssignedName = selectedMeeting ? getAssignedMemberName(selectedMeeting) : null
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
@@ -107,52 +129,63 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                         <div className={styles.meetingsList}>
                             {meetings
                                 .sort((a, b) => getMeetingDate(a).getTime() - getMeetingDate(b).getTime())
-                                .map((meeting, index) => (
-                                    <div
-                                        key={meeting.id}
-                                        className={styles.meetingItem}
-                                        onClick={() => setSelectedMeeting(meeting)}
-                                    >
-                                        <div className={styles.timelineLine}>
-                                            <div className={styles.timelineDot} />
-                                            {index < meetings.length - 1 && <div className={styles.timelineConnector} />}
-                                        </div>
+                                .map((meeting, index) => {
+                                    const assignedMemberName = getAssignedMemberName(meeting)
 
-                                        <div className={styles.meetingCard}>
-                                            <div className={styles.meetingTime}>
-                                                <FaClock />
-                                                <span>{formatTime(getMeetingDate(meeting).toISOString())}</span>
+                                    return (
+                                        <div
+                                            key={meeting.id}
+                                            className={styles.meetingItem}
+                                            onClick={() => setSelectedMeeting(meeting)}
+                                        >
+                                            <div className={styles.timelineLine}>
+                                                <div className={styles.timelineDot} />
+                                                {index < meetings.length - 1 && <div className={styles.timelineConnector} />}
                                             </div>
 
-                                            <h4 className={styles.meetingTitle}>{meeting.title}</h4>
+                                            <div className={styles.meetingCard}>
+                                                <div className={styles.meetingTime}>
+                                                    <FaClock />
+                                                    <span>{formatTime(getMeetingDate(meeting).toISOString())}</span>
+                                                </div>
 
-                                            <div className={styles.meetingMeta}>
-                                                <span className={`${styles.statusBadge} ${styles[meeting.status]}`}>
-                                                    {getStatusIcon(meeting.status)}
-                                                    {getStatusLabel(meeting.status)}
-                                                </span>
+                                                <h4 className={styles.meetingTitle}>{meeting.title}</h4>
 
-                                                {meeting.waiting_guests && meeting.waiting_guests.length > 0 && (
-                                                    <span className={styles.guestCount}>
-                                                        <FaUsers />
-                                                        {meeting.waiting_guests.length} waiting
+                                                <div className={styles.meetingMeta}>
+                                                    <span className={`${styles.statusBadge} ${styles[meeting.status]}`}>
+                                                        {getStatusIcon(meeting.status)}
+                                                        {getStatusLabel(meeting.status)}
                                                     </span>
+
+                                                    {assignedMemberName && (
+                                                        <span className={styles.assignedMember}>
+                                                            <FaUser />
+                                                            Assigned to {assignedMemberName}
+                                                        </span>
+                                                    )}
+
+                                                    {meeting.waiting_guests && meeting.waiting_guests.length > 0 && (
+                                                        <span className={styles.guestCount}>
+                                                            <FaUsers />
+                                                            {meeting.waiting_guests.length} waiting
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {meeting.google_meet_link && (
+                                                    <a
+                                                        href={meeting.google_meet_link}
+                                                        className={styles.meetLink}
+                                                        onClick={e => e.stopPropagation()}
+                                                    >
+                                                        <FaLink />
+                                                        Join Room
+                                                    </a>
                                                 )}
                                             </div>
-
-                                            {meeting.google_meet_link && (
-                                                <a
-                                                    href={meeting.google_meet_link}
-                                                    className={styles.meetLink}
-                                                    onClick={e => e.stopPropagation()}
-                                                >
-                                                    <FaLink />
-                                                    Join Room
-                                                </a>
-                                            )}
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                         </div>
                     )}
                 </div>
@@ -187,11 +220,21 @@ export default function CalendarDayModal({ date, meetings, onClose, onPrevDay, o
                                 </div>
                             </div>
 
+                            {selectedMeetingAssignedName && (
+                                <div className={styles.detailRow}>
+                                    <FaUser />
+                                    <div>
+                                        <label>Assigned To</label>
+                                        <span>{selectedMeetingAssignedName}</span>
+                                    </div>
+                                </div>
+                            )}
+
                             {selectedMeeting.waiting_guests && selectedMeeting.waiting_guests.length > 0 && (
                                 <div className={styles.guestsSection}>
                                     <h4>Waiting Guests ({selectedMeeting.waiting_guests.length})</h4>
                                     <div className={styles.guestsList}>
-                                        {selectedMeeting.waiting_guests.map((guest: any) => (
+                                        {selectedMeeting.waiting_guests.map((guest) => (
                                             <div key={guest.id} className={styles.guestItem}>
                                                 <div className={styles.guestAvatar}>
                                                     {guest.guest_name.charAt(0).toUpperCase()}
