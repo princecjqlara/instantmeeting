@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import bcrypt from 'bcryptjs'
+import { planTenantProvisioning } from '@/lib/tenant-provisioning'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,7 +66,13 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { email, name, password } = body
+    const rawEmail = typeof body.email === 'string' ? body.email : ''
+    const rawName = typeof body.name === 'string' ? body.name : ''
+    const rawPassword = typeof body.password === 'string' ? body.password : ''
+
+    const email = rawEmail.toLowerCase().trim()
+    const name = rawName.trim() || null
+    const password = rawPassword.trim()
 
     if (!email || !password) {
         return NextResponse.json(
@@ -74,41 +81,72 @@ export async function POST(req: NextRequest) {
         )
     }
 
+    if (password.length < 6) {
+        return NextResponse.json(
+            { error: 'Password must be at least 6 characters' },
+            { status: 400 }
+        )
+    }
+
     const supabase = getSupabaseClient()
 
-    // Check if email already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
         .from('users')
-        .select('id')
-        .eq('email', email.toLowerCase().trim())
-        .single()
+        .select('id, role')
+        .eq('email', email)
+        .maybeSingle()
 
-    if (existing) {
+    if (existingError) {
+        return NextResponse.json({ error: existingError.message }, { status: 500 })
+    }
+
+    const plan = planTenantProvisioning({
+        existingUser: existing,
+        email,
+        name,
+    })
+
+    if (plan.mode === 'reject') {
         return NextResponse.json(
-            { error: 'A user with this email already exists' },
+            { error: 'Cannot overwrite organizer account' },
             { status: 409 }
         )
     }
 
-    // Hash password and create tenant
+    // Hash password and create or update tenant
     const password_hash = await bcrypt.hash(password, 12)
 
-    const { data: tenant, error } = await supabase
-        .from('users')
-        .insert({
-            email: email.toLowerCase().trim(),
-            name: name || null,
-            password_hash,
-            role: 'tenant',
-        })
-        .select('id, email, name, role, created_at')
-        .single()
+    const upsertData = {
+        ...plan.data,
+        password_hash,
+    }
+
+    const tenantQuery = plan.mode === 'create'
+        ? supabase
+            .from('users')
+            .insert(upsertData)
+            .select('id, email, name, role, created_at')
+            .single()
+        : supabase
+            .from('users')
+            .update(upsertData)
+            .eq('id', plan.id)
+            .select('id, email, name, role, created_at')
+            .single()
+
+    const { data: tenant, error } = await tenantQuery
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(tenant, { status: 201 })
+    return NextResponse.json(
+        {
+            ...tenant,
+            action: plan.mode,
+        },
+        { status: plan.mode === 'create' ? 201 : 200 }
+    )
 }
 
 /**

@@ -75,7 +75,8 @@ export default function AdminPage() {
             const data = await res.json()
 
             if (res.ok) {
-                setSuccessMsg(`Tenant "${data.email}" created successfully!`)
+                const actionLabel = data.action === 'update' ? 'updated' : 'created'
+                setSuccessMsg(`Tenant "${data.email}" ${actionLabel} successfully!`)
                 setEmail('')
                 setName('')
                 setPassword('')
