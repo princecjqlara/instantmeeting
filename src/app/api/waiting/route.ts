@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { admitGuestLogic } from '@/lib/admit-logic'
+import {
+    admitGuestLogic,
+    getAutoAssignableMember,
+    isNoAvailableTeamMemberError,
+} from '@/lib/admit-logic'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -14,6 +18,12 @@ function getSupabaseClient() {
     }
 
     return createClient(supabaseUrl, supabaseKey)
+}
+
+function toAutoScheduleReason(reason: string | null | undefined) {
+    return reason === 'all_members_busy'
+        ? 'all_members_busy'
+        : 'no_online_members'
 }
 
 // GET: Get waiting room info and host's content
@@ -84,7 +94,7 @@ export async function GET(req: NextRequest) {
             .order('order_index', { ascending: true }),
         supabase
             .from('users')
-            .select('id, name, username, avatar_url, bio, availability_mode, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields, welcome_audio_url')
+            .select('id, name, username, avatar_url, bio, availability_mode, auto_admit, available_from, available_to, timezone, scroll_threshold, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields, welcome_audio_url')
             .eq('id', meeting.user_id)
             .single(),
         guestPromise
@@ -107,6 +117,18 @@ export async function GET(req: NextRequest) {
         }
     }
 
+    let autoScheduleRequired = false
+    let autoScheduleReason: 'no_online_members' | 'all_members_busy' | null = null
+
+    if (guestStatus?.status === 'waiting' && host?.auto_admit && !meeting.assigned_member_id) {
+        const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
+
+        if (!availability.nextMember) {
+            autoScheduleRequired = true
+            autoScheduleReason = toAutoScheduleReason(availability.reason)
+        }
+    }
+
     return NextResponse.json({
         meeting: {
             id: meeting.id,
@@ -123,6 +145,8 @@ export async function GET(req: NextRequest) {
         content: content || [],
         guest: guestStatus,
         admittedGuest: admittedGuest || null,
+        autoScheduleRequired,
+        autoScheduleReason,
         meetLink: guestStatus?.status === 'admitted' &&
             meeting.host_joined_at &&
             meeting.status !== 'completed' &&
@@ -188,15 +212,30 @@ export async function POST(req: NextRequest) {
 
     if (host?.auto_admit) {
         try {
-            const result = await admitGuestLogic(meetingId, guest.id)
+            const result = await admitGuestLogic(meetingId, guest.id, {
+                requireAvailableAssignee: true,
+            })
+
             return NextResponse.json({
                 ...guest,
                 status: 'admitted',
                 admitted_at: result.guest.admitted_at,
                 join_token: result.join_token,
-                meet_link: result.meet_link
+                meet_link: result.meet_link,
+                assigned_member: result.assigned_member || null,
+                assignment_source: result.assignment_source,
+                autoScheduleRequired: false,
+                autoScheduleReason: null,
             })
         } catch (admitError) {
+            if (isNoAvailableTeamMemberError(admitError)) {
+                return NextResponse.json({
+                    ...guest,
+                    autoScheduleRequired: true,
+                    autoScheduleReason: toAutoScheduleReason(admitError.availabilityReason),
+                })
+            }
+
             console.error('Auto-admit failed:', admitError)
             // If auto-admit fails, guest stays in waiting room
         }

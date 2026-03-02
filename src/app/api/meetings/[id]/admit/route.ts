@@ -50,6 +50,7 @@ export async function POST(
             meet_link: result.meet_link,
             join_link: `${req.nextUrl.origin}/api/join/${result.join_token}`,
             assigned_member: result.assigned_member || null,
+            assignment_source: result.assignment_source || 'none',
         })
     } catch (error: any) {
         console.error('Admit error:', error)

@@ -27,11 +27,12 @@ interface ReelPlayerProps {
     guestStatus?: 'waiting' | 'admitted' | 'left'
     onEndReached?: () => void
     isHost?: boolean
+    disableBookingTriggerOnScroll?: boolean
     onEdit?: (reel: Content) => void
     onDelete?: (reelId: string) => void
 }
 
-export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, hostSettings: hostSettingsProp, guestStatus, onEndReached, isHost, onEdit, onDelete }: ReelPlayerProps) {
+export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, hostSettings: hostSettingsProp, guestStatus, onEndReached, isHost, disableBookingTriggerOnScroll = false, onEdit, onDelete }: ReelPlayerProps) {
     const router = useRouter()
     const [currentIndex, setCurrentIndex] = useState(0)
     const [isPlaying, setIsPlaying] = useState(true)
@@ -148,7 +149,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                 const scrollThreshold = hostSettings?.scroll_threshold
                 const availabilityMode = hostSettings?.availability_mode
                 
-                if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                if (!disableBookingTriggerOnScroll && !isHost && scrollThreshold && newCount >= scrollThreshold) {
                     if (availabilityMode !== 'always' && !isGuestAdmitted) {
                         setShowBookingModal(true)
                         return 0
@@ -302,7 +303,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                             const scrollThreshold = hostSettings?.scroll_threshold
                             const availabilityMode = hostSettings?.availability_mode
                             
-                            if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                            if (!disableBookingTriggerOnScroll && !isHost && scrollThreshold && newCount >= scrollThreshold) {
                                 if (availabilityMode !== 'always' && !isGuestAdmitted) {
                                     setShowBookingModal(true)
                                     return 0
@@ -341,7 +342,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                         const scrollThreshold = hostSettings?.scroll_threshold
                         const availabilityMode = hostSettings?.availability_mode
                         
-                        if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                        if (!disableBookingTriggerOnScroll && !isHost && scrollThreshold && newCount >= scrollThreshold) {
                             if (availabilityMode !== 'always' && !isGuestAdmitted) {
                                 setShowBookingModal(true)
                                 return 0
@@ -372,7 +373,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
             container.removeEventListener('touchend', handleTouchEnd)
             container.removeEventListener('wheel', handleWheel)
         }
-    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
+    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, disableBookingTriggerOnScroll, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
 
     // Keyboard navigation
     useEffect(() => {
@@ -393,7 +394,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
                         const scrollThreshold = hostSettings?.scroll_threshold
                         const availabilityMode = hostSettings?.availability_mode
                         
-                        if (!isHost && scrollThreshold && newCount >= scrollThreshold) {
+                        if (!disableBookingTriggerOnScroll && !isHost && scrollThreshold && newCount >= scrollThreshold) {
                             if (availabilityMode !== 'always' && !isGuestAdmitted) {
                                 setShowBookingModal(true)
                                 return 0
@@ -415,7 +416,7 @@ export default function ReelPlayer({ reels, hostName, hostUsername, hostAvatar, 
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
+    }, [currentIndex, reels.length, hostSettings?.scroll_threshold, hostSettings?.availability_mode, disableBookingTriggerOnScroll, isHost, isGuestAdmitted, shouldLoopToStart, onEndReached])
 
     if (!hasReels) {
         return (

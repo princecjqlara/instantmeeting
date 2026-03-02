@@ -6,7 +6,7 @@ import { Content } from '@/lib/types'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
-import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaArrowUp, FaMicrophone } from 'react-icons/fa'
+import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -30,6 +30,7 @@ interface WaitingData {
         avatar_url: string | null
         bio: string | null
         availability_mode: 'always' | 'never' | 'scheduled'
+        auto_admit?: boolean
         available_from: string | null
         available_to: string | null
         meeting_duration: number | null
@@ -45,6 +46,8 @@ interface WaitingData {
         }> | null
         welcome_audio_url?: string | null
     } | null
+    autoScheduleRequired?: boolean
+    autoScheduleReason?: 'no_online_members' | 'all_members_busy' | null
     content: Content[]
     guest: {
         id: string
@@ -70,11 +73,10 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [data, setData] = useState<WaitingData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [showScrollIndicator, setShowScrollIndicator] = useState(false)
     const [showBookingModal, setShowBookingModal] = useState(false)
     const [showAdmitPopup, setShowAdmitPopup] = useState(false)
-    const [showSchedulePopup, setShowSchedulePopup] = useState(false)
     const hasAutoJoinedRef = useRef(false)
+    const hasAutoOpenedBookingRef = useRef(false)
     const lastGuestStatusRef = useRef<string | null>(null)
     const joinSectionRef = useRef<HTMLDivElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -127,8 +129,16 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     if (isMounted) {
                         setData(prev => prev ? {
                             ...prev,
-                            guest: { id: created.id, status: created.status }
+                            guest: { id: created.id, status: created.status },
+                            assignedMember: created.assigned_member || prev.assignedMember,
+                            autoScheduleRequired: Boolean(created.autoScheduleRequired),
+                            autoScheduleReason: created.autoScheduleReason || null,
                         } : prev)
+
+                        if (created.autoScheduleRequired && !hasAutoOpenedBookingRef.current) {
+                            hasAutoOpenedBookingRef.current = true
+                            setShowBookingModal(true)
+                        }
                     }
                 } else {
                     const errorData = await createRes.json()
@@ -239,38 +249,30 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
             router.push(`/room/${meetingId}`)
         }
+    }, [data, meetingId, router])
 
-        const handleScroll = () => {
-            if (!containerRef.current) return
-            const scrollTop = containerRef.current.scrollTop
-            const windowHeight = window.innerHeight
-            setShowScrollIndicator(scrollTop < windowHeight / 2)
-        }
-
-        const container = containerRef.current
-        if (container) {
-            container.addEventListener('scroll', handleScroll)
-            handleScroll()
-        }
-
-        return () => {
-            if (container) {
-                container.removeEventListener('scroll', handleScroll)
-            }
-        }
-    }, [data])
-
-    // Show schedule popup when host is unavailable and user hasn't seen it yet
     useEffect(() => {
-        const isHostFree = data?.host?.availability_mode === 'always'
-        const isAdmitted = data?.guest?.status === 'admitted'
-        if (data && !isHostFree && !isAdmitted && !showSchedulePopup) {
-            const timer = setTimeout(() => {
-                setShowSchedulePopup(true)
-            }, 1000) // Show after 1 second
-            return () => clearTimeout(timer)
+        const guestStatus = data?.guest?.status
+        const meetingStatus = data?.meeting?.status
+        const autoScheduleRequired = Boolean(data?.autoScheduleRequired)
+        const hostAvailabilityMode = data?.host?.availability_mode
+
+        const shouldAutoOpenBooking = Boolean(
+            guestStatus === 'waiting' &&
+            meetingStatus !== 'completed' &&
+            (autoScheduleRequired || hostAvailabilityMode !== 'always')
+        )
+
+        if (shouldAutoOpenBooking && !hasAutoOpenedBookingRef.current) {
+            hasAutoOpenedBookingRef.current = true
+            setShowBookingModal(true)
         }
-    }, [data, showSchedulePopup])
+    }, [
+        data?.guest?.status,
+        data?.meeting?.status,
+        data?.autoScheduleRequired,
+        data?.host?.availability_mode,
+    ])
 
     // Auto-play welcome audio when guest enters
     // Prefer assigned member's audio, fallback to host's
@@ -376,18 +378,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         )
     }
 
-    const scrollToSchedule = () => {
-        if (joinSectionRef.current) {
-            joinSectionRef.current.scrollIntoView({ behavior: 'smooth' })
-        }
-    }
-
-    const scrollToReels = () => {
-        if (containerRef.current) {
-            containerRef.current.scrollTo({ top: 0, behavior: 'smooth' })
-        }
-    }
-
     // Room link is now always /room/{meetingId} (in-app WebRTC room)
     const roomLink = `/room/${meetingId}`
     const isAdmitted = data?.guest?.status === 'admitted'
@@ -402,6 +392,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
+    const shouldAutoSchedule = Boolean(data?.autoScheduleRequired)
+    const autoScheduleMessage = data?.autoScheduleReason === 'all_members_busy'
+        ? 'All team members are currently in active meetings. Please request a time and we will follow up shortly.'
+        : 'No team member is online right now. Please request a time and we will follow up shortly.'
+    const showAssignmentBanner = Boolean(
+        data?.host?.auto_admit &&
+        data?.assignedMember &&
+        (isWaiting || isAdmitted)
+    )
 
     // Waiting room with reels
     return (
@@ -415,6 +414,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     hostAvatar={data?.host?.avatar_url}
                     hostSettings={data?.host || undefined}
                     guestStatus={data?.guest?.status}
+                    disableBookingTriggerOnScroll
                     onEndReached={() => {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
@@ -431,6 +431,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 {rescheduleRequested && (
                     <div className={styles.waitBanner}>
                         <span>{hostDisplayName} requested a new time</span>
+                    </div>
+                )}
+                {showAssignmentBanner && (
+                    <div className={styles.assignmentBanner}>
+                        <span>Auto-assigned to {data?.assignedMember?.name}</span>
                     </div>
                 )}
                 {welcomeAudioPlaying && (
@@ -496,29 +501,33 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         <h2>Waiting for host</h2>
                         <p>The host hasn't joined yet. You'll be able to join once they do.</p>
                     </div>
-                ) : isHostFree ? (
+                ) : shouldAutoSchedule || !isHostFree ? (
+                    <div className={styles.scheduleCard}>
+                        <div className={styles.scheduleIcon}>
+                            <FaCalendarAlt />
+                        </div>
+                        <h2>{data?.host?.booking_title || 'Schedule a Meeting'}</h2>
+                        <p>
+                            {shouldAutoSchedule
+                                ? autoScheduleMessage
+                                : (data?.host?.booking_description || "Can't wait? Request a time that works for you.")}
+                        </p>
+                        <button
+                            type="button"
+                            className="button-primary"
+                            onClick={() => setShowBookingModal(true)}
+                        >
+                            {shouldAutoSchedule ? 'Open Booking Form' : 'Request Meeting'}
+                            <FaArrowRight />
+                        </button>
+                    </div>
+                ) : (
                     <div className={styles.joinCard}>
                         <div className={styles.joinIcon}>
                             <FaUser />
                         </div>
                         <h2>Host is available</h2>
                         <p>Please wait for {hostDisplayName} to admit you.</p>
-                    </div>
-                ) : (
-                    <div className={styles.scheduleCard}>
-                        <div className={styles.scheduleIcon}>
-                            <FaCalendarAlt />
-                        </div>
-                        <h2>{data?.host?.booking_title || 'Schedule a Meeting'}</h2>
-                        <p>{data?.host?.booking_description || "Can't wait? Request a time that works for you."}</p>
-                        <button
-                            type="button"
-                            className="button-primary"
-                            onClick={() => setShowBookingModal(true)}
-                        >
-                            Request Meeting
-                            <FaArrowRight />
-                        </button>
                     </div>
                 )}
             </div>
@@ -556,6 +565,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             <p>Scroll down to join the meeting now.</p>
                         ) : meetingEnded ? (
                             <p>This meeting has ended.</p>
+                        ) : data?.assignedMember?.name ? (
+                            <p>You were matched with {data.assignedMember.name}. Waiting for them to start.</p>
                         ) : (
                             <p>The host will start the meeting soon.</p>
                         )}
@@ -582,34 +593,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 </div>
             )}
 
-            {/* Schedule Popup - shown when host is unavailable */}
-            {showSchedulePopup && !isHostFree && !isAdmitted && (
-                <div className={styles.admitOverlay}>
-                    <div className={styles.admitModal}>
-                        <h2>Host is Busy</h2>
-                        <p>{hostDisplayName} isn't available right now. Would you like to schedule a meeting for later?</p>
-                        <div className={styles.admitActions}>
-                            <button
-                                type="button"
-                                className={styles.admitPrimary}
-                                onClick={() => {
-                                    setShowSchedulePopup(false)
-                                    setShowBookingModal(true)
-                                }}
-                            >
-                                Schedule Meeting
-                            </button>
-                            <button
-                                type="button"
-                                className={styles.admitSecondary}
-                                onClick={() => setShowSchedulePopup(false)}
-                            >
-                                Continue Waiting
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

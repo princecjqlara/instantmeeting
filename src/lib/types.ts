@@ -71,6 +71,7 @@ export interface Meeting {
     reschedule_requested?: boolean
     reschedule_requested_at?: string | null
     assigned_member_id?: string | null
+    assignment_source?: 'system' | 'manual' | 'preassigned' | 'none' | null
     created_at: string
     waiting_guests?: WaitingGuest[]
 }

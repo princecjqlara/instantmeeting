@@ -1,14 +1,3 @@
-/**
- * Admit Logic — Handles guest admission to a meeting
- * 
- * Updated to use in-app WebRTC video rooms instead of Google Meet.
- * The room link is simply /room/{meetingId} — no external APIs needed.
- * 
- * NOTE: Google Calendar integration has been removed for the video call.
- * If you still need Calendar events for scheduling purposes, that logic
- * should be handled separately (e.g., in the booking flow).
- */
-
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 
@@ -19,15 +8,302 @@ function getSupabaseClient() {
     )
 }
 
-export async function admitGuestLogic(meetingId: string, guestId: string) {
-    const supabase = getSupabaseClient()
+type AssignmentSource = 'system' | 'manual' | 'preassigned' | 'none'
 
-    // 1. Fetch meeting data
-    const { data: meeting, error: meetingError } = await supabase
+const MEETING_ASSIGNMENT_SOURCE_COLUMN = 'assignment_source'
+
+interface ErrorLike {
+    message?: string | null
+}
+
+export type TeamAvailabilityReason =
+    | 'member_available'
+    | 'no_team'
+    | 'no_members'
+    | 'no_clocked_in'
+    | 'all_members_busy'
+    | 'lookup_failed'
+
+interface TeamRecord {
+    id: string
+    round_robin_index: number
+}
+
+interface TeamMemberRecord {
+    id: string
+    name: string
+    avatar_url: string | null
+    welcome_audio_url: string | null
+}
+
+interface TeamAvailabilityResult {
+    reason: TeamAvailabilityReason
+    team: TeamRecord | null
+    nextMember: TeamMemberRecord | null
+}
+
+interface MeetingRecord {
+    id: string
+    user_id: string
+    status: string
+    google_meet_link: string | null
+    assigned_member_id: string | null
+    assignment_source?: AssignmentSource | null
+}
+
+interface AdmitGuestOptions {
+    requireAvailableAssignee?: boolean
+}
+
+export class AdmitLogicError extends Error {
+    code: 'NO_AVAILABLE_TEAM_MEMBER'
+    availabilityReason: TeamAvailabilityReason
+
+    constructor(message: string, availabilityReason: TeamAvailabilityReason) {
+        super(message)
+        this.name = 'AdmitLogicError'
+        this.code = 'NO_AVAILABLE_TEAM_MEMBER'
+        this.availabilityReason = availabilityReason
+    }
+}
+
+export function isNoAvailableTeamMemberError(error: unknown): error is AdmitLogicError {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'NO_AVAILABLE_TEAM_MEMBER'
+    )
+}
+
+function getNoAssigneeMessage(reason: TeamAvailabilityReason) {
+    if (reason === 'all_members_busy') {
+        return 'All team members are currently in meetings'
+    }
+
+    if (reason === 'no_clocked_in') {
+        return 'No team members are clocked in right now'
+    }
+
+    if (reason === 'no_members' || reason === 'no_team') {
+        return 'No active team members are available'
+    }
+
+    return 'Unable to verify team availability'
+}
+
+function isMissingMeetingsAssignmentSourceColumnError(error: ErrorLike | null | undefined): boolean {
+    if (!error?.message) {
+        return false
+    }
+
+    const message = error.message.toLowerCase()
+
+    const postgresMissingColumn =
+        message.includes('does not exist') &&
+        (
+            message.includes(`meetings.${MEETING_ASSIGNMENT_SOURCE_COLUMN}`) ||
+            message.includes(`meetings."${MEETING_ASSIGNMENT_SOURCE_COLUMN}"`)
+        )
+
+    const postgrestSchemaCacheMiss =
+        message.includes('schema cache') &&
+        message.includes(`'${MEETING_ASSIGNMENT_SOURCE_COLUMN}'`) &&
+        message.includes("column of 'meetings'")
+
+    return postgresMissingColumn || postgrestSchemaCacheMiss
+}
+
+function meetingSelect(includeAssignmentSource: boolean) {
+    const baseColumns = 'id, user_id, status, google_meet_link, assigned_member_id'
+
+    if (!includeAssignmentSource) {
+        return baseColumns
+    }
+
+    return `${baseColumns}, ${MEETING_ASSIGNMENT_SOURCE_COLUMN}`
+}
+
+async function fetchMeetingById(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    meetingId: string,
+    includeAssignmentSource = true
+): Promise<{ data: MeetingRecord | null; error: ErrorLike | null }> {
+    const queryResult = await supabase
         .from('meetings')
-        .select('*, users(*)')
+        .select(meetingSelect(includeAssignmentSource))
         .eq('id', meetingId)
         .single()
+
+    if (
+        includeAssignmentSource &&
+        isMissingMeetingsAssignmentSourceColumnError(queryResult.error)
+    ) {
+        return fetchMeetingById(supabase, meetingId, false)
+    }
+
+    return {
+        data: queryResult.data as MeetingRecord | null,
+        error: queryResult.error ? { message: queryResult.error.message } : null,
+    }
+}
+
+async function updateMeetingAssignment(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    meetingId: string,
+    assignedMemberId: string,
+    assignmentSource: AssignmentSource
+) {
+    let result = await supabase
+        .from('meetings')
+        .update({
+            assigned_member_id: assignedMemberId,
+            assignment_source: assignmentSource,
+        })
+        .eq('id', meetingId)
+
+    if (isMissingMeetingsAssignmentSourceColumnError(result.error)) {
+        result = await supabase
+            .from('meetings')
+            .update({
+                assigned_member_id: assignedMemberId,
+            })
+            .eq('id', meetingId)
+    }
+
+    if (result.error) {
+        console.error('Meeting assignment update error:', result.error)
+    }
+}
+
+async function getTeamAvailability(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    hostUserId: string,
+    excludeMeetingId?: string
+): Promise<TeamAvailabilityResult> {
+    const { data: team, error: teamError } = await supabase
+        .from('teams')
+        .select('id, round_robin_index')
+        .eq('owner_id', hostUserId)
+        .maybeSingle()
+
+    if (teamError) {
+        console.error('Team lookup error:', teamError)
+        return { reason: 'lookup_failed', team: null, nextMember: null }
+    }
+
+    if (!team) {
+        return { reason: 'no_team', team: null, nextMember: null }
+    }
+
+    const { data: members, error: membersError } = await supabase
+        .from('team_members')
+        .select('id, name, avatar_url, welcome_audio_url')
+        .eq('team_id', team.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: true })
+
+    if (membersError) {
+        console.error('Team member lookup error:', membersError)
+        return { reason: 'lookup_failed', team, nextMember: null }
+    }
+
+    if (!members || members.length === 0) {
+        return { reason: 'no_members', team, nextMember: null }
+    }
+
+    const memberIds = members.map(member => member.id)
+    const { data: clockSessions, error: clockError } = await supabase
+        .from('clock_sessions')
+        .select('member_id')
+        .in('member_id', memberIds)
+        .is('clocked_out_at', null)
+
+    if (clockError) {
+        console.error('Clock session lookup error:', clockError)
+        return { reason: 'lookup_failed', team, nextMember: null }
+    }
+
+    const clockedInIds = new Set((clockSessions || []).map(session => session.member_id))
+    const clockedInMembers = members.filter(member => clockedInIds.has(member.id))
+
+    if (clockedInMembers.length === 0) {
+        return { reason: 'no_clocked_in', team, nextMember: null }
+    }
+
+    let busyMeetingsQuery = supabase
+        .from('meetings')
+        .select('assigned_member_id')
+        .eq('user_id', hostUserId)
+        .in('status', ['pending', 'active'])
+        .not('assigned_member_id', 'is', null)
+
+    if (excludeMeetingId) {
+        busyMeetingsQuery = busyMeetingsQuery.neq('id', excludeMeetingId)
+    }
+
+    const { data: busyMeetings, error: busyError } = await busyMeetingsQuery
+
+    if (busyError) {
+        console.error('Busy meeting lookup error:', busyError)
+        return { reason: 'lookup_failed', team, nextMember: null }
+    }
+
+    const busyMemberIds = new Set(
+        (busyMeetings || [])
+            .map(meeting => meeting.assigned_member_id as string | null)
+            .filter((memberId): memberId is string => Boolean(memberId))
+    )
+
+    const availableMembers = clockedInMembers.filter(member => !busyMemberIds.has(member.id))
+
+    if (availableMembers.length === 0) {
+        return { reason: 'all_members_busy', team, nextMember: null }
+    }
+
+    const index = team.round_robin_index % availableMembers.length
+
+    return {
+        reason: 'member_available',
+        team,
+        nextMember: availableMembers[index],
+    }
+}
+
+export async function getAutoAssignableMember(hostUserId: string, excludeMeetingId?: string) {
+    const supabase = getSupabaseClient()
+    return getTeamAvailability(supabase, hostUserId, excludeMeetingId)
+}
+
+async function getAssignedMemberById(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    memberId: string
+) {
+    const { data: member, error } = await supabase
+        .from('team_members')
+        .select('id, name, avatar_url, welcome_audio_url')
+        .eq('id', memberId)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Assigned member lookup error:', error)
+        return null
+    }
+
+    return member
+}
+
+export async function admitGuestLogic(
+    meetingId: string,
+    guestId: string,
+    options: AdmitGuestOptions = {}
+) {
+    const supabase = getSupabaseClient()
+
+    const { data: meeting, error: meetingError } = await fetchMeetingById(
+        supabase,
+        meetingId
+    )
 
     if (meetingError || !meeting) {
         throw new Error('Meeting not found')
@@ -37,35 +313,23 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
         throw new Error('Meeting has ended')
     }
 
-    const host = meeting.users
-    if (!host) {
-        throw new Error('Host not found')
-    }
-
-    // 2. Generate in-app room link (replaces Google Meet link)
-    // The room link is a simple path to our WebRTC video room page
     const roomLink = `/room/${meetingId}`
 
-    // Update meeting status to active if it was pending
     if (meeting.status === 'pending') {
         await supabase
             .from('meetings')
             .update({
                 status: 'active',
-                // Store the room link in google_meet_link field for backward compatibility
-                // TODO: Consider renaming this column to 'room_link' in a future migration
                 google_meet_link: roomLink,
             })
             .eq('id', meetingId)
     } else if (!meeting.google_meet_link) {
-        // Ensure room link is stored even for already-active meetings
         await supabase
             .from('meetings')
             .update({ google_meet_link: roomLink })
             .eq('id', meetingId)
     }
 
-    // 3. Verify guest and admit
     const { data: guest, error: guestError } = await supabase
         .from('waiting_guests')
         .select('*')
@@ -77,8 +341,40 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
         throw new Error('Guest not found')
     }
 
+    let assignedMember: TeamMemberRecord | null = null
+    let assignmentSource: AssignmentSource = 'none'
+    let selectedTeam: TeamRecord | null = null
+
+    if (meeting.assigned_member_id) {
+        assignedMember = await getAssignedMemberById(supabase, meeting.assigned_member_id)
+        if (assignedMember) {
+            assignmentSource = meeting.assignment_source || 'preassigned'
+        }
+    }
+
+    if (!assignedMember) {
+        const availability = await getTeamAvailability(supabase, meeting.user_id, meetingId)
+
+        if (availability.nextMember) {
+            assignedMember = availability.nextMember
+            assignmentSource = 'system'
+            selectedTeam = availability.team
+        } else if (options.requireAvailableAssignee) {
+            throw new AdmitLogicError(
+                getNoAssigneeMessage(availability.reason),
+                availability.reason
+            )
+        }
+    }
+
     if (guest.status === 'admitted') {
-        return { guest, meet_link: roomLink }
+        return {
+            guest,
+            meet_link: roomLink,
+            join_token: guest.join_token || null,
+            assigned_member: assignedMember,
+            assignment_source: assignmentSource,
+        }
     }
 
     const joinToken = randomUUID()
@@ -97,69 +393,27 @@ export async function admitGuestLogic(meetingId: string, guestId: string) {
         throw new Error(updateError.message)
     }
 
-    // 4. Round-robin team member assignment
-    let assignedMember = null
-    try {
-        const { data: team } = await supabase
+    if (assignedMember && meeting.assigned_member_id !== assignedMember.id) {
+        await updateMeetingAssignment(
+            supabase,
+            meetingId,
+            assignedMember.id,
+            assignmentSource
+        )
+    }
+
+    if (assignmentSource === 'system' && selectedTeam) {
+        await supabase
             .from('teams')
-            .select('id, round_robin_index')
-            .eq('owner_id', meeting.user_id)
-            .single()
-
-        if (team) {
-            // Get clocked-in members
-            const { data: members } = await supabase
-                .from('team_members')
-                .select('id, name, welcome_audio_url')
-                .eq('team_id', team.id)
-                .eq('is_active', true)
-                .order('created_at', { ascending: true })
-
-            if (members && members.length > 0) {
-                // Filter to only clocked-in members
-                const clockedInMembers = []
-                for (const member of members) {
-                    const { data: openSession } = await supabase
-                        .from('clock_sessions')
-                        .select('id')
-                        .eq('member_id', member.id)
-                        .is('clocked_out_at', null)
-                        .limit(1)
-                        .single()
-
-                    if (openSession) {
-                        clockedInMembers.push(member)
-                    }
-                }
-
-                if (clockedInMembers.length > 0) {
-                    // Round-robin: pick next available member
-                    const index = team.round_robin_index % clockedInMembers.length
-                    assignedMember = clockedInMembers[index]
-
-                    // Assign member to meeting
-                    await supabase
-                        .from('meetings')
-                        .update({ assigned_member_id: assignedMember.id })
-                        .eq('id', meetingId)
-
-                    // Increment round-robin index
-                    await supabase
-                        .from('teams')
-                        .update({ round_robin_index: team.round_robin_index + 1 })
-                        .eq('id', team.id)
-                }
-            }
-        }
-    } catch (err) {
-        // Non-fatal: if team assignment fails, host handles the meeting
-        console.error('Team assignment error (non-fatal):', err)
+            .update({ round_robin_index: selectedTeam.round_robin_index + 1 })
+            .eq('id', selectedTeam.id)
     }
 
     return {
         guest: admittedGuest,
         meet_link: roomLink,
         join_token: joinToken,
-        assigned_member: assignedMember
+        assigned_member: assignedMember,
+        assignment_source: assignmentSource,
     }
 }

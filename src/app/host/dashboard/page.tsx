@@ -18,7 +18,10 @@ import {
     FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt, FaMicrophone, FaTrash, FaPlay, FaStop
 } from 'react-icons/fa'
 
+type AssignmentSource = 'system' | 'manual' | 'preassigned' | 'none'
+
 interface MeetingWithGuests extends Meeting {
+    assignment_source?: AssignmentSource | null
     waiting_guests: WaitingGuest[]
 }
 
@@ -175,6 +178,44 @@ export default function Dashboard() {
             }))
     )
 
+    const getAssignedMemberName = (assignedMemberId?: string | null) => {
+        if (!assignedMemberId) return null
+        const assignedMember = teamMembers.find(member => member.id === assignedMemberId)
+        return assignedMember?.name || 'Team member'
+    }
+
+    const getAssignmentTag = (source?: AssignmentSource | null) => {
+        if (!source || source === 'none') {
+            return null
+        }
+
+        if (source === 'system') {
+            return { label: 'Auto (System)', className: styles.assignmentTagSystem }
+        }
+
+        if (source === 'manual') {
+            return { label: 'Manual', className: styles.assignmentTagManual }
+        }
+
+        if (source === 'preassigned') {
+            return { label: 'Pre-assigned', className: styles.assignmentTagPreassigned }
+        }
+
+        return null
+    }
+
+    const busyMemberIds = new Set(
+        meetings
+            .filter(meeting => meeting.status !== 'completed')
+            .map(meeting => meeting.assigned_member_id)
+            .filter((memberId): memberId is string => Boolean(memberId))
+    )
+
+    const teamMembersWithAvailability = teamMembers.map(member => ({
+        ...member,
+        is_busy: busyMemberIds.has(member.id),
+    }))
+
     const createMeeting = async () => {
         if (creating) return
         setCreating(true)
@@ -198,14 +239,14 @@ export default function Dashboard() {
         }
     }
 
-    const admitGuest = async (meetingId: string, guestId: string, assignedMemberId?: string) => {
+    const admitGuest = async (meetingId: string, guestId: string, selectedMemberId?: string) => {
         try {
             // If a specific member was selected, assign them first
-            if (assignedMemberId) {
+            if (selectedMemberId) {
                 await fetch('/api/team/assign', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ meeting_id: meetingId, member_id: assignedMemberId })
+                    body: JSON.stringify({ meeting_id: meetingId, member_id: selectedMemberId })
                 })
             }
 
@@ -222,13 +263,22 @@ export default function Dashboard() {
             }
 
             const result = await response.json()
-            const assignedName = result.assigned_member?.name
+            const resolvedAssignedMemberId = result.assigned_member?.id || selectedMemberId
+            const resolvedAssignedName = result.assigned_member?.name
+                || teamMembers.find(member => member.id === resolvedAssignedMemberId)?.name
+            const apiAssignmentSource = result.assignment_source as AssignmentSource | undefined
+            const resolvedAssignmentSource: AssignmentSource = selectedMemberId
+                ? 'manual'
+                : apiAssignmentSource || (resolvedAssignedMemberId ? 'system' : 'none')
+
             setMeetings(prev => prev.map(meeting => {
                 if (meeting.id !== meetingId) return meeting
                 return {
                     ...meeting,
                     google_meet_link: result.meet_link || meeting.google_meet_link,
                     status: meeting.status === 'pending' ? 'active' : meeting.status,
+                    assigned_member_id: resolvedAssignedMemberId || meeting.assigned_member_id,
+                    assignment_source: resolvedAssignedMemberId ? resolvedAssignmentSource : (meeting.assignment_source || 'none'),
                     waiting_guests: (meeting.waiting_guests || []).map(guest =>
                         guest.id === guestId
                             ? { ...guest, status: 'admitted', admitted_at: result.guest?.admitted_at || guest.admitted_at }
@@ -236,9 +286,15 @@ export default function Dashboard() {
                     )
                 }
             }))
-            if (assignedName) {
-                // Brief toast-like notification
-                alert(`Assigned to ${assignedName}`)
+
+            if (resolvedAssignedName) {
+                if (resolvedAssignmentSource === 'system') {
+                    alert(`Auto-assigned by system to ${resolvedAssignedName}`)
+                } else if (resolvedAssignmentSource === 'manual') {
+                    alert(`Manually assigned to ${resolvedAssignedName}`)
+                } else {
+                    alert(`Assigned to ${resolvedAssignedName}`)
+                }
             }
         } catch (error) {
             console.error('Error admitting guest:', error)
@@ -860,7 +916,7 @@ export default function Dashboard() {
                     <WaitingRoomTable
                         guests={allWaitingGuests}
                         onAdmit={admitGuest}
-                        teamMembers={teamMembers}
+                        teamMembers={teamMembersWithAvailability}
                     />
                 </div>
             </section>
@@ -879,7 +935,6 @@ export default function Dashboard() {
                 const indexOfLastMeeting = currentPage * meetingsPerPage
                 const indexOfFirstMeeting = indexOfLastMeeting - meetingsPerPage
                 const currentMeetings = meetings.slice(indexOfFirstMeeting, indexOfLastMeeting)
-                const totalPages = Math.ceil(meetings.length / meetingsPerPage)
 
                 return (
                     <section className={styles.meetingsSection}>
@@ -901,10 +956,8 @@ export default function Dashboard() {
                                         const waitingGuests = meeting.waiting_guests?.filter(
                                             g => g.status === 'waiting'
                                         ) || []
-                                        const admittedGuest = meeting.waiting_guests?.find(
-                                            g => g.status === 'admitted'
-                                        )
-                                        const hasAdmittedGuest = !!admittedGuest
+                                        const assignedMemberName = getAssignedMemberName(meeting.assigned_member_id)
+                                        const assignmentTag = getAssignmentTag(meeting.assignment_source)
 
                                         return (
                                             <div key={meeting.id} className={`${styles.meetingCard} ${meeting.status === 'active' ? styles.active : ''} ${waitingGuests.length > 0 ? styles.hasWaiting : ''}`}>
@@ -914,6 +967,18 @@ export default function Dashboard() {
                                                         {meeting.status}
                                                     </span>
                                                 </div>
+
+                                                {assignedMemberName && (
+                                                    <div className={styles.assignedTo}>
+                                                        <FaUser />
+                                                        <span>Assigned to {assignedMemberName}</span>
+                                                        {assignmentTag && (
+                                                            <span className={`${styles.assignmentTag} ${assignmentTag.className}`}>
+                                                                {assignmentTag.label}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 <div className={styles.meetingActions}>
                                                     <button
@@ -1054,6 +1119,7 @@ export default function Dashboard() {
                 <CalendarDayModal
                     date={selectedDate}
                     meetings={selectedDateMeetings}
+                    teamMembers={teamMembers}
                     onClose={() => {
                         setSelectedDate(null)
                         setSelectedDateMeetings([])

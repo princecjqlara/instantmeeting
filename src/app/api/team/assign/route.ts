@@ -12,6 +12,28 @@ function getSupabaseClient() {
     )
 }
 
+function isMissingMeetingsAssignmentSourceColumnError(error: { message?: string | null } | null | undefined): boolean {
+    if (!error?.message) {
+        return false
+    }
+
+    const message = error.message.toLowerCase()
+
+    const postgresMissingColumn =
+        message.includes('does not exist') &&
+        (
+            message.includes('meetings.assignment_source') ||
+            message.includes('meetings."assignment_source"')
+        )
+
+    const postgrestSchemaCacheMiss =
+        message.includes('schema cache') &&
+        message.includes("'assignment_source'") &&
+        message.includes("column of 'meetings'")
+
+    return postgresMissingColumn || postgrestSchemaCacheMiss
+}
+
 // POST: Manually assign a team member to a meeting
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
@@ -72,14 +94,25 @@ export async function POST(req: NextRequest) {
     }
 
     // Assign member to meeting
-    const { error } = await supabase
+    let result = await supabase
         .from('meetings')
-        .update({ assigned_member_id: member_id })
+        .update({ assigned_member_id: member_id, assignment_source: 'manual' })
         .eq('id', meeting_id)
 
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    if (isMissingMeetingsAssignmentSourceColumnError(result.error)) {
+        result = await supabase
+            .from('meetings')
+            .update({ assigned_member_id: member_id })
+            .eq('id', meeting_id)
     }
 
-    return NextResponse.json({ success: true, assigned_member: member })
+    if (result.error) {
+        return NextResponse.json({ error: result.error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+        success: true,
+        assigned_member: member,
+        assignment_source: 'manual',
+    })
 }

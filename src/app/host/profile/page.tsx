@@ -296,9 +296,8 @@ export default function ProfileSettingsPage() {
                                 onChange={(e) => setSettings(prev => ({ ...prev, bio: e.target.value }))}
                                 placeholder="Add a bio..."
                                 rows={3}
-                                maxLength={80}
                             />
-                            <span className={styles.charCount}>{settings.bio.length}/80</span>
+                            <span className={styles.charCount}>{settings.bio.length} characters</span>
                         </div>
                         {error && <div className={styles.error}>{error}</div>}
                         <button

@@ -2,13 +2,14 @@
 
 import { WaitingGuest } from '@/lib/types'
 import styles from './WaitingRoomTable.module.css'
-import { FaUserCheck, FaClock, FaUsers, FaUserTag } from 'react-icons/fa'
+import { FaUserCheck, FaClock, FaUsers } from 'react-icons/fa'
 import { useState } from 'react'
 
 interface TeamMemberOption {
     id: string
     name: string
     is_clocked_in?: boolean
+    is_busy?: boolean
 }
 
 interface WaitingGuestWithMeeting extends WaitingGuest {
@@ -23,6 +24,18 @@ interface WaitingRoomTableProps {
 
 export default function WaitingRoomTable({ guests, onAdmit, teamMembers = [] }: WaitingRoomTableProps) {
     const [assignSelections, setAssignSelections] = useState<Record<string, string>>({})
+
+    const getMemberStatusLabel = (member: TeamMemberOption) => {
+        if (!member.is_clocked_in) return 'Offline'
+        if (member.is_busy) return 'Busy'
+        return 'Available'
+    }
+
+    const getMemberStatusIcon = (member: TeamMemberOption) => {
+        if (!member.is_clocked_in) return '⚫'
+        if (member.is_busy) return '🟡'
+        return '🟢'
+    }
 
     const formatWaitTime = (joinedAt: string) => {
         const joined = new Date(joinedAt)
@@ -84,10 +97,10 @@ export default function WaitingRoomTable({ guests, onAdmit, teamMembers = [] }: 
                                             borderRadius: 6, padding: '4px 8px', fontSize: '0.8rem', minWidth: 120
                                         }}
                                     >
-                                        <option value="auto">🔄 Auto (Round-Robin)</option>
+                                        <option value="auto">🔄 Auto (Online + Free)</option>
                                         {teamMembers.map(m => (
                                             <option key={m.id} value={m.id}>
-                                                {m.is_clocked_in ? '🟢' : '⚫'} {m.name}
+                                                {getMemberStatusIcon(m)} {m.name} ({getMemberStatusLabel(m)})
                                             </option>
                                         ))}
                                     </select>
