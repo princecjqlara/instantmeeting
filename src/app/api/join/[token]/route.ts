@@ -43,7 +43,6 @@ export async function GET(
     if (
         guest.status !== 'admitted' ||
         meeting.status === 'completed' ||
-        !meeting.host_joined_at ||
         meeting.reschedule_requested
     ) {
         return NextResponse.redirect(waitingUrl)

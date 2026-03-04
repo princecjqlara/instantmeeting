@@ -8,7 +8,6 @@ export interface WaitingRoomJoinState {
 export function canGuestJoinRoom(state: WaitingRoomJoinState): boolean {
     return (
         state.guestStatus === 'admitted' &&
-        Boolean(state.hostJoinedAt) &&
         state.meetingStatus !== 'completed' &&
         !state.rescheduleRequested
     )

@@ -148,7 +148,6 @@ export async function GET(req: NextRequest) {
         autoScheduleRequired,
         autoScheduleReason,
         meetLink: guestStatus?.status === 'admitted' &&
-            meeting.host_joined_at &&
             meeting.status !== 'completed' &&
             !meeting.reschedule_requested &&
             guestStatus?.join_token

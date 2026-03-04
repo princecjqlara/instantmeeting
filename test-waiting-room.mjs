@@ -269,9 +269,9 @@ async function scenarioD(meetingId, hostId) {
     return bookingMeetingId
 }
 
-// ─── SCENARIO E: Admitted before host joins (timing regression guard) ────────
+// ─── SCENARIO E: Admitted guests can join room before host joins ─────────────
 async function scenarioE(meetingId) {
-    sep('Scenario E — Admitted guest waits until host joins (timing path)')
+    sep('Scenario E — Admitted guest can join immediately (no host gate)')
 
     const guest = await sbInsert('waiting_guests', {
         meeting_id: meetingId,
@@ -300,21 +300,25 @@ async function scenarioE(meetingId) {
     const beforeMeetLink = beforeHostJoin.data?.meetLink
     const beforeGuestStatus = beforeHostJoin.data?.guest?.status
 
-    if (beforeGuestStatus === 'admitted' && !beforeMeetLink) {
-        pass('Before host joins: guest is admitted but cannot join yet (meetLink=null)')
+    if (
+        beforeGuestStatus === 'admitted' &&
+        typeof beforeMeetLink === 'string' &&
+        beforeMeetLink.includes(`/api/join/${joinToken}`)
+    ) {
+        pass('Before host joins: waiting API already returns join link for admitted guest')
     } else {
-        fail(`Expected admitted + no meetLink before host joins, got status=${beforeGuestStatus} meetLink=${beforeMeetLink}`)
+        fail(`Expected admitted + join link before host joins, got status=${beforeGuestStatus} meetLink=${beforeMeetLink}`)
     }
 
     const beforeRedirect = await httpGetRedirect(`/api/join/${joinToken}`)
     if (
         beforeRedirect.status >= 300 &&
         beforeRedirect.status < 400 &&
-        beforeRedirect.location?.includes(`/waiting/${meetingId}`)
+        beforeRedirect.location?.includes(`/room/${meetingId}`)
     ) {
-        pass('Join token redirects to waiting room before host joins')
+        pass('Join token redirects to room before host joins')
     } else {
-        fail(`Expected redirect to waiting room, got status=${beforeRedirect.status} location=${beforeRedirect.location}`)
+        fail(`Expected redirect to room, got status=${beforeRedirect.status} location=${beforeRedirect.location}`)
     }
 
     // Simulate host entering the room later
@@ -327,7 +331,7 @@ async function scenarioE(meetingId) {
     const afterMeetLink = afterHostJoin.data?.meetLink
 
     if (typeof afterMeetLink === 'string' && afterMeetLink.includes(`/api/join/${joinToken}`)) {
-        pass('After host joins: waiting API returns join link for admitted guest')
+        pass('After host joins: waiting API continues returning join link')
     } else {
         fail(`Expected join link after host joins, got meetLink=${afterMeetLink}`)
     }

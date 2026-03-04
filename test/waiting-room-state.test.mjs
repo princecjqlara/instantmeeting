@@ -3,14 +3,14 @@ import assert from 'node:assert/strict'
 
 import { shouldStopWaitingRoomPolling } from '../src/lib/waiting-room-state.ts'
 
-test('shouldStopWaitingRoomPolling keeps polling when guest is admitted but host has not joined', () => {
+test('shouldStopWaitingRoomPolling stops polling when guest is admitted even before host joins', () => {
     const shouldStop = shouldStopWaitingRoomPolling({
         meetingStatus: 'active',
         guestStatus: 'admitted',
         hostJoinedAt: null,
     })
 
-    assert.equal(shouldStop, false)
+    assert.equal(shouldStop, true)
 })
 
 test('shouldStopWaitingRoomPolling stops polling when meeting is completed', () => {

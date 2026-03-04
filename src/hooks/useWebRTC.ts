@@ -65,6 +65,9 @@ interface UseWebRTCReturn {
     leaveRoom: () => void
 }
 
+const MEDIA_INIT_TIMEOUT_MS = 15000
+const REALTIME_SUBSCRIBE_TIMEOUT_MS = 12000
+
 // ─── Signaling message types sent via Supabase Broadcast ─────────────────────
 type SignalMessage =
     | { type: 'join'; peerId: string; name: string }
@@ -165,6 +168,8 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
         // Create Supabase client for Realtime
         const supabase = createClient()
+        let subscribeTimeoutId: ReturnType<typeof setTimeout> | null = null
+        let isSubscribed = false
 
         // Send a signaling message to the room via Supabase Broadcast
         const sendSignal = (message: SignalMessage) => {
@@ -319,18 +324,39 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         const init = async () => {
             try {
                 // Step 1: Get local media stream (camera + microphone)
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user',
-                    },
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true,
-                    },
-                })
+                if (!navigator.mediaDevices?.getUserMedia) {
+                    throw new Error('MEDIA_DEVICES_UNAVAILABLE')
+                }
+
+                let mediaTimeoutId: ReturnType<typeof setTimeout> | null = null
+                const stream = await (async () => {
+                    try {
+                        return await Promise.race([
+                            navigator.mediaDevices.getUserMedia({
+                                video: {
+                                    width: { ideal: 1280 },
+                                    height: { ideal: 720 },
+                                    facingMode: 'user',
+                                },
+                                audio: {
+                                    echoCancellation: true,
+                                    noiseSuppression: true,
+                                    autoGainControl: true,
+                                },
+                            }),
+                            new Promise<never>((_, reject) => {
+                                mediaTimeoutId = setTimeout(() => {
+                                    reject(new Error('MEDIA_PERMISSION_TIMEOUT'))
+                                }, MEDIA_INIT_TIMEOUT_MS)
+                            }),
+                        ])
+                    } finally {
+                        if (mediaTimeoutId) {
+                            clearTimeout(mediaTimeoutId)
+                            mediaTimeoutId = null
+                        }
+                    }
+                })()
 
                 localStreamRef.current = stream
                 setLocalStream(stream)
@@ -339,6 +365,8 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 const channel = supabase.channel(`room:${roomId}`, {
                     config: { broadcast: { self: false } },
                 })
+
+                channelRef.current = channel
 
                 // Listen for signaling messages
                 channel.on('broadcast', { event: 'signal' }, ({ payload }) => {
@@ -401,19 +429,47 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 // Subscribe to the channel, then announce our presence
                 channel.subscribe((status) => {
                     if (status === 'SUBSCRIBED') {
+                        isSubscribed = true
+                        if (subscribeTimeoutId) {
+                            clearTimeout(subscribeTimeoutId)
+                            subscribeTimeoutId = null
+                        }
+
                         sendSignal({
                             type: 'join',
                             peerId,
                             name: displayName,
                         })
                         setIsConnecting(false)
+                        return
+                    }
+
+                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                        if (subscribeTimeoutId) {
+                            clearTimeout(subscribeTimeoutId)
+                            subscribeTimeoutId = null
+                        }
+
+                        setError('Unable to connect to room signaling. Please check your network and refresh.')
+                        setIsConnecting(false)
                     }
                 })
 
-                channelRef.current = channel
+                subscribeTimeoutId = setTimeout(() => {
+                    if (isSubscribed) {
+                        return
+                    }
+
+                    setError('Connection timed out while joining the room. Please refresh and try again.')
+                    setIsConnecting(false)
+                }, REALTIME_SUBSCRIBE_TIMEOUT_MS)
             } catch (err) {
                 console.error('[WebRTC] Init error:', err)
-                if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                if (err instanceof Error && err.message === 'MEDIA_PERMISSION_TIMEOUT') {
+                    setError('Camera/microphone permission is still pending. Please allow access and try again.')
+                } else if (err instanceof Error && err.message === 'MEDIA_DEVICES_UNAVAILABLE') {
+                    setError('Camera/microphone is unavailable in this browser context. Use HTTPS (or localhost) and try again.')
+                } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
                     setError('Camera/microphone access denied. Please allow access and try again.')
                 } else if (err instanceof DOMException && err.name === 'NotFoundError') {
                     setError('No camera or microphone found. Please connect a device and try again.')
@@ -428,6 +484,11 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
         // ─── Cleanup on unmount ─────────────────────────────────────────────
         const cleanup = () => {
+            if (subscribeTimeoutId) {
+                clearTimeout(subscribeTimeoutId)
+                subscribeTimeoutId = null
+            }
+
             // Announce departure
             sendSignal({ type: 'leave', peerId })
 
