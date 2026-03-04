@@ -11,6 +11,7 @@
  */
 
 import { readFileSync } from 'fs'
+import { randomUUID } from 'crypto'
 
 // ─── Load .env.local ──────────────────────────────────────────────────────────
 function loadEnv() {
@@ -80,6 +81,18 @@ async function sbDelete(table, filter) {
     })
 }
 
+async function sbUpdate(table, filter, data) {
+    const qs = Object.entries(filter).map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&')
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${qs}`, {
+        method: 'PATCH',
+        headers: sbHeaders,
+        body: JSON.stringify(data),
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(`sbUpdate(${table}): ${JSON.stringify(json)}`)
+    return Array.isArray(json) ? json[0] : json
+}
+
 // ─── HTTP helpers against the dev server ─────────────────────────────────────
 async function httpPost(path, body) {
     const res = await fetch(`${BASE_URL}${path}`, {
@@ -100,6 +113,14 @@ async function httpPatch(path, body) {
 async function httpGet(path) {
     const res = await fetch(`${BASE_URL}${path}`)
     return { status: res.status, data: await res.json() }
+}
+
+async function httpGetRedirect(path) {
+    const res = await fetch(`${BASE_URL}${path}`, { redirect: 'manual' })
+    return {
+        status: res.status,
+        location: res.headers.get('location'),
+    }
 }
 
 // ─── Pretty print ─────────────────────────────────────────────────────────────
@@ -248,6 +269,84 @@ async function scenarioD(meetingId, hostId) {
     return bookingMeetingId
 }
 
+// ─── SCENARIO E: Admitted before host joins (timing regression guard) ────────
+async function scenarioE(meetingId) {
+    sep('Scenario E — Admitted guest waits until host joins (timing path)')
+
+    const guest = await sbInsert('waiting_guests', {
+        meeting_id: meetingId,
+        guest_name: 'Timing Path Guest',
+        status: 'waiting',
+    })
+    pass(`Guest created directly in DB  id=${guest.id} status=${guest.status}`)
+
+    const joinToken = randomUUID()
+
+    // Simulate host admitting guest before host has entered the room
+    await sbUpdate('meetings', { id: meetingId }, {
+        status: 'active',
+        google_meet_link: `/room/${meetingId}`,
+        host_joined_at: null,
+        reschedule_requested: false,
+    })
+    await sbUpdate('waiting_guests', { id: guest.id }, {
+        status: 'admitted',
+        admitted_at: new Date().toISOString(),
+        join_token: joinToken,
+    })
+    pass(`Guest admitted with join token=${joinToken}`)
+
+    const beforeHostJoin = await httpGet(`/api/waiting?meetingId=${meetingId}&guestId=${guest.id}`)
+    const beforeMeetLink = beforeHostJoin.data?.meetLink
+    const beforeGuestStatus = beforeHostJoin.data?.guest?.status
+
+    if (beforeGuestStatus === 'admitted' && !beforeMeetLink) {
+        pass('Before host joins: guest is admitted but cannot join yet (meetLink=null)')
+    } else {
+        fail(`Expected admitted + no meetLink before host joins, got status=${beforeGuestStatus} meetLink=${beforeMeetLink}`)
+    }
+
+    const beforeRedirect = await httpGetRedirect(`/api/join/${joinToken}`)
+    if (
+        beforeRedirect.status >= 300 &&
+        beforeRedirect.status < 400 &&
+        beforeRedirect.location?.includes(`/waiting/${meetingId}`)
+    ) {
+        pass('Join token redirects to waiting room before host joins')
+    } else {
+        fail(`Expected redirect to waiting room, got status=${beforeRedirect.status} location=${beforeRedirect.location}`)
+    }
+
+    // Simulate host entering the room later
+    await sbUpdate('meetings', { id: meetingId }, {
+        host_joined_at: new Date().toISOString(),
+        status: 'active',
+    })
+
+    const afterHostJoin = await httpGet(`/api/waiting?meetingId=${meetingId}&guestId=${guest.id}`)
+    const afterMeetLink = afterHostJoin.data?.meetLink
+
+    if (typeof afterMeetLink === 'string' && afterMeetLink.includes(`/api/join/${joinToken}`)) {
+        pass('After host joins: waiting API returns join link for admitted guest')
+    } else {
+        fail(`Expected join link after host joins, got meetLink=${afterMeetLink}`)
+    }
+
+    const afterRedirect = await httpGetRedirect(`/api/join/${joinToken}`)
+    if (
+        afterRedirect.status >= 300 &&
+        afterRedirect.status < 400 &&
+        afterRedirect.location?.includes(`/room/${meetingId}`)
+    ) {
+        pass('Join token redirects to room after host joins')
+    } else {
+        fail(`Expected redirect to room, got status=${afterRedirect.status} location=${afterRedirect.location}`)
+    }
+
+    // Keep cleanup idempotent
+    await sbUpdate('waiting_guests', { id: guest.id }, { status: 'left' })
+}
+
 async function main() {
     console.log(`\n${C.bold}${C.cyan}╔════════════════════════════════════════════════╗`)
     console.log(`║   Waiting Room Auto-Remove Simulation          ║`)
@@ -270,6 +369,7 @@ async function main() {
         await scenarioB(meetingId)
         await scenarioC(meetingId)
         const extraMeetingId = await scenarioD(meetingId, hostId)
+        await scenarioE(meetingId)
         if (extraMeetingId) {
             // cleanup the booking meeting created by scenarioD
             await sbDelete('waiting_guests', { meeting_id: extraMeetingId })

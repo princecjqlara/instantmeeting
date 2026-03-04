@@ -13,7 +13,7 @@
 
 'use client'
 
-import { useState, use, useEffect } from 'react'
+import { useState, use, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
@@ -28,11 +28,26 @@ export default function RoomPage({ params }: RoomPageProps) {
     const { roomId } = use(params)
     const { data: session } = useSession()
     const router = useRouter()
+    const hasMarkedHostJoinedRef = useRef(false)
 
     // Determine the user's display name
     const [displayName, setDisplayName] = useState<string>('')
     const [nameInput, setNameInput] = useState('')
     const [hasJoined, setHasJoined] = useState(false)
+
+    useEffect(() => {
+        if (!session?.user?.email || hasMarkedHostJoinedRef.current) {
+            return
+        }
+
+        hasMarkedHostJoinedRef.current = true
+
+        fetch(`/api/meetings/${roomId}/start`, {
+            method: 'POST',
+        }).catch(() => {
+            hasMarkedHostJoinedRef.current = false
+        })
+    }, [session?.user?.email, roomId])
 
     // Auto-set name for authenticated users or returning guests
     useEffect(() => {

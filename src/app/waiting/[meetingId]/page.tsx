@@ -3,6 +3,7 @@
 import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Content } from '@/lib/types'
+import { canGuestJoinRoom, shouldStopWaitingRoomPolling } from '@/lib/waiting-room-state'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
@@ -180,8 +181,14 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     createGuest()
                 }
 
-                // Stop polling if guest is admitted or meeting ended
-                if (result.guest?.status === 'admitted' || result.meeting?.status === 'completed') {
+                if (
+                    shouldStopWaitingRoomPolling({
+                        meetingStatus: result.meeting?.status,
+                        guestStatus: result.guest?.status,
+                        hostJoinedAt: result.meeting?.host_joined_at,
+                        rescheduleRequested: result.meeting?.reschedule_requested,
+                    })
+                ) {
                     if (intervalId) {
                         clearInterval(intervalId)
                         intervalId = null
@@ -236,11 +243,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }, [data?.guest?.status])
 
     useEffect(() => {
-        const canAutoJoin = Boolean(
-            data?.guest?.status === 'admitted' &&
-            data?.meeting?.host_joined_at &&
-            data?.meeting?.status !== 'completed'
-        )
+        const canAutoJoin = canGuestJoinRoom({
+            guestStatus: data?.guest?.status,
+            hostJoinedAt: data?.meeting?.host_joined_at,
+            meetingStatus: data?.meeting?.status,
+            rescheduleRequested: data?.meeting?.reschedule_requested,
+        })
 
         // Auto-join: navigate to in-app video room instead of external Google Meet
         if (canAutoJoin && !hasAutoJoinedRef.current) {
@@ -384,10 +392,12 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const isWaiting = data?.guest?.status === 'waiting'
     const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
     const canJoin = Boolean(
-        isAdmitted &&
-        data?.meeting?.host_joined_at &&
-        data?.meeting?.status !== 'completed' &&
-        !rescheduleRequested
+        canGuestJoinRoom({
+            guestStatus: data?.guest?.status,
+            hostJoinedAt: data?.meeting?.host_joined_at,
+            meetingStatus: data?.meeting?.status,
+            rescheduleRequested: data?.meeting?.reschedule_requested,
+        })
     )
     const isHostFree = data?.host?.availability_mode === 'always'
     const meetingEnded = data?.meeting?.status === 'completed'
