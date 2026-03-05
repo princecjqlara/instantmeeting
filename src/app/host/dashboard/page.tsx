@@ -29,6 +29,26 @@ interface WaitingGuestWithMeeting extends WaitingGuest {
     meeting_title?: string
 }
 
+const openRoomInNewTab = (roomPath: string, existingTab?: Window | null) => {
+    const meetingTab = existingTab ?? window.open(roomPath, '_blank')
+    if (!meetingTab) {
+        return false
+    }
+
+    if (existingTab) {
+        meetingTab.location.href = roomPath
+    }
+
+    try {
+        meetingTab.opener = null
+    } catch {
+        // Ignore browsers that block setting opener
+    }
+
+    meetingTab.focus()
+    return true
+}
+
 export default function Dashboard() {
     const { data: session, status } = useSession()
     const router = useRouter()
@@ -152,8 +172,11 @@ export default function Dashboard() {
                                     const redirectKey = `redirected:${guest.id}`
                                     if (!localStorage.getItem(redirectKey)) {
                                         localStorage.setItem(redirectKey, 'true')
-                                        // Navigate to in-app WebRTC video room
-                                        router.push(`/room/${guest.meeting_id}`)
+                                        // Open room in a new tab and keep dashboard open
+                                        const roomPath = `/room/${guest.meeting_id}`
+                                        if (!openRoomInNewTab(roomPath)) {
+                                            router.push(roomPath)
+                                        }
                                     }
                                 }
                             }
@@ -165,7 +188,7 @@ export default function Dashboard() {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [session, supabase])
+    }, [session, supabase, router])
 
     // Get all waiting guests with meeting titles (excluding left/admitted)
     const allWaitingGuests: WaitingGuestWithMeeting[] = meetings.flatMap(meeting =>
@@ -301,8 +324,11 @@ export default function Dashboard() {
         }
     }
 
-    // Start meeting and navigate to the in-app video room
+    // Start meeting and open the room in a new tab
     const startMeeting = async (meetingId: string) => {
+        const roomPath = `/room/${meetingId}`
+        const meetingTab = window.open('', '_blank')
+
         try {
             const response = await fetch(`/api/meetings/${meetingId}/start`, {
                 method: 'POST',
@@ -311,6 +337,9 @@ export default function Dashboard() {
             if (!response.ok) {
                 const errorData = await response.json()
                 alert(errorData.error || 'Failed to start meeting')
+                if (meetingTab) {
+                    meetingTab.close()
+                }
                 return
             }
 
@@ -321,10 +350,15 @@ export default function Dashboard() {
                     : meeting
             ))
 
-            // Navigate to in-app WebRTC video room instead of Google Meet
-            router.push(`/room/${meetingId}`)
+            // Open meeting in a new tab; fallback to same tab if blocked
+            if (!openRoomInNewTab(roomPath, meetingTab)) {
+                router.push(roomPath)
+            }
         } catch (error) {
             console.error('Error starting meeting:', error)
+            if (meetingTab) {
+                meetingTab.close()
+            }
         }
     }
 

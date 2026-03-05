@@ -68,6 +68,22 @@ interface WaitingData {
     } | null
 }
 
+const openRoomInNewTab = (roomPath: string) => {
+    const meetingTab = window.open(roomPath, '_blank')
+    if (!meetingTab) {
+        return false
+    }
+
+    try {
+        meetingTab.opener = null
+    } catch {
+        // Ignore browsers that block setting opener
+    }
+
+    meetingTab.focus()
+    return true
+}
+
 export default function WaitingRoom({ params }: WaitingPageProps) {
     const { meetingId } = use(params)
     const router = useRouter()
@@ -255,7 +271,10 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             hasAutoJoinedRef.current = true
             // Store guest name for the video room page to use
             try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-            router.push(`/room/${meetingId}`)
+            const roomPath = `/room/${meetingId}`
+            if (!openRoomInNewTab(roomPath)) {
+                router.push(roomPath)
+            }
         }
     }, [data, meetingId, router])
 
@@ -429,7 +448,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
                             try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                            router.push(roomLink)
+                            if (!openRoomInNewTab(roomLink)) {
+                                router.push(roomLink)
+                            }
                         }
                     }}
                 />
@@ -496,8 +517,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             type="button"
                             className="button-primary"
                             onClick={() => {
+                                hasAutoJoinedRef.current = true
                                 try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                                router.push(roomLink)
+                                if (!openRoomInNewTab(roomLink)) {
+                                    router.push(roomLink)
+                                }
                             }}
                         >
                             Join Meeting
@@ -586,8 +610,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     type="button"
                                     className={styles.admitPrimary}
                                     onClick={() => {
+                                        hasAutoJoinedRef.current = true
                                         try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                                        router.push(roomLink)
+                                        if (!openRoomInNewTab(roomLink)) {
+                                            router.push(roomLink)
+                                        }
                                     }}
                                 >
                                     Join now
