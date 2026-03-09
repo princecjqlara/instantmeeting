@@ -263,6 +263,12 @@ export default function Dashboard() {
     }
 
     const admitGuest = async (meetingId: string, guestId: string, selectedMemberId?: string) => {
+        const roomPath = `/room/${meetingId}`
+        const redirectKey = `redirected:${guestId}`
+        const meetingTab = window.open('', '_blank')
+
+        localStorage.setItem(redirectKey, 'pending')
+
         try {
             // If a specific member was selected, assign them first
             if (selectedMemberId) {
@@ -282,6 +288,10 @@ export default function Dashboard() {
             if (!response.ok) {
                 const errorData = await response.json()
                 alert(errorData.error || 'Failed to admit guest')
+                localStorage.removeItem(redirectKey)
+                if (meetingTab) {
+                    meetingTab.close()
+                }
                 return
             }
 
@@ -310,6 +320,11 @@ export default function Dashboard() {
                 }
             }))
 
+            localStorage.setItem(redirectKey, 'true')
+            if (!openRoomInNewTab(roomPath, meetingTab)) {
+                router.push(roomPath)
+            }
+
             if (resolvedAssignedName) {
                 if (resolvedAssignmentSource === 'system') {
                     alert(`Auto-assigned by system to ${resolvedAssignedName}`)
@@ -321,6 +336,10 @@ export default function Dashboard() {
             }
         } catch (error) {
             console.error('Error admitting guest:', error)
+            localStorage.removeItem(redirectKey)
+            if (meetingTab) {
+                meetingTab.close()
+            }
         }
     }
 

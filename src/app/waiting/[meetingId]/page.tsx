@@ -68,8 +68,10 @@ interface WaitingData {
     } | null
 }
 
-const openRoomInNewTab = (roomPath: string) => {
-    const meetingTab = window.open(roomPath, '_blank')
+const openRoomInNewTab = (roomPath: string, existingTab?: Window | null) => {
+    const meetingTab = existingTab && !existingTab.closed
+        ? existingTab
+        : window.open('', '_blank')
     if (!meetingTab) {
         return false
     }
@@ -80,8 +82,26 @@ const openRoomInNewTab = (roomPath: string) => {
         // Ignore browsers that block setting opener
     }
 
+    meetingTab.location.href = roomPath
     meetingTab.focus()
     return true
+}
+
+const prepareMeetingTab = () => {
+    const meetingTab = window.open('', '_blank')
+    if (!meetingTab) {
+        return null
+    }
+
+    try {
+        meetingTab.opener = null
+    } catch {
+        // Ignore browsers that block setting opener
+    }
+
+    meetingTab.document.write(`<!doctype html><html><head><title>Meeting Ready</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;"><div><h1 style="margin:0 0 12px;font-size:28px;">Meeting Ready</h1><p style="margin:0;font-size:16px;line-height:1.5;max-width:320px;">Stay on the waiting room tab. Your meeting will open here as soon as you are admitted.</p></div></body></html>`)
+    meetingTab.document.close()
+    return meetingTab
 }
 
 export default function WaitingRoom({ params }: WaitingPageProps) {
@@ -101,6 +121,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const welcomeAudioRef = useRef<HTMLAudioElement | null>(null)
     const [welcomeAudioPlaying, setWelcomeAudioPlaying] = useState(false)
     const hasPlayedWelcomeRef = useRef(false)
+    const preparedMeetingTabRef = useRef<Window | null>(null)
 
 
 
@@ -272,11 +293,49 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             // Store guest name for the video room page to use
             try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
             const roomPath = `/room/${meetingId}`
-            if (!openRoomInNewTab(roomPath)) {
+            const preparedMeetingTab = preparedMeetingTabRef.current
+            preparedMeetingTabRef.current = null
+            if (!openRoomInNewTab(roomPath, preparedMeetingTab)) {
                 router.push(roomPath)
             }
         }
     }, [data, meetingId, router])
+
+    useEffect(() => {
+        if (
+            canGuestJoinRoom({
+                guestStatus: data?.guest?.status,
+                hostJoinedAt: data?.meeting?.host_joined_at,
+                meetingStatus: data?.meeting?.status,
+                rescheduleRequested: data?.meeting?.reschedule_requested,
+            }) ||
+            data?.meeting?.status === 'completed' ||
+            data?.meeting?.reschedule_requested
+        ) {
+            return
+        }
+
+        const primeMeetingTab = () => {
+            if (preparedMeetingTabRef.current && !preparedMeetingTabRef.current.closed) {
+                return
+            }
+
+            preparedMeetingTabRef.current = prepareMeetingTab()
+        }
+
+        window.addEventListener('pointerdown', primeMeetingTab, { once: true })
+        window.addEventListener('keydown', primeMeetingTab, { once: true })
+
+        return () => {
+            window.removeEventListener('pointerdown', primeMeetingTab)
+            window.removeEventListener('keydown', primeMeetingTab)
+        }
+    }, [
+        data?.guest?.status,
+        data?.meeting?.host_joined_at,
+        data?.meeting?.status,
+        data?.meeting?.reschedule_requested,
+    ])
 
     useEffect(() => {
         const guestStatus = data?.guest?.status
@@ -363,6 +422,11 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         document.addEventListener('visibilitychange', handleVisibilityChange)
 
         return () => {
+            if (preparedMeetingTabRef.current && !preparedMeetingTabRef.current.closed) {
+                preparedMeetingTabRef.current.close()
+                preparedMeetingTabRef.current = null
+            }
+
             window.removeEventListener('pagehide', markAsLeft)
             document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
@@ -448,7 +512,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
                             try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                            if (!openRoomInNewTab(roomLink)) {
+                            const preparedMeetingTab = preparedMeetingTabRef.current
+                            preparedMeetingTabRef.current = null
+                            if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
                                 router.push(roomLink)
                             }
                         }
@@ -519,7 +585,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             onClick={() => {
                                 hasAutoJoinedRef.current = true
                                 try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                                if (!openRoomInNewTab(roomLink)) {
+                                const preparedMeetingTab = preparedMeetingTabRef.current
+                                preparedMeetingTabRef.current = null
+                                if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
                                     router.push(roomLink)
                                 }
                             }}
@@ -612,7 +680,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     onClick={() => {
                                         hasAutoJoinedRef.current = true
                                         try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-                                        if (!openRoomInNewTab(roomLink)) {
+                                        const preparedMeetingTab = preparedMeetingTabRef.current
+                                        preparedMeetingTabRef.current = null
+                                        if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
                                             router.push(roomLink)
                                         }
                                     }}

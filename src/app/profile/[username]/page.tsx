@@ -82,7 +82,11 @@ export default function ProfilePage() {
 
     const handleJoinMeeting = () => {
         if (profile?.activeMeeting) {
-            router.push(`/waiting/${profile.activeMeeting.id}`)
+            const waitingPath = `/waiting/${profile.activeMeeting.id}`
+            const waitingTab = window.open(waitingPath, '_blank')
+            if (!waitingTab) {
+                router.push(waitingPath)
+            }
         }
     }
 

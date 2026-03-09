@@ -197,7 +197,11 @@ export default function Home() {
             const formData = new FormData(e.target as HTMLFormElement)
             const meetingId = formData.get('meetingId')
             if (meetingId) {
-              router.push(`/waiting/${meetingId}`)
+              const waitingPath = `/waiting/${meetingId}`
+              const waitingTab = window.open(waitingPath, '_blank')
+              if (!waitingTab) {
+                router.push(waitingPath)
+              }
             }
           }}
         >
