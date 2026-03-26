@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
+import { buildGuestJoinInsights } from '@/lib/guest-join-insights'
 import {
-    FaArrowLeft, FaUsers, FaFilter, FaCalendarAlt, FaClock,
+    FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
     FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
     FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash
 } from 'react-icons/fa'
@@ -38,6 +39,7 @@ export default function LeadsPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null)
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
@@ -128,6 +130,21 @@ export default function LeadsPage() {
         admitted: leads.filter(l => l.status === 'admitted').length,
         left: leads.filter(l => l.status === 'left').length
     }
+
+    const joinInsights = useMemo(
+        () => buildGuestJoinInsights(leads, browserTimeZone),
+        [browserTimeZone, leads]
+    )
+
+    const busiestWeekday = useMemo(() => {
+        return joinInsights.weekdays.reduce((best, current) => {
+            if (!best || current.count > best.count) {
+                return current
+            }
+
+            return best
+        }, joinInsights.weekdays[0])
+    }, [joinInsights.weekdays])
 
     const deleteLead = async (lead: Lead) => {
         const confirmed = window.confirm(`Delete lead "${lead.guest_name}"? This cannot be undone.`)
@@ -226,6 +243,61 @@ export default function LeadsPage() {
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section className={styles.insightsSection}>
+                <div className={styles.insightsHeader}>
+                    <div>
+                        <h2 className={styles.insightsTitle}>
+                            <FaClock />
+                            Guest Join Patterns
+                        </h2>
+                        <p className={styles.insightsDescription}>
+                            Average guest join times by weekday in {browserTimeZone}.
+                        </p>
+                    </div>
+                    <span className={styles.timezoneBadge}>{joinInsights.totalJoins} joins tracked</span>
+                </div>
+
+                {joinInsights.totalJoins === 0 ? (
+                    <div className={styles.insightsEmpty}>
+                        <FaUsers />
+                        <p>No join patterns yet</p>
+                        <span>Insights will appear after guests start joining meetings.</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className={styles.insightsHighlights}>
+                            <div className={styles.highlightCard}>
+                                <span className={styles.highlightLabel}>Overall average join time</span>
+                                <strong>{joinInsights.overallAverage?.label}</strong>
+                                <p>Across all guest joins on your account.</p>
+                            </div>
+                            <div className={styles.highlightCard}>
+                                <span className={styles.highlightLabel}>Busiest weekday</span>
+                                <strong>{busiestWeekday?.weekday || 'N/A'}</strong>
+                                <p>
+                                    {busiestWeekday
+                                        ? `${busiestWeekday.count} joins, averaging ${busiestWeekday.averageTime.label}`
+                                        : 'Not enough data yet.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className={styles.weekdayGrid}>
+                            {joinInsights.weekdays.map((day) => (
+                                <article key={day.weekday} className={styles.weekdayCard}>
+                                    <div className={styles.weekdayHeader}>
+                                        <span>{day.weekday}</span>
+                                        <span className={styles.weekdayCount}>{day.count}</span>
+                                    </div>
+                                    <strong className={styles.weekdayTime}>{day.averageTime.label}</strong>
+                                    <p className={styles.weekdayCaption}>Average guest join time</p>
+                                </article>
+                            ))}
+                        </div>
+                    </>
+                )}
             </section>
 
             {/* Filters */}

@@ -147,6 +147,162 @@
     color: var(--text-secondary);
 }
 
+.insightsSection {
+    margin-bottom: 32px;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(99, 102, 241, 0.16), transparent 32%),
+        var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.insightsHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.insightsTitle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.insightsTitle svg {
+    color: #60a5fa;
+}
+
+.insightsDescription {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.timezoneBadge {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(96, 165, 250, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.24);
+    color: #93c5fd;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.insightsHighlights {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.highlightCard,
+.weekdayCard,
+.insightsEmpty {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-lg);
+}
+
+.highlightCard {
+    padding: 18px;
+}
+
+.highlightLabel {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.highlightCard strong {
+    display: block;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.highlightCard p {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.weekdayGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.weekdayCard {
+    padding: 16px;
+}
+
+.weekdayHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.weekdayCount {
+    min-width: 28px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.weekdayTime {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.weekdayCaption {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.insightsEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 32px 20px;
+    text-align: center;
+}
+
+.insightsEmpty svg {
+    font-size: 28px;
+    color: #60a5fa;
+}
+
+.insightsEmpty p {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.insightsEmpty span {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 /* Filters Section */
 .filtersSection {
     margin-bottom: 24px;
@@ -652,6 +808,10 @@
     .statsGrid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .insightsHighlights {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -662,7 +822,19 @@
     .statsGrid {
         grid-template-columns: 1fr;
     }
-    
+
+    .insightsSection {
+        padding: 20px;
+    }
+
+    .insightsHeader {
+        flex-direction: column;
+    }
+
+    .timezoneBadge {
+        white-space: normal;
+    }
+
     .leadsGrid {
         grid-template-columns: 1fr;
     }

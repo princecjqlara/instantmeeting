@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import type { BookingField } from '@/lib/types'
+import { combineDateAndTimeInTimeZone } from '@/lib/zoned-scheduling'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -32,14 +34,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Host not found' }, { status: 404 })
     }
 
-    const requiredFields = (host.booking_form_fields || []).filter((field: any) => field.required)
+    const requiredFields = (host.booking_form_fields || []).filter((field: BookingField) => field.required)
     if (requiredFields.length > 0) {
         const customFieldMap = new Map(
             Array.isArray(customFields)
-                ? customFields.map((field: any) => [field.id, field.value])
+                ? customFields.map((field: { id: string; value: string }) => [field.id, field.value])
                 : []
         )
-        const missingRequired = requiredFields.some((field: any) => {
+        const missingRequired = requiredFields.some((field: BookingField) => {
             const value = customFieldMap.get(field.id)
             return !value || String(value).trim() === ''
         })
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
     // The requirement says "non user will book an appoint ment".
     // Let's create a meeting record.
 
-    const scheduledAt = new Date(`${date}T${time}:00`).toISOString()
+    const scheduledAt = combineDateAndTimeInTimeZone(date, time, host.timezone || 'UTC')
 
     const { data: meeting, error: meetingError } = await supabase
         .from('meetings')

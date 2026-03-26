@@ -1,32 +1,32 @@
 .overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.9);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.86);
+    backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     padding: 20px;
-    animation: fadeIn 0.3s ease;
+    animation: fadeIn 0.25s ease;
 }
 
 .modal {
-    background: var(--card-bg);
-    border-radius: 16px;
     width: 100%;
-    max-width: 400px;
+    max-width: 560px;
     max-height: 90vh;
     overflow-y: auto;
+    background:
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.14), transparent 30%),
+        var(--bg-card);
     border: 1px solid var(--border-color);
+    border-radius: 20px;
     display: flex;
     flex-direction: column;
 }
 
 .header {
-    padding: 20px;
+    padding: 20px 22px;
     border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
@@ -40,36 +40,262 @@
 }
 
 .closeBtn {
-    background: none;
-    border: none;
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
     color: var(--text-muted);
-    font-size: 24px;
+    font-size: 16px;
     cursor: pointer;
-    line-height: 1;
+    transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+    color: var(--text-primary);
+    border-color: rgba(96, 165, 250, 0.45);
 }
 
 .content {
-    padding: 20px;
+    padding: 22px;
 }
 
 .bookingIntro {
     text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .bookingIntro h4 {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: 18px;
+    font-weight: 700;
     margin-bottom: 6px;
 }
 
 .bookingIntro p {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.selectedSummary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: rgba(96, 165, 250, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    border-radius: 14px;
+    color: #bfdbfe;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .step {
-    animation: slideIn 0.3s ease;
+    animation: slideIn 0.25s ease;
+}
+
+.calendarShell,
+.timeBlock {
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+}
+
+.calendarShell {
+    margin-bottom: 14px;
+}
+
+.calendarHeader,
+.timeHeader,
+.formSectionHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.calendarHeader strong,
+.timeHeader strong,
+.formSectionHeader strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 16px;
+}
+
+.timezoneNote {
+    display: block;
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.sectionEyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.calendarNav {
+    display: flex;
+    gap: 8px;
+}
+
+.navBtn {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.navBtn:hover:not(:disabled) {
+    border-color: rgba(96, 165, 250, 0.45);
+    color: #bfdbfe;
+}
+
+.navBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.weekDays {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.weekDay {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.dayBtn {
+    aspect-ratio: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dayBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.32);
+}
+
+.dayBtn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.dayOutsideMonth {
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.daySelected {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: rgba(147, 197, 253, 0.65);
+    color: white;
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.28);
+}
+
+.dayToday {
+    border-color: rgba(96, 165, 250, 0.4);
+}
+
+.dayNumber {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.timeHeader {
+    align-items: flex-start;
+}
+
+.durationBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.slots {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.emptySlots {
+    padding: 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.slotBtn {
+    padding: 12px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.slotBtn:hover:not(:disabled) {
+    border-color: rgba(96, 165, 250, 0.4);
+}
+
+.slotBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.selected {
+    background: linear-gradient(135deg, #0f766e, #0f9d8a);
+    border-color: rgba(153, 246, 228, 0.6);
+    color: white;
 }
 
 .inputGroup {
@@ -88,15 +314,15 @@
 .inputGroup select {
     width: 100%;
     padding: 12px;
-    border-radius: 8px;
-    background: var(--input-bg);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     font-size: 16px;
 }
 
 .inputGroup textarea {
-    min-height: 80px;
+    min-height: 90px;
     resize: vertical;
 }
 
@@ -110,44 +336,39 @@
     color: var(--accent-primary);
 }
 
-.slots {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-    margin-top: 10px;
+.error {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    color: #fca5a5;
+    font-size: 14px;
 }
 
-.slotBtn {
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-primary);
+.formActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.actionBtn,
+.secondaryBtn {
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-}
-
-.slotBtn:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.slotBtn.selected {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
+    transition: all 0.2s ease;
 }
 
 .actionBtn {
     width: 100%;
     padding: 14px;
-    background: var(--primary-color);
-    color: white;
     border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 16px;
-    cursor: pointer;
-    margin-top: 20px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: white;
+    margin-top: 18px;
 }
 
 .actionBtn:disabled {
@@ -155,9 +376,26 @@
     cursor: not-allowed;
 }
 
+.secondaryBtn {
+    border: 1px solid var(--border-color);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+    padding: 0 16px;
+}
+
+.secondaryBtn:hover {
+    border-color: rgba(96, 165, 250, 0.4);
+}
+
+.formActions .actionBtn,
+.formActions .secondaryBtn {
+    flex: 1;
+    margin-top: 0;
+}
+
 .success {
     text-align: center;
-    padding: 40px 20px;
+    padding: 40px 24px;
 }
 
 .successIcon {
@@ -179,12 +417,36 @@
 
 @keyframes slideIn {
     from {
-        transform: translateX(20px);
+        transform: translateY(10px);
         opacity: 0;
     }
 
     to {
-        transform: translateX(0);
+        transform: translateY(0);
         opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .overlay {
+        padding: 12px;
+    }
+
+    .content,
+    .header {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .calendarHeader,
+    .timeHeader,
+    .formSectionHeader,
+    .formActions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .slots {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { combineDateAndTimeInTimeZone } from '@/lib/zoned-scheduling'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,11 +24,9 @@ export async function POST(
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const scheduledAt = new Date(`${date}T${time}`)
-
     const { data: meeting } = await supabase
         .from('meetings')
-        .select('id, status, reschedule_requested')
+        .select('id, status, reschedule_requested, user_id')
         .eq('id', meetingId)
         .single()
 
@@ -54,10 +53,18 @@ export async function POST(
         return NextResponse.json({ error: 'Guest not found' }, { status: 404 })
     }
 
+    const { data: host } = await supabase
+        .from('users')
+        .select('timezone')
+        .eq('id', meeting.user_id)
+        .single()
+
+    const scheduledAt = combineDateAndTimeInTimeZone(date, time, host?.timezone || 'UTC')
+
     const { data: updatedMeeting, error } = await supabase
         .from('meetings')
         .update({
-            scheduled_at: scheduledAt.toISOString(),
+            scheduled_at: scheduledAt,
             reschedule_requested: false,
         })
         .eq('id', meetingId)
