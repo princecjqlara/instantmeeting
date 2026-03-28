@@ -6,12 +6,15 @@
  * - Remote participant video tiles (auto-grid for 1-3 peers)
  * - Control bar: mute/unmute mic, toggle camera, leave room
  * - Visual indicators for muted mic / camera off states
+ * - AI Assistant panel (host-only) with RAG-powered chat
  */
 
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
 import { useWebRTC, RemoteStream } from '@/hooks/useWebRTC'
+import AIAssistantPanel from './AIAssistantPanel'
+import PresentationOverlay from './PresentationOverlay'
 import {
     FaMicrophone,
     FaMicrophoneSlash,
@@ -22,6 +25,8 @@ import {
     FaPaperPlane,
     FaSpinner,
     FaExclamationTriangle,
+    FaBrain,
+    FaDesktop,
 } from 'react-icons/fa'
 import styles from './VideoChat.module.css'
 
@@ -32,6 +37,8 @@ interface VideoChatProps {
     displayName: string
     /** Callback when user leaves the room */
     onLeave: () => void
+    /** Whether this user is the host (authenticated). AI panel only shown for hosts. */
+    isHost?: boolean
 }
 
 /**
@@ -91,20 +98,26 @@ function VideoTile({
     )
 }
 
-export default function VideoChat({ roomId, displayName, onLeave }: VideoChatProps) {
+export default function VideoChat({ roomId, displayName, onLeave, isHost = false }: VideoChatProps) {
     const {
         localStream,
         remoteStreams,
         chatMessages,
         isMuted,
         isCameraOff,
+        isScreenSharing,
         isConnecting,
         error,
+        activePresentation,
         toggleMute,
         toggleCamera,
+        toggleScreenShare,
         sendChatMessage,
+        sendPresentation,
         leaveRoom,
     } = useWebRTC(roomId, displayName)
+
+    const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
 
     const [isChatOpen, setIsChatOpen] = useState(false)
     const [chatInput, setChatInput] = useState('')
@@ -187,13 +200,13 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
         <div className={styles.container}>
             {/* ─── Video Grid ─────────────────────────────────────────────────── */}
             <div className={`${styles.videoGrid} ${gridClass}`}>
-                {/* Local video tile — always first, mirrored so it feels natural */}
+                {/* Local video tile — mirrored for camera, not mirrored for screen share */}
                 <VideoTile
                     stream={localStream}
-                    name={`${displayName} (You)`}
-                    muted={true} // Always muted locally to prevent feedback
-                    mirrored={true}
-                    isCameraOff={isCameraOff}
+                    name={`${displayName} (You)${isScreenSharing ? ' — Screen' : ''}`}
+                    muted={true}
+                    mirrored={!isScreenSharing}
+                    isCameraOff={isCameraOff && !isScreenSharing}
                     isMicMuted={isMuted}
                 />
 
@@ -214,6 +227,28 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                     <div className={styles.waitingPulse} />
                     <p>Waiting for others to join...</p>
                 </div>
+            )}
+
+            {/* ─── AI Assistant Panel (Host Only) ─────────────────────────── */}
+            {isHost && (
+                <AIAssistantPanel
+                    isOpen={isAIPanelOpen}
+                    onClose={() => setIsAIPanelOpen(false)}
+                    roomId={roomId}
+                    chatMessages={chatMessages.map((m) => ({
+                        name: m.isLocal ? displayName : m.name,
+                        text: m.text,
+                        timestamp: m.timestamp,
+                    }))}
+                />
+            )}
+
+            {/* ─── Presentation Overlay ────────────────────────────────────── */}
+            {!isHost && activePresentation && (
+                <PresentationOverlay
+                    isHost={false}
+                    activeSlide={activePresentation}
+                />
             )}
 
             {/* ─── Chat Panel ─────────────────────────────────────────────────── */}
@@ -281,6 +316,25 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                 </button>
 
                 <button
+                    onClick={toggleScreenShare}
+                    className={`${styles.controlBtn} ${isScreenSharing ? styles.controlBtnScreen : ''}`}
+                    title={isScreenSharing ? 'Stop sharing screen' : 'Share your screen'}
+                >
+                    <FaDesktop />
+                </button>
+
+                {/* Presentation — Host Only */}
+                {isHost && (
+                    <div style={{ position: 'relative' }}>
+                        <PresentationOverlay
+                            isHost={true}
+                            activeSlide={activePresentation}
+                            onSlideChange={sendPresentation}
+                        />
+                    </div>
+                )}
+
+                <button
                     onClick={() => setIsChatOpen(prev => !prev)}
                     className={`${styles.controlBtn} ${isChatOpen ? styles.controlBtnActive : ''}`}
                     title={isChatOpen ? 'Hide chat' : 'Show chat'}
@@ -288,6 +342,18 @@ export default function VideoChat({ roomId, displayName, onLeave }: VideoChatPro
                     <FaComments />
                     {unreadCount > 0 && <span className={styles.unreadBadge}>{unreadCount > 9 ? '9+' : unreadCount}</span>}
                 </button>
+
+                {/* AI Assistant — Host Only */}
+                {isHost && (
+                    <button
+                        onClick={() => setIsAIPanelOpen((prev) => !prev)}
+                        className={`${styles.controlBtn} ${isAIPanelOpen ? styles.controlBtnAI : ''}`}
+                        title={isAIPanelOpen ? 'Hide AI assistant' : 'Show AI assistant'}
+                    >
+                        <FaBrain />
+                        <span className={styles.aiBadge}>AI</span>
+                    </button>
+                )}
 
                 <button
                     onClick={handleLeave}

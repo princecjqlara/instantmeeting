@@ -459,6 +459,42 @@
         transform: rotate(360deg);
     }
 }
+/* ─── AI Assistant Button ────────────────────────────────────────────────── */
+.controlBtnAI {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.35) 0%, rgba(168, 85, 247, 0.35) 100%);
+    color: #c4b5fd;
+    box-shadow: 0 0 20px rgba(124, 58, 237, 0.25);
+}
+
+.controlBtnAI:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.5) 0%, rgba(168, 85, 247, 0.5) 100%);
+    box-shadow: 0 0 30px rgba(124, 58, 237, 0.35);
+}
+
+.aiBadge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    letter-spacing: 0.3px;
+}
+
+/* ─── Screen Share Button ────────────────────────────────────────────────── */
+.controlBtnScreen {
+    background: rgba(0, 255, 136, 0.2);
+    color: #00ff88;
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.2);
+}
+
+.controlBtnScreen:hover {
+    background: rgba(0, 255, 136, 0.3);
+    box-shadow: 0 0 24px rgba(0, 255, 136, 0.3);
+}
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {

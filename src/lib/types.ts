@@ -72,6 +72,11 @@ export interface Meeting {
     reschedule_requested_at?: string | null
     assigned_member_id?: string | null
     assignment_source?: 'system' | 'manual' | 'preassigned' | 'none' | null
+    ai_objective?: string | null
+    ai_flow?: AIFlowStep[] | null
+    ai_knowledge_base_id?: string | null
+    ai_summary?: string | null
+    ai_meeting_notes?: MeetingNotes | null
     created_at: string
     waiting_guests?: WaitingGuest[]
 }
@@ -160,4 +165,68 @@ export interface Database {
             }
         }
     }
+}
+
+// ─── AI Assistant Types ─────────────────────────────────────────────────────
+
+export interface AIFlowStep {
+    step_number: number
+    title: string
+    description: string
+    suggested_questions?: string[]
+}
+
+export interface AIKnowledgeBase {
+    id: string
+    user_id: string
+    name: string
+    description: string | null
+    document_count: number
+    created_at: string
+}
+
+export interface AIKnowledgeChunk {
+    id: string
+    knowledge_base_id: string
+    content: string
+    source_name: string | null
+    token_count: number
+    created_at: string
+}
+
+export interface MeetingNotes {
+    summary: string
+    key_points: string[]
+    action_items: string[]
+    decisions_made: string[]
+    next_steps: string[]
+    generated_at: string
+}
+
+export interface AIAssistantConfig {
+    objective: string | null
+    flow: AIFlowStep[] | null
+    knowledge_base_id: string | null
+}
+
+// ─── Presentation Types ─────────────────────────────────────────────────────
+
+export interface Presentation {
+    id: string
+    user_id: string
+    title: string
+    created_at: string
+    updated_at: string
+    slides?: PresentationSlide[]
+}
+
+export interface PresentationSlide {
+    id: string
+    presentation_id: string
+    media_url: string
+    media_type: 'image' | 'video'
+    cloudinary_public_id: string | null
+    thumbnail_url: string | null
+    order_index: number
+    created_at: string
 }

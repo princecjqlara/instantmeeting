@@ -1,0 +1,309 @@
+/* ─── Launch Button ────────────────────────────────────── */
+.launchBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ddd;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.launchBtn:hover {
+    background: rgba(124, 58, 237, 0.15);
+    border-color: rgba(124, 58, 237, 0.3);
+    color: #fff;
+}
+
+/* ─── Picker Dropdown ──────────────────────────────────── */
+.pickerDropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    background: #0e0e1a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    width: 260px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+    z-index: 50;
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.pickerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #ccc;
+}
+
+.pickerClose {
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 2px;
+}
+
+.pickerClose:hover { color: #fff; }
+
+.pickerEmpty {
+    color: #555;
+    font-size: 0.8rem;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.pickerList {
+    padding: 6px;
+}
+
+.pickerItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    text-align: left;
+}
+
+.pickerItem:hover { background: rgba(255, 255, 255, 0.05); }
+.pickerItem:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pickerItemTitle {
+    font-size: 0.82rem;
+    color: #ddd;
+    font-weight: 500;
+}
+
+.pickerItemCount {
+    font-size: 0.72rem;
+    color: #666;
+    white-space: nowrap;
+}
+
+/* ─── Overlay ──────────────────────────────────────────── */
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 72px; /* above control bar */
+    background: rgba(0, 0, 0, 0.92);
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.25s ease;
+}
+
+.fullscreen {
+    position: fixed;
+    inset: 0;
+    bottom: 0;
+    z-index: 9999;
+}
+
+.guestOverlay {
+    background: rgba(0, 0, 0, 0.88);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ─── Slide Container ──────────────────────────────────── */
+.slideContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    max-width: 1200px;
+    padding: 12px;
+}
+
+/* ─── Slide Info Bar ───────────────────────────────────── */
+.slideInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+}
+
+.slideTitle {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #fff;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slideCounter {
+    font-size: 0.78rem;
+    color: #888;
+    background: rgba(255, 255, 255, 0.06);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.slideControls {
+    display: flex;
+    gap: 6px;
+}
+
+.controlIcon {
+    background: rgba(255, 255, 255, 0.06);
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+}
+
+.controlIcon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+/* ─── Slide Content ────────────────────────────────────── */
+.slideContent {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #000;
+}
+
+.slideMedia {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+/* ─── Navigation Arrows ───────────────────────────────── */
+.navArrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.15s;
+    z-index: 5;
+}
+
+.navArrow:hover:not(:disabled) {
+    background: rgba(124, 58, 237, 0.4);
+    border-color: rgba(124, 58, 237, 0.6);
+}
+
+.navArrow:disabled {
+    opacity: 0.2;
+    cursor: not-allowed;
+}
+
+.navLeft { left: 12px; }
+.navRight { right: 12px; }
+
+/* ─── Thumbnail Strip ──────────────────────────────────── */
+.thumbnailStrip {
+    display: flex;
+    gap: 6px;
+    padding: 10px 0 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.thumbnail {
+    flex-shrink: 0;
+    width: 72px;
+    height: 42px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    padding: 0;
+    background: #111;
+}
+
+.thumbnail:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.thumbnailActive {
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 8px rgba(124, 58, 237, 0.3);
+}
+
+.thumbMedia {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ─── Responsive ───────────────────────────────────────── */
+@media (max-width: 640px) {
+    .navArrow {
+        width: 36px;
+        height: 36px;
+        font-size: 0.85rem;
+    }
+
+    .thumbnailStrip {
+        display: none;
+    }
+
+    .pickerDropdown {
+        width: 220px;
+    }
+}

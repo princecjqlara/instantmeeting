@@ -51,17 +51,29 @@ interface PeerData {
     name: string
 }
 
+export interface PresentationSlideData {
+    url: string
+    type: string
+    index: number
+    total: number
+    title: string
+}
+
 interface UseWebRTCReturn {
     localStream: MediaStream | null
     remoteStreams: RemoteStream[]
     chatMessages: ChatMessage[]
     isMuted: boolean
     isCameraOff: boolean
+    isScreenSharing: boolean
     isConnecting: boolean
     error: string | null
+    activePresentation: PresentationSlideData | null
     toggleMute: () => void
     toggleCamera: () => void
+    toggleScreenShare: () => void
     sendChatMessage: (text: string) => boolean
+    sendPresentation: (slide: PresentationSlideData | null) => void
     leaveRoom: () => void
 }
 
@@ -76,6 +88,7 @@ type SignalMessage =
     | { type: 'answer'; from: string; to: string; sdp: RTCSessionDescriptionInit }
     | { type: 'candidate'; from: string; to: string; candidate: RTCIceCandidateInit }
     | { type: 'chat'; from: string; name: string; text: string; timestamp: string; messageId: string }
+    | { type: 'presentation'; from: string; slide: PresentationSlideData | null }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
@@ -84,12 +97,16 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
     const [isMuted, setIsMuted] = useState(false)
     const [isCameraOff, setIsCameraOff] = useState(false)
+    const [isScreenSharing, setIsScreenSharing] = useState(false)
     const [isConnecting, setIsConnecting] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [activePresentation, setActivePresentation] = useState<PresentationSlideData | null>(null)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
     const localStreamRef = useRef<MediaStream | null>(null)
+    const screenStreamRef = useRef<MediaStream | null>(null)
+    const cameraTrackRef = useRef<MediaStreamTrack | null>(null)
     const peerIdRef = useRef<string>('')
     const channelRef = useRef<RealtimeChannel | null>(null)
     const sendSignalRef = useRef<((message: SignalMessage) => void) | null>(null)
@@ -116,6 +133,93 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
             }
         }
     }, [])
+
+    // ─── Toggle Screen Share ─────────────────────────────────────────────
+    const toggleScreenShare = useCallback(async () => {
+        if (isScreenSharing) {
+            // Stop screen sharing — restore camera track
+            const screenTrack = screenStreamRef.current?.getVideoTracks()[0]
+            if (screenTrack) {
+                screenTrack.stop()
+            }
+            screenStreamRef.current = null
+
+            // Restore camera track to local stream and all peer connections
+            const cameraTrack = cameraTrackRef.current
+            if (cameraTrack && localStreamRef.current) {
+                const oldVideoTrack = localStreamRef.current.getVideoTracks()[0]
+                if (oldVideoTrack) {
+                    localStreamRef.current.removeTrack(oldVideoTrack)
+                }
+                localStreamRef.current.addTrack(cameraTrack)
+
+                // Replace track in all peer connections
+                peersRef.current.forEach((peer) => {
+                    const sender = peer.connection.getSenders().find(
+                        (s) => s.track?.kind === 'video' || (!s.track && s.track !== undefined)
+                    )
+                    if (sender) {
+                        sender.replaceTrack(cameraTrack).catch(console.warn)
+                    }
+                })
+
+                // Force React to re-render with updated stream
+                setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
+            }
+
+            setIsScreenSharing(false)
+            setIsCameraOff(false)
+        } else {
+            // Start screen sharing
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { cursor: 'always' } as MediaTrackConstraints,
+                    audio: false,
+                })
+
+                screenStreamRef.current = screenStream
+                const screenTrack = screenStream.getVideoTracks()[0]
+
+                // Save current camera track for later restoration
+                if (localStreamRef.current) {
+                    const currentCameraTrack = localStreamRef.current.getVideoTracks()[0]
+                    if (currentCameraTrack) {
+                        cameraTrackRef.current = currentCameraTrack
+                    }
+
+                    // Replace video track in local stream
+                    const oldTrack = localStreamRef.current.getVideoTracks()[0]
+                    if (oldTrack) {
+                        localStreamRef.current.removeTrack(oldTrack)
+                    }
+                    localStreamRef.current.addTrack(screenTrack)
+
+                    // Replace track in all peer connections
+                    peersRef.current.forEach((peer) => {
+                        const sender = peer.connection.getSenders().find(
+                            (s) => s.track?.kind === 'video'
+                        )
+                        if (sender) {
+                            sender.replaceTrack(screenTrack).catch(console.warn)
+                        }
+                    })
+
+                    // Force React to re-render
+                    setLocalStream(new MediaStream(localStreamRef.current.getTracks()))
+                }
+
+                setIsScreenSharing(true)
+
+                // Handle user stopping screen share via browser UI
+                screenTrack.onended = () => {
+                    toggleScreenShare()
+                }
+            } catch (err) {
+                // User cancelled the screen share picker
+                console.log('[WebRTC] Screen share cancelled or failed:', err)
+            }
+        }
+    }, [isScreenSharing])
 
     // ─── Send Chat Message ──────────────────────────────────────────────────
     const sendChatMessage = useCallback((text: string) => {
@@ -423,6 +527,12 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                 setChatMessages(prev => appendChatMessage(prev, incomingMessage))
                             }
                             break
+
+                        case 'presentation':
+                            if (message.from !== peerId) {
+                                setActivePresentation(message.slide)
+                            }
+                            break
                     }
                 })
 
@@ -499,6 +609,13 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 setLocalStream(null)
             }
 
+            // Stop screen share stream if active
+            if (screenStreamRef.current) {
+                screenStreamRef.current.getTracks().forEach(track => track.stop())
+                screenStreamRef.current = null
+            }
+            cameraTrackRef.current = null
+
             // Close all peer connections
             peersRef.current.forEach(peer => peer.connection.close())
             peersRef.current.clear()
@@ -521,17 +638,35 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         }
     }, [roomId, displayName])
 
+    // ─── Send Presentation Slide ─────────────────────────────────────────────
+    const sendPresentation = useCallback((slide: PresentationSlideData | null) => {
+        const peerId = peerIdRef.current
+        const sendSignal = sendSignalRef.current
+        if (!peerId || !sendSignal) return
+
+        setActivePresentation(slide)
+        sendSignal({
+            type: 'presentation',
+            from: peerId,
+            slide,
+        })
+    }, [])
+
     return {
         localStream,
         remoteStreams,
         chatMessages,
         isMuted,
         isCameraOff,
+        isScreenSharing,
         isConnecting,
         error,
+        activePresentation,
         toggleMute,
         toggleCamera,
+        toggleScreenShare,
         sendChatMessage,
+        sendPresentation,
         leaveRoom,
     }
 }

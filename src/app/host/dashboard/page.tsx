@@ -11,11 +11,14 @@ import ContentPreview from '@/components/ContentPreview'
 import ReelPlayer from '@/components/ReelPlayer'
 import AvailabilitySettings from '@/components/AvailabilitySettings'
 import CalendarDayModal from '@/components/CalendarDayModal'
+import AISetupPanel from '@/components/AISetupPanel'
+import PresentationManager from '@/components/PresentationManager'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaSignInAlt, FaLink, FaCopy, FaCheck,
     FaUserCheck, FaVideo, FaUpload, FaUsers, FaEye, FaTimes, FaUser,
-    FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt, FaMicrophone, FaTrash, FaPlay, FaStop
+    FaChartLine, FaUsers as FaUsersIcon, FaCalendarAlt, FaMicrophone, FaTrash, FaPlay, FaStop,
+    FaBrain
 } from 'react-icons/fa'
 
 type AssignmentSource = 'system' | 'manual' | 'preassigned' | 'none'
@@ -58,6 +61,8 @@ export default function Dashboard() {
     const [creating, setCreating] = useState(false)
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [copiedUniversal, setCopiedUniversal] = useState(false)
+    const [aiSetupOpen, setAiSetupOpen] = useState(false)
+    const [presManagerOpen, setPresManagerOpen] = useState(false)
     const [username, setUsername] = useState<string | null>(null)
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
     const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -741,6 +746,40 @@ export default function Dashboard() {
                 </div>
             </section>
 
+            {/* AI Assistant Setup */}
+            <section className={styles.createSection}>
+                <div className={styles.createCard}>
+                    <h2><FaBrain style={{ marginRight: 8, color: '#7c3aed' }} /> AI Meeting Assistant</h2>
+                    <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        Configure your AI assistant that helps you during calls — set objectives, conversation flows, and upload knowledge base documents. Applies to all your meetings.
+                    </p>
+                    <button
+                        className="button-primary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' }}
+                        onClick={() => setAiSetupOpen(true)}
+                    >
+                        <FaBrain /> Configure AI Assistant
+                    </button>
+                </div>
+            </section>
+
+            {/* Presentations */}
+            <section className={styles.createSection}>
+                <div className={styles.createCard}>
+                    <h2>📊 Presentations</h2>
+                    <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                        Upload photos and videos, arrange them into a slideshow, and present during any call — no screen sharing needed.
+                    </p>
+                    <button
+                        className="button-primary"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #00b894 0%, #00cec9 100%)' }}
+                        onClick={() => setPresManagerOpen(true)}
+                    >
+                        📊 Manage Presentations
+                    </button>
+                </div>
+            </section>
+
             {/* Team Management */}
             <section className={styles.createSection}>
                 <div className={styles.createCard}>
@@ -1207,6 +1246,19 @@ export default function Dashboard() {
                     }}
                 />
             )}
+
+            {/* AI Setup Modal */}
+            <AISetupPanel
+                isOpen={aiSetupOpen}
+                onClose={() => setAiSetupOpen(false)}
+                meetingId="default"
+            />
+
+            {/* Presentation Manager Modal */}
+            <PresentationManager
+                isOpen={presManagerOpen}
+                onClose={() => setPresManagerOpen(false)}
+            />
         </div>
     )
 }

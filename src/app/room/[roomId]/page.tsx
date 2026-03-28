@@ -86,6 +86,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                 roomId={roomId}
                 displayName={displayName}
                 onLeave={handleLeave}
+                isHost={!!session?.user}
             />
         )
     }

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:node": "node --test \"test/*.test.mjs\"",
-    "simulate:waiting-room": "node test-waiting-room.mjs"
+    "simulate:waiting-room": "node test-waiting-room.mjs",
+    "backtest:compare": "node scripts/run-backtests.mjs"
   },
   "dependencies": {
     "@next-auth/supabase-adapter": "^0.2.1",
