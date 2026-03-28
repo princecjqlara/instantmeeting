@@ -400,6 +400,22 @@ export default function Dashboard() {
                 return
             }
 
+            // Immediately broadcast 'end-meeting' to all peers in the room
+            try {
+                const channel = supabase.channel(`room:${meetingId}`)
+                channel.subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'end-meeting',
+                            payload: { sender: 'host' }
+                        }).then(() => supabase.removeChannel(channel))
+                    }
+                })
+            } catch (broadcastErr) {
+                console.error('Failed to broadcast end meeting:', broadcastErr)
+            }
+
             const updated = await response.json()
             setMeetings(prev => prev.map(meeting =>
                 meeting.id === meetingId
@@ -1097,7 +1113,7 @@ export default function Dashboard() {
                                                         disabled={meeting.status === 'completed'}
                                                     >
                                                         <FaTimes />
-                                                        <span>End Meeting</span>
+                                                        <span>End Meeting All</span>
                                                     </button>
                                                     <button
                                                         className={styles.actionBtn}

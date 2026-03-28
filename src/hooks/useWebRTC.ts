@@ -70,6 +70,7 @@ interface UseWebRTCReturn {
     error: string | null
     activePresentation: PresentationSlideData | null
     meetingEnded: boolean
+    guestTranscript: string | null
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
@@ -77,6 +78,9 @@ interface UseWebRTCReturn {
     sendPresentation: (slide: PresentationSlideData | null) => void
     endMeetingForAll: () => void
     leaveRoom: () => void
+    startGuestRecognition: () => void
+    stopGuestRecognition: () => void
+    clearGuestTranscript: () => void
 }
 
 const MEDIA_INIT_TIMEOUT_MS = 15000
@@ -92,6 +96,9 @@ type SignalMessage =
     | { type: 'chat'; from: string; name: string; text: string; timestamp: string; messageId: string }
     | { type: 'presentation'; from: string; slide: PresentationSlideData | null }
     | { type: 'end-meeting'; from: string }
+    | { type: 'start-recognition'; from: string }
+    | { type: 'stop-recognition'; from: string }
+    | { type: 'recognition-result'; from: string; text: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
@@ -105,6 +112,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [error, setError] = useState<string | null>(null)
     const [activePresentation, setActivePresentation] = useState<PresentationSlideData | null>(null)
     const [meetingEnded, setMeetingEnded] = useState(false)
+    const [guestTranscript, setGuestTranscript] = useState<string | null>(null)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -113,6 +121,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const cameraTrackRef = useRef<MediaStreamTrack | null>(null)
     const peerIdRef = useRef<string>('')
     const channelRef = useRef<RealtimeChannel | null>(null)
+    const recognitionRef = useRef<any>(null)
     const sendSignalRef = useRef<((message: SignalMessage) => void) | null>(null)
     const cleanupRef = useRef<(() => void) | null>(null)
 
@@ -542,6 +551,55 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                             // Host has ended the meeting for everyone
                             setMeetingEnded(true)
                             break
+
+                        case 'start-recognition':
+                            if (message.from !== peerId) {
+                                const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+                                if (SpeechRecognition) {
+                                    if (recognitionRef.current) {
+                                        try { recognitionRef.current.stop() } catch (e) {}
+                                    }
+                                    const recognition = new SpeechRecognition()
+                                    recognition.lang = 'fil-PH'
+                                    recognition.interimResults = false
+                                    recognition.continuous = true 
+
+                                    recognition.onresult = (event: any) => {
+                                        const transcript = Array.from(event.results)
+                                            .map((result: any) => result[0].transcript)
+                                            .join(' ')
+                                        
+                                        sendSignal({
+                                            type: 'recognition-result',
+                                            from: peerId,
+                                            text: transcript
+                                        })
+                                    }
+                                    
+                                    try {
+                                        recognition.start()
+                                        recognitionRef.current = recognition
+                                    } catch (err) {
+                                        console.error('Failed to start recognition:', err)
+                                    }
+                                }
+                            }
+                            break
+
+                        case 'stop-recognition':
+                            if (message.from !== peerId && recognitionRef.current) {
+                                try {
+                                    recognitionRef.current.stop()
+                                } catch (e) {}
+                                recognitionRef.current = null
+                            }
+                            break
+
+                        case 'recognition-result':
+                            if (message.from !== peerId) {
+                                setGuestTranscript(message.text)
+                            }
+                            break
                     }
                 })
 
@@ -635,6 +693,11 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 supabase.removeChannel(channelRef.current)
                 channelRef.current = null
             }
+            
+            if (recognitionRef.current) {
+                try { recognitionRef.current.stop() } catch (e) {}
+                recognitionRef.current = null
+            }
 
             sendSignalRef.current = null
             setChatMessages([])
@@ -677,6 +740,22 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         setMeetingEnded(true)
     }, [])
 
+    // ─── Guest Speech Recognition ──────────────────────────────────────────────
+    const startGuestRecognition = useCallback(() => {
+        const sendSignal = sendSignalRef.current
+        if (!peerIdRef.current || !sendSignal) return
+        setGuestTranscript(null)
+        sendSignal({ type: 'start-recognition', from: peerIdRef.current })
+    }, [])
+
+    const stopGuestRecognition = useCallback(() => {
+        const sendSignal = sendSignalRef.current
+        if (!peerIdRef.current || !sendSignal) return
+        sendSignal({ type: 'stop-recognition', from: peerIdRef.current })
+    }, [])
+
+    const clearGuestTranscript = useCallback(() => setGuestTranscript(null), [])
+
     return {
         localStream,
         remoteStreams,
@@ -695,5 +774,9 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         sendPresentation,
         endMeetingForAll,
         leaveRoom,
+        guestTranscript,
+        startGuestRecognition,
+        stopGuestRecognition,
+        clearGuestTranscript,
     }
 }

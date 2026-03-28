@@ -26,6 +26,8 @@ import {
     FaTasks,
     FaChevronRight,
     FaDatabase,
+    FaMicrophone,
+    FaMicrophoneSlash,
 } from 'react-icons/fa'
 import styles from './AIAssistantPanel.module.css'
 
@@ -62,6 +64,10 @@ interface AIAssistantPanelProps {
     onClose: () => void
     roomId: string
     chatMessages?: ChatHistoryMessage[]
+    guestTranscript?: string | null
+    startGuestRecognition?: () => void
+    stopGuestRecognition?: () => void
+    clearGuestTranscript?: () => void
 }
 
 export default function AIAssistantPanel({
@@ -69,6 +75,10 @@ export default function AIAssistantPanel({
     onClose,
     roomId,
     chatMessages = [],
+    guestTranscript = null,
+    startGuestRecognition,
+    stopGuestRecognition,
+    clearGuestTranscript,
 }: AIAssistantPanelProps) {
     const [activeTab, setActiveTab] = useState<'chat' | 'flow' | 'summary'>('chat')
     const [messages, setMessages] = useState<AIMessage[]>([])
@@ -80,6 +90,7 @@ export default function AIAssistantPanel({
     const [knowledgeBaseName, setKnowledgeBaseName] = useState<string | null>(null)
     const [meetingNotes, setMeetingNotes] = useState<MeetingNotes | null>(null)
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
+    const [isRecordingGuest, setIsRecordingGuest] = useState(false)
 
     const chatScrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -213,6 +224,24 @@ export default function AIAssistantPanel({
         e.preventDefault()
         sendMessage(input)
     }
+
+    const toggleRecordGuest = () => {
+        if (!isRecordingGuest) {
+            setIsRecordingGuest(true)
+            startGuestRecognition?.()
+        } else {
+            setIsRecordingGuest(false)
+            stopGuestRecognition?.()
+        }
+    }
+
+    useEffect(() => {
+        if (guestTranscript) {
+            sendMessage(`Guest said: "${guestTranscript}"`)
+            clearGuestTranscript?.()
+            setIsRecordingGuest(false)
+        }
+    }, [guestTranscript, sendMessage, clearGuestTranscript])
 
     const generateSummary = async () => {
         setIsGeneratingSummary(true)
@@ -370,6 +399,14 @@ export default function AIAssistantPanel({
                             maxLength={500}
                             disabled={isLoading}
                         />
+                        <button
+                            type="button"
+                            className={`${styles.recordBtn} ${isRecordingGuest ? styles.recordingActive : ''}`}
+                            onClick={toggleRecordGuest}
+                            title={isRecordingGuest ? "Stop Recording Guest" : "Record Guest Speech"}
+                        >
+                            {isRecordingGuest ? <FaMicrophoneSlash className={styles.pulseIcon} /> : <FaMicrophone />}
+                        </button>
                         <button
                             type="submit"
                             className={styles.sendBtn}

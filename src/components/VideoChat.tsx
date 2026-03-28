@@ -118,6 +118,10 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         sendPresentation,
         endMeetingForAll,
         leaveRoom,
+        guestTranscript,
+        startGuestRecognition,
+        stopGuestRecognition,
+        clearGuestTranscript,
     } = useWebRTC(roomId, displayName)
 
     const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
@@ -286,6 +290,10 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                         text: m.text,
                         timestamp: m.timestamp,
                     }))}
+                    guestTranscript={guestTranscript}
+                    startGuestRecognition={startGuestRecognition}
+                    stopGuestRecognition={stopGuestRecognition}
+                    clearGuestTranscript={clearGuestTranscript}
                 />
             )}
 

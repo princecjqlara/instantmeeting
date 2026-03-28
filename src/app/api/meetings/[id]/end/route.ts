@@ -56,5 +56,13 @@ export async function POST(
         .eq('meeting_id', meetingId)
         .neq('status', 'left')
 
+    // Broadcast end-meeting signal to instantly kick WebRTC participants
+    const channel = supabase.channel(`room:${meetingId}`)
+    await channel.send({
+        type: 'broadcast',
+        event: 'end-meeting',
+        payload: { sender: 'host' }
+    })
+
     return NextResponse.json(meeting)
 }

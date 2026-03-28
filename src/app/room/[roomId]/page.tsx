@@ -109,6 +109,40 @@ export default function RoomPage({ params }: RoomPageProps) {
         return () => clearTimeout(timer)
     }, [meetingEndedExternally, handleLeave])
 
+    // Pretend Host: Fetch and auto-play welcome audio for guests
+    useEffect(() => {
+        if (!hasJoined || session?.user) return
+        
+        let audio: HTMLAudioElement | null = null
+
+        const playWelcomeAudio = async () => {
+            try {
+                const res = await fetch(`/api/waiting?meetingId=${roomId}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    const audioUrl = data.assignedMember?.welcome_audio_url || data.host?.welcome_audio_url
+                    
+                    if (audioUrl) {
+                        audio = new Audio(audioUrl)
+                        audio.volume = 0.85
+                        await audio.play().catch(e => console.warn('Browser auto-play blocked:', e))
+                    }
+                }
+            } catch (err) {
+                console.warn('Failed to fetch welcome audio:', err)
+            }
+        }
+
+        playWelcomeAudio()
+
+        return () => {
+            if (audio) {
+                audio.pause()
+                audio.src = ''
+            }
+        }
+    }, [hasJoined, session, roomId])
+
     // Meeting ended externally (host ended from dashboard)
     if (meetingEndedExternally) {
         return (

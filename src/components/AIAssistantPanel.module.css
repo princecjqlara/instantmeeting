@@ -425,6 +425,37 @@
     box-shadow: none;
 }
 
+.recordBtn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(124, 58, 237, 0.1);
+    color: #c4b5fd;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.recordBtn:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(124, 58, 237, 0.5);
+}
+
+.recordingActive {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.5) !important;
+    color: #ef4444 !important;
+}
+
+.pulseIcon {
+    animation: typingPulse 1.2s ease-in-out infinite;
+}
+
 /* ─── Summary Tab ────────────────────────────────────────────────────────── */
 .summaryTab {
     flex: 1;
