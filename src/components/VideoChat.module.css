@@ -288,7 +288,6 @@
 }
 
 @keyframes pulse {
-
     0%,
     100% {
         opacity: 1;
@@ -380,6 +379,16 @@
     background: #c53030 !important;
 }
 
+/* End Meeting button (host only) — distinct orange from Leave */
+.endMeetingBtn {
+    background: rgba(255, 159, 67, 0.25) !important;
+    color: #ff9f43 !important;
+}
+
+.endMeetingBtn:hover {
+    background: rgba(255, 159, 67, 0.4) !important;
+}
+
 /* ─── Error State ────────────────────────────────────────────────────────── */
 .errorContainer {
     position: fixed;
@@ -459,7 +468,8 @@
         transform: rotate(360deg);
     }
 }
-/* ─── AI Assistant Button ────────────────────────────────────────────────── */
+
+/* ─── AI Assistant Button ────────────────────────────────────────────────── */
 .controlBtnAI {
     background: linear-gradient(135deg, rgba(124, 58, 237, 0.35) 0%, rgba(168, 85, 247, 0.35) 100%);
     color: #c4b5fd;

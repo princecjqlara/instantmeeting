@@ -69,11 +69,13 @@ interface UseWebRTCReturn {
     isConnecting: boolean
     error: string | null
     activePresentation: PresentationSlideData | null
+    meetingEnded: boolean
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
     sendChatMessage: (text: string) => boolean
     sendPresentation: (slide: PresentationSlideData | null) => void
+    endMeetingForAll: () => void
     leaveRoom: () => void
 }
 
@@ -89,6 +91,7 @@ type SignalMessage =
     | { type: 'candidate'; from: string; to: string; candidate: RTCIceCandidateInit }
     | { type: 'chat'; from: string; name: string; text: string; timestamp: string; messageId: string }
     | { type: 'presentation'; from: string; slide: PresentationSlideData | null }
+    | { type: 'end-meeting'; from: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
@@ -101,6 +104,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [isConnecting, setIsConnecting] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [activePresentation, setActivePresentation] = useState<PresentationSlideData | null>(null)
+    const [meetingEnded, setMeetingEnded] = useState(false)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -533,6 +537,11 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                 setActivePresentation(message.slide)
                             }
                             break
+
+                        case 'end-meeting':
+                            // Host has ended the meeting for everyone
+                            setMeetingEnded(true)
+                            break
                     }
                 })
 
@@ -652,6 +661,22 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         })
     }, [])
 
+    // ─── End Meeting For All ─────────────────────────────────────────────────
+    const endMeetingForAll = useCallback(() => {
+        const peerId = peerIdRef.current
+        const sendSignal = sendSignalRef.current
+        if (!peerId || !sendSignal) return
+
+        // Broadcast end-meeting to all peers
+        sendSignal({
+            type: 'end-meeting',
+            from: peerId,
+        })
+
+        // Also mark locally
+        setMeetingEnded(true)
+    }, [])
+
     return {
         localStream,
         remoteStreams,
@@ -662,11 +687,13 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         isConnecting,
         error,
         activePresentation,
+        meetingEnded,
         toggleMute,
         toggleCamera,
         toggleScreenShare,
         sendChatMessage,
         sendPresentation,
+        endMeetingForAll,
         leaveRoom,
     }
 }

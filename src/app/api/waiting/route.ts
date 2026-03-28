@@ -124,8 +124,13 @@ export async function GET(req: NextRequest) {
         const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
 
         if (!availability.nextMember) {
-            autoScheduleRequired = true
-            autoScheduleReason = toAutoScheduleReason(availability.reason)
+            // Only require scheduling when an actual team exists but no one is available.
+            // Solo hosts (no_team / no_members) handle meetings themselves.
+            const blockingReasons = ['no_clocked_in', 'all_members_busy', 'lookup_failed']
+            if (blockingReasons.includes(availability.reason)) {
+                autoScheduleRequired = true
+                autoScheduleReason = toAutoScheduleReason(availability.reason)
+            }
         }
     }
 

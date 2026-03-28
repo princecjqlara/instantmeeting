@@ -360,10 +360,20 @@ export async function admitGuestLogic(
             assignmentSource = 'system'
             selectedTeam = availability.team
         } else if (options.requireAvailableAssignee) {
-            throw new AdmitLogicError(
-                getNoAssigneeMessage(availability.reason),
-                availability.reason
-            )
+            // Solo hosts (no team / no members) should still auto-admit.
+            // Only block admission when a team exists but no one is available.
+            const blockingReasons: TeamAvailabilityReason[] = [
+                'no_clocked_in',
+                'all_members_busy',
+                'lookup_failed',
+            ]
+            if (blockingReasons.includes(availability.reason)) {
+                throw new AdmitLogicError(
+                    getNoAssigneeMessage(availability.reason),
+                    availability.reason
+                )
+            }
+            // 'no_team' / 'no_members' — host works solo, proceed without assignee
         }
     }
 

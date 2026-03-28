@@ -1,0 +1,281 @@
+{
+  "settings": {
+    "modes": [
+      "conservative",
+      "balanced",
+      "aggressive"
+    ],
+    "equities": [
+      10,
+      25,
+      50,
+      100
+    ],
+    "symbols": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "SOLUSDT",
+      "XRPUSDT",
+      "ADAUSDT",
+      "DOGEUSDT"
+    ],
+    "interval": "1d",
+    "start": "2024-01-01",
+    "end": "2024-12-31"
+  },
+  "mode": "conservative",
+  "startingEquity": 100,
+  "metrics": {
+    "startingEquity": 100,
+    "endingEquity": 97.1249,
+    "netProfit": -2.8751,
+    "rawReturnPct": -2.8751,
+    "maxDrawdownPct": 4.9613,
+    "totalTrades": 21,
+    "wins": 6,
+    "losses": 15,
+    "winRatePct": 28.5714,
+    "expectancyUsdt": -0.1369,
+    "expectancyPct": -0.1369,
+    "grossProfit": 6.7467,
+    "grossLoss": -9.6218,
+    "feesPaid": 0.8259,
+    "slippageCost": 0.413,
+    "skippedDueMinimums": 0,
+    "skippedDueRiskConstraints": 24
+  },
+  "trades": [
+    {
+      "symbol": "SOLUSDT",
+      "status": "closed",
+      "entryTime": 1706832000000,
+      "exitTime": 1706918400000,
+      "entryPrice": 100.63028999999999,
+      "exitPrice": 97.56257560934999,
+      "quantity": 0.198,
+      "pnlNet": -0.646649636739351,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "status": "closed",
+      "entryTime": 1707091200000,
+      "exitTime": 1707350400000,
+      "entryPrice": 42730.05434999999,
+      "exitPrice": 45271.2106821945,
+      "quantity": 0.00046,
+      "pnlNet": 1.1284513308946629,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "status": "closed",
+      "entryTime": 1707523200000,
+      "exitTime": 1707955200000,
+      "entryPrice": 323.1615,
+      "exitPrice": 342.379914405,
+      "quantity": 0.062,
+      "pnlNet": 1.150278125416893,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "status": "closed",
+      "entryTime": 1707955200000,
+      "exitTime": 1708128000000,
+      "entryPrice": 0.5624811,
+      "exitPrice": 0.5453338636664999,
+      "quantity": 36.1,
+      "pnlNet": -0.6590073518277109,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "status": "closed",
+      "entryTime": 1714089600000,
+      "exitTime": 1714435200000,
+      "entryPrice": 598.299,
+      "exitPrice": 580.059854985,
+      "quantity": 0.033,
+      "pnlNet": -0.6407776277095039,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "status": "closed",
+      "entryTime": 1715299200000,
+      "exitTime": 1715558400000,
+      "entryPrice": 146.08300499999999,
+      "exitPrice": 141.629664592575,
+      "quantity": 0.137,
+      "pnlNet": -0.6495242715514031,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "status": "closed",
+      "entryTime": 1715990400000,
+      "exitTime": 1716163200000,
+      "entryPrice": 66948.65759999999,
+      "exitPrice": 70930.094267472,
+      "quantity": 0.00029,
+      "pnlNet": 1.1146317955253195,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "status": "closed",
+      "entryTime": 1716163200000,
+      "exitTime": 1716249600000,
+      "entryPrice": 0.16581286499999998,
+      "exitPrice": 0.160758059810475,
+      "quantity": 121,
+      "pnlNet": -0.6511465098345894,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "status": "closed",
+      "entryTime": 1716422400000,
+      "exitTime": 1717027200000,
+      "entryPrice": 0.52916445,
+      "exitPrice": 0.51303287174175,
+      "quantity": 37.800000000000004,
+      "pnlNet": -0.6491687169236897,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "status": "closed",
+      "entryTime": 1721001600000,
+      "exitTime": 1721088000000,
+      "entryPrice": 159.45969,
+      "exitPrice": 154.59856135035,
+      "quantity": 0.124,
+      "pnlNet": -0.6417231757240458,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "status": "closed",
+      "entryTime": 1721088000000,
+      "exitTime": 1721174400000,
+      "entryPrice": 0.57958965,
+      "exitPrice": 0.6140578464855,
+      "quantity": 34.1,
+      "pnlNet": 1.1346621205253982,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "status": "closed",
+      "entryTime": 1721347200000,
+      "exitTime": 1721865600000,
+      "entryPrice": 66693.33,
+      "exitPrice": 64660.18383495,
+      "quantity": 0.00029,
+      "pnlNet": -0.6277049068766374,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "status": "closed",
+      "entryTime": 1724284800000,
+      "exitTime": 1724630400000,
+      "entryPrice": 583.1914499999999,
+      "exitPrice": 565.4128586467499,
+      "quantity": 0.034,
+      "pnlNet": -0.6435246525044924,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "status": "closed",
+      "entryTime": 1724889600000,
+      "exitTime": 1724976000000,
+      "entryPrice": 140.07,
+      "exitPrice": 135.79996605,
+      "quantity": 0.14,
+      "pnlNet": -0.6364265482469982,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "status": "closed",
+      "entryTime": 1726531200000,
+      "exitTime": 1726790400000,
+      "entryPrice": 0.10117055999999999,
+      "exitPrice": 0.1071871732032,
+      "quantity": 193,
+      "pnlNet": 1.1209933057093835,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "ADAUSDT",
+      "status": "closed",
+      "entryTime": 1726876800000,
+      "exitTime": 1726963200000,
+      "entryPrice": 0.3585792,
+      "exitPrice": 0.347647913088,
+      "quantity": 55.300000000000004,
+      "pnlNet": -0.643554525587362,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "status": "closed",
+      "entryTime": 1727049600000,
+      "exitTime": 1727222400000,
+      "entryPrice": 2648.2934849999997,
+      "exitPrice": 2567.5602581097746,
+      "quantity": 0.0074,
+      "pnlNet": -0.6360231966866792,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "status": "closed",
+      "entryTime": 1728864000000,
+      "exitTime": 1728950400000,
+      "entryPrice": 157.668795,
+      "exitPrice": 152.86226178442502,
+      "quantity": 0.124,
+      "pnlNet": -0.6345159697725649,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "status": "closed",
+      "entryTime": 1729296000000,
+      "exitTime": 1729641600000,
+      "entryPrice": 2649.5240999999996,
+      "exitPrice": 2568.7533578114994,
+      "quantity": 0.0073,
+      "pnlNet": -0.627719843418074,
+      "exitReason": "stop_loss"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "status": "closed",
+      "entryTime": 1730937600000,
+      "exitTime": 1731110400000,
+      "entryPrice": 2896.9177349999995,
+      "exitPrice": 3069.19743270045,
+      "quantity": 0.0066,
+      "pnlNet": 1.0976696447161522,
+      "exitReason": "take_profit"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "status": "closed",
+      "entryTime": 1731196800000,
+      "exitTime": 1731283200000,
+      "entryPrice": 0.5886942000000001,
+      "exitPrice": 0.5707478573130002,
+      "quantity": 33.2,
+      "pnlNet": -0.6343120535111844,
+      "exitReason": "stop_loss"
+    }
+  ]
+}

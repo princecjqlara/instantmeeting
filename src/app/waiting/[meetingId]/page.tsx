@@ -412,23 +412,13 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             } catch { }
         }
 
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'hidden') {
-                markAsLeft()
-            }
-        }
-
+        // Only mark guest as 'left' on actual navigation away (pagehide).
+        // Do NOT use visibilitychange — that fires when the user simply switches
+        // tabs, which would remove the guest from the host's dashboard.
         window.addEventListener('pagehide', markAsLeft)
-        document.addEventListener('visibilitychange', handleVisibilityChange)
 
         return () => {
-            if (preparedMeetingTabRef.current && !preparedMeetingTabRef.current.closed) {
-                preparedMeetingTabRef.current.close()
-                preparedMeetingTabRef.current = null
-            }
-
             window.removeEventListener('pagehide', markAsLeft)
-            document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
     }, [meetingId])
 

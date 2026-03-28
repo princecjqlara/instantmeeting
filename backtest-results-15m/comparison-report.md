@@ -1,0 +1,32 @@
+# Backtest Comparison Report
+
+- Pair universe: BTCUSDT, ETHUSDT, BNBUSDT, SOLUSDT, XRPUSDT, ADAUSDT, DOGEUSDT
+- Historical period: 2024-01-01 to 2024-12-31
+- Interval: 15m
+
+## Best Rankings
+
+- Best raw return: conservative at 10 USDT (-39.3419%)
+- Best expectancy: aggressive at 10 USDT (-0.0026 USDT/trade)
+- Lowest drawdown: conservative at 10 USDT (40.2833%)
+- Best small account result: conservative at 10 USDT (-39.3419%)
+- Most practical starting equity: 100 USDT
+- Aggressive worth it after fees/slippage: no
+
+## Scenario Metrics
+
+| Mode | Equity | Final Equity | Raw Return % | Expectancy USDT | Max DD % | Trades | Skipped Minimums | Skipped Risk | Fees | Slippage |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| conservative | 10 | 6.0658 | -39.3419 | -0.004 | 40.2833 | 984 | 0 | 3985 | 2.7949 | 1.3975 |
+| conservative | 25 | 14.9176 | -40.3295 | -0.0102 | 41.4255 | 984 | 0 | 3985 | 7.386 | 3.693 |
+| conservative | 50 | 29.5185 | -40.9629 | -0.0208 | 42.0579 | 984 | 0 | 3985 | 15.0191 | 7.5095 |
+| conservative | 100 | 58.8469 | -41.1531 | -0.0418 | 42.2879 | 984 | 0 | 3985 | 30.286 | 15.143 |
+| balanced | 10 | 1.6893 | -83.1065 | -0.0034 | 83.5564 | 2477 | 217 | 4341 | 5.536 | 4.4288 |
+| balanced | 25 | 3.7439 | -85.0243 | -0.0085 | 85.1866 | 2505 | 6 | 4524 | 14.0945 | 11.2756 |
+| balanced | 50 | 7.0341 | -85.9318 | -0.0171 | 86.0944 | 2506 | 0 | 4529 | 28.3879 | 22.7104 |
+| balanced | 100 | 13.6815 | -86.3185 | -0.0344 | 86.4773 | 2506 | 0 | 4529 | 57.1277 | 45.7021 |
+| aggressive | 10 | 0.1304 | -98.6965 | -0.0026 | 98.8324 | 3827 | 5144 | 2093 | 5.1024 | 6.1229 |
+| aggressive | 25 | 0.1737 | -99.305 | -0.0055 | 99.3201 | 4505 | 3776 | 2783 | 12.8023 | 15.3628 |
+| aggressive | 50 | 0.2709 | -99.4582 | -0.0104 | 99.4732 | 4794 | 2995 | 3275 | 25.5549 | 30.6658 |
+| aggressive | 100 | 0.3386 | -99.6614 | -0.0195 | 99.6688 | 5104 | 2141 | 3819 | 51.161 | 61.3933 |
+

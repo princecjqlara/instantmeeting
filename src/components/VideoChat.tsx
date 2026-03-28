@@ -27,6 +27,7 @@ import {
     FaExclamationTriangle,
     FaBrain,
     FaDesktop,
+    FaDoorOpen,
 } from 'react-icons/fa'
 import styles from './VideoChat.module.css'
 
@@ -109,11 +110,13 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         isConnecting,
         error,
         activePresentation,
+        meetingEnded,
         toggleMute,
         toggleCamera,
         toggleScreenShare,
         sendChatMessage,
         sendPresentation,
+        endMeetingForAll,
         leaveRoom,
     } = useWebRTC(roomId, displayName)
 
@@ -134,6 +137,35 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         leaveRoom()
         onLeave()
     }
+
+    // Handle end meeting for all (host only)
+    const handleEndMeeting = async () => {
+        if (!confirm('End this meeting for everyone?')) return
+
+        try {
+            // Call the API to mark meeting as completed
+            await fetch(`/api/meetings/${roomId}/end`, {
+                method: 'POST',
+            })
+        } catch (err) {
+            console.error('Error ending meeting via API:', err)
+        }
+
+        // Broadcast end-meeting signal to all peers
+        endMeetingForAll()
+    }
+
+    // Auto-leave when meeting is ended by host (for non-host participants)
+    useEffect(() => {
+        if (!meetingEnded) return
+
+        const timer = setTimeout(() => {
+            leaveRoom()
+            onLeave()
+        }, 3000)
+
+        return () => clearTimeout(timer)
+    }, [meetingEnded, leaveRoom, onLeave])
 
     const handleChatSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -195,6 +227,20 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
             : totalParticipants === 2
                 ? styles.gridDuo
                 : styles.gridTrio
+
+    // ─── Meeting Ended Overlay ──────────────────────────────────────────────
+    if (meetingEnded) {
+        return (
+            <div className={styles.errorContainer}>
+                <FaDoorOpen className={styles.errorIcon} style={{ color: '#ff6b6b' }} />
+                <h2>Meeting Ended</h2>
+                <p>{isHost ? 'You ended the meeting for everyone.' : 'The host has ended this meeting.'}</p>
+                <button onClick={onLeave} className={styles.leaveBtn}>
+                    {isHost ? 'Back to Dashboard' : 'Leave'}
+                </button>
+            </div>
+        )
+    }
 
     return (
         <div className={styles.container}>
@@ -352,6 +398,17 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                     >
                         <FaBrain />
                         <span className={styles.aiBadge}>AI</span>
+                    </button>
+                )}
+
+                {/* End Meeting — Host Only */}
+                {isHost && (
+                    <button
+                        onClick={handleEndMeeting}
+                        className={`${styles.controlBtn} ${styles.endMeetingBtn}`}
+                        title="End meeting for all"
+                    >
+                        <FaDoorOpen />
                     </button>
                 )}
 

@@ -13,11 +13,11 @@
 
 'use client'
 
-import { useState, use, useEffect, useRef } from 'react'
+import { useState, use, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
-import { FaVideo, FaArrowRight } from 'react-icons/fa'
+import { FaVideo, FaArrowRight, FaDoorOpen } from 'react-icons/fa'
 import styles from './page.module.css'
 
 interface RoomPageProps {
@@ -34,6 +34,7 @@ export default function RoomPage({ params }: RoomPageProps) {
     const [displayName, setDisplayName] = useState<string>('')
     const [nameInput, setNameInput] = useState('')
     const [hasJoined, setHasJoined] = useState(false)
+    const [meetingEndedExternally, setMeetingEndedExternally] = useState(false)
 
     useEffect(() => {
         if (!session?.user?.email || hasMarkedHostJoinedRef.current) {
@@ -71,12 +72,59 @@ export default function RoomPage({ params }: RoomPageProps) {
     }, [session, roomId])
 
     // Handle leaving the room — go back to home or dashboard
-    const handleLeave = () => {
+    const handleLeave = useCallback(() => {
         if (session) {
             router.push('/host/dashboard')
         } else {
             router.push('/')
         }
+    }, [session, router])
+
+    // Poll meeting status to detect if host ended from dashboard
+    useEffect(() => {
+        if (!hasJoined) return
+
+        const checkMeetingStatus = async () => {
+            try {
+                const res = await fetch(`/api/waiting?meetingId=${roomId}`)
+                if (res.ok) {
+                    const data = await res.json()
+                    if (data.meeting?.status === 'completed') {
+                        setMeetingEndedExternally(true)
+                    }
+                }
+            } catch {
+                // Ignore polling errors
+            }
+        }
+
+        const interval = setInterval(checkMeetingStatus, 15000)
+        return () => clearInterval(interval)
+    }, [hasJoined, roomId])
+
+    // Auto-redirect when meeting ended externally
+    useEffect(() => {
+        if (!meetingEndedExternally) return
+        const timer = setTimeout(handleLeave, 4000)
+        return () => clearTimeout(timer)
+    }, [meetingEndedExternally, handleLeave])
+
+    // Meeting ended externally (host ended from dashboard)
+    if (meetingEndedExternally) {
+        return (
+            <div className={styles.container}>
+                <div className={styles.joinCard}>
+                    <div className={styles.iconWrapper} style={{ color: '#ff6b6b' }}>
+                        <FaDoorOpen />
+                    </div>
+                    <h1>Meeting Ended</h1>
+                    <p>The host has ended this meeting. You will be redirected shortly.</p>
+                    <button onClick={handleLeave} className={styles.joinBtn}>
+                        Leave Now
+                    </button>
+                </div>
+            </div>
+        )
     }
 
     // If we have a name and have joined, show the video chat

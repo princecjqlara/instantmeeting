@@ -1,0 +1,72 @@
+
+> instantmeeting@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.110.239:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 2.1s
+ GET /api/auth/csrf 200 in 1534ms (compile: 1487ms, render: 46ms)
+ GET /api/auth/csrf 200 in 49ms (compile: 13ms, render: 36ms)
+ POST /api/auth/setup 409 in 762ms (compile: 82ms, render: 680ms)
+ GET /api/auth/csrf 200 in 35ms (compile: 14ms, render: 22ms)
+ POST /api/auth/callback/credentials 200 in 517ms (compile: 7ms, render: 510ms)
+ POST /api/admin/tenants 201 in 984ms (compile: 80ms, render: 904ms)
+ GET /api/auth/csrf 200 in 33ms (compile: 10ms, render: 23ms)
+ POST /api/auth/callback/credentials 200 in 539ms (compile: 2ms, render: 537ms)
+ POST /api/waiting 200 in 1383ms (compile: 448ms, render: 935ms)
+Waiting API called with meetingId: 029b2686-8b10-41d1-8fea-0044f58843ea guestId: be6f2215-9818-495b-9622-d90deb51ca3e
+ GET /api/waiting?meetingId=029b2686-8b10-41d1-8fea-0044f58843ea&guestId=be6f2215-9818-495b-9622-d90deb51ca3e 200 in 1423ms (compile: 3ms, render: 1420ms)
+ PATCH /api/waiting 200 in 284ms (compile: 3ms, render: 281ms)
+Waiting API called with meetingId: 029b2686-8b10-41d1-8fea-0044f58843ea guestId: be6f2215-9818-495b-9622-d90deb51ca3e
+ GET /api/waiting?meetingId=029b2686-8b10-41d1-8fea-0044f58843ea&guestId=be6f2215-9818-495b-9622-d90deb51ca3e 200 in 668ms (compile: 2ms, render: 666ms)
+ POST /api/waiting 200 in 419ms (compile: 2ms, render: 417ms)
+ PATCH /api/waiting 200 in 276ms (compile: 1898µs, render: 274ms)
+ POST /api/waiting 200 in 406ms (compile: 1866µs, render: 404ms)
+ PATCH /api/waiting 400 in 8ms (compile: 2ms, render: 5ms)
+ PATCH /api/waiting 400 in 8ms (compile: 2ms, render: 5ms)
+ PATCH /api/waiting 200 in 282ms (compile: 2ms, render: 279ms)
+ POST /api/waiting 200 in 411ms (compile: 1630µs, render: 409ms)
+ POST /api/meetings/public 200 in 474ms (compile: 60ms, render: 414ms)
+ PATCH /api/waiting 200 in 271ms (compile: 2ms, render: 269ms)
+Waiting API called with meetingId: 029b2686-8b10-41d1-8fea-0044f58843ea guestId: 8a7524bd-8bb2-476c-9e2b-dc0c0fcb790b
+ GET /api/waiting?meetingId=029b2686-8b10-41d1-8fea-0044f58843ea&guestId=8a7524bd-8bb2-476c-9e2b-dc0c0fcb790b 200 in 735ms (compile: 2ms, render: 733ms)
+ GET /api/join/1c189827-6479-42e6-87e4-3cea2f37341d 307 in 1415ms (compile: 1150ms, render: 265ms)
+Waiting API called with meetingId: 029b2686-8b10-41d1-8fea-0044f58843ea guestId: 8a7524bd-8bb2-476c-9e2b-dc0c0fcb790b
+ GET /api/waiting?meetingId=029b2686-8b10-41d1-8fea-0044f58843ea&guestId=8a7524bd-8bb2-476c-9e2b-dc0c0fcb790b 200 in 730ms (compile: 2ms, render: 728ms)
+ GET /api/join/1c189827-6479-42e6-87e4-3cea2f37341d 307 in 286ms (compile: 8ms, render: 278ms)
+ GET /room/debug-room 200 in 3.9s (compile: 3.5s, render: 442ms)
+ GET /api/auth/session 200 in 62ms (compile: 26ms, render: 36ms)
+ GET /room/debug-two 200 in 75ms (compile: 17ms, render: 59ms)
+ GET /api/auth/session 200 in 39ms (compile: 11ms, render: 28ms)
+ GET /room/debug-two 200 in 76ms (compile: 17ms, render: 59ms)
+ GET /api/auth/session 200 in 42ms (compile: 13ms, render: 30ms)
+ POST /api/waiting 200 in 826ms (compile: 102ms, render: 724ms)
+Waiting API called with meetingId: b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04 guestId: 445a374b-7b79-484e-a98b-2ec97f44dc70
+ GET /api/waiting?meetingId=b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04&guestId=445a374b-7b79-484e-a98b-2ec97f44dc70 200 in 1205ms (compile: 3ms, render: 1202ms)
+ PATCH /api/waiting 200 in 282ms (compile: 3ms, render: 279ms)
+Waiting API called with meetingId: b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04 guestId: 445a374b-7b79-484e-a98b-2ec97f44dc70
+ GET /api/waiting?meetingId=b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04&guestId=445a374b-7b79-484e-a98b-2ec97f44dc70 200 in 493ms (compile: 3ms, render: 491ms)
+ POST /api/waiting 200 in 428ms (compile: 3ms, render: 425ms)
+ PATCH /api/waiting 200 in 282ms (compile: 2ms, render: 280ms)
+ POST /api/waiting 200 in 419ms (compile: 2ms, render: 417ms)
+ PATCH /api/waiting 400 in 8ms (compile: 2ms, render: 6ms)
+ PATCH /api/waiting 400 in 9ms (compile: 2ms, render: 6ms)
+ PATCH /api/waiting 200 in 286ms (compile: 3ms, render: 283ms)
+ POST /api/waiting 200 in 453ms (compile: 2ms, render: 450ms)
+ POST /api/meetings/public 200 in 427ms (compile: 4ms, render: 423ms)
+ PATCH /api/waiting 200 in 291ms (compile: 2ms, render: 288ms)
+Waiting API called with meetingId: b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04 guestId: 1fa6ca02-6e03-40c5-94b9-9d011b889fab
+ GET /api/waiting?meetingId=b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04&guestId=1fa6ca02-6e03-40c5-94b9-9d011b889fab 200 in 499ms (compile: 3ms, render: 496ms)
+ GET /api/join/eaf94243-1ec8-45da-b1f0-363c8a4fdb40 307 in 475ms (compile: 110ms, render: 365ms)
+Waiting API called with meetingId: b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04 guestId: 1fa6ca02-6e03-40c5-94b9-9d011b889fab
+ GET /api/waiting?meetingId=b39ac29e-7095-4ecf-9bf3-6e0bbb1ade04&guestId=1fa6ca02-6e03-40c5-94b9-9d011b889fab 200 in 604ms (compile: 2ms, render: 601ms)
+ GET /api/join/eaf94243-1ec8-45da-b1f0-363c8a4fdb40 307 in 301ms (compile: 10ms, render: 292ms)
+ GET /room/debug-two 200 in 226ms (compile: 96ms, render: 130ms)
+ GET /api/auth/session 200 in 43ms (compile: 9ms, render: 34ms)
+ GET /room/debug-two 200 in 65ms (compile: 12ms, render: 53ms)
+ GET /api/auth/session 200 in 29ms (compile: 11ms, render: 18ms)
+^C
