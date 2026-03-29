@@ -612,8 +612,11 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                     recognition.interimResults = true
                                     recognition.continuous = true
 
-                                    // Accumulate transcript locally and send live updates
+                                    // Accumulate transcript locally and send throttled live updates
                                     let accumulated = ''
+                                    let lastInterimSent = 0
+                                    let pendingInterimId: ReturnType<typeof setTimeout> | null = null
+
                                     recognition.onresult = (event: any) => {
                                         let finalText = ''
                                         let interimText = ''
@@ -627,17 +630,35 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                         }
                                         accumulated = finalText.trim()
                                         const liveText = (finalText + interimText).trim()
-                                        if (liveText) {
+                                        if (!liveText) return
+
+                                        // Throttle interim signals to max once per 500ms
+                                        const now = Date.now()
+                                        if (pendingInterimId) clearTimeout(pendingInterimId)
+
+                                        if (now - lastInterimSent >= 500) {
+                                            lastInterimSent = now
                                             sendSignal({
                                                 type: 'recognition-interim',
                                                 from: peerId,
                                                 text: liveText,
                                             })
+                                        } else {
+                                            // Schedule a send for the latest text
+                                            pendingInterimId = setTimeout(() => {
+                                                lastInterimSent = Date.now()
+                                                sendSignal({
+                                                    type: 'recognition-interim',
+                                                    from: peerId,
+                                                    text: liveText,
+                                                })
+                                            }, 500 - (now - lastInterimSent))
                                         }
                                     }
 
                                     // Send final transcript when recognition ends
                                     recognition.onend = () => {
+                                        if (pendingInterimId) clearTimeout(pendingInterimId)
                                         if (accumulated.trim()) {
                                             sendSignal({
                                                 type: 'recognition-result',
@@ -650,7 +671,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
                                     recognition.onerror = (event: any) => {
                                         console.error('Speech recognition error:', event.error)
-                                        // Send whatever was accumulated before the error
+                                        if (pendingInterimId) clearTimeout(pendingInterimId)
                                         if (accumulated.trim()) {
                                             sendSignal({
                                                 type: 'recognition-result',
