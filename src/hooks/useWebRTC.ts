@@ -49,6 +49,7 @@ export interface RemoteStream {
 interface PeerData {
     connection: RTCPeerConnection
     name: string
+    pendingCandidates: RTCIceCandidateInit[]
 }
 
 export interface PresentationSlideData {
@@ -169,7 +170,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 // Replace track in all peer connections
                 peersRef.current.forEach((peer) => {
                     const sender = peer.connection.getSenders().find(
-                        (s) => s.track?.kind === 'video' || (!s.track && s.track !== undefined)
+                        (s) => s.track?.kind === 'video'
                     )
                     if (sender) {
                         sender.replaceTrack(cameraTrack).catch(console.warn)
@@ -323,19 +324,24 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
             // Handle incoming tracks from the remote peer
             pc.ontrack = (event) => {
-                const [remoteStream] = event.streams
+                // Use event.streams if available, otherwise create a new MediaStream
+                let remoteStream = event.streams?.[0]
+                if (!remoteStream && event.track) {
+                    remoteStream = new MediaStream([event.track])
+                }
+
                 if (remoteStream) {
                     setRemoteStreams(prev => {
-                        // Update existing stream or add new one
                         const exists = prev.find(s => s.peerId === remotePeerId)
                         if (exists) {
+                            // Force new object reference so React detects the update
                             return prev.map(s =>
                                 s.peerId === remotePeerId
-                                    ? { ...s, stream: remoteStream }
+                                    ? { peerId: s.peerId, name: s.name, stream: remoteStream! }
                                     : s
                             )
                         }
-                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: remoteStream }]
+                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: remoteStream! }]
                     })
                 }
             }
@@ -357,7 +363,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
             }
 
             // Store the peer connection
-            peersRef.current.set(remotePeerId, { connection: pc, name: remoteName })
+            peersRef.current.set(remotePeerId, { connection: pc, name: remoteName, pendingCandidates: [] })
 
             return pc
         }
@@ -390,6 +396,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
             // Set the remote offer and create our answer
             await pc.setRemoteDescription(new RTCSessionDescription(offerData))
+            await flushPendingCandidates(remotePeerId)
             const answer = await pc.createAnswer()
             await pc.setLocalDescription(answer)
 
@@ -409,18 +416,38 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
             const peer = peersRef.current.get(remotePeerId)
             if (peer && !peer.connection.currentRemoteDescription) {
                 await peer.connection.setRemoteDescription(new RTCSessionDescription(answerData))
+                await flushPendingCandidates(remotePeerId)
             }
         }
 
         /**
          * Handle an incoming ICE candidate from a remote peer.
+         * Queues candidates that arrive before remote description is set.
          */
         const handleCandidate = async (remotePeerId: string, candidateData: RTCIceCandidateInit) => {
             const peer = peersRef.current.get(remotePeerId)
-            if (peer && peer.connection.remoteDescription) {
+            if (!peer) return
+
+            if (peer.connection.remoteDescription) {
                 await peer.connection.addIceCandidate(new RTCIceCandidate(candidateData))
                     .catch(err => console.warn('[WebRTC] Error adding ICE candidate:', err))
+            } else {
+                // Queue for later — will be flushed after remote description is set
+                peer.pendingCandidates.push(candidateData)
             }
+        }
+
+        /**
+         * Flush queued ICE candidates after remote description is set.
+         */
+        const flushPendingCandidates = async (remotePeerId: string) => {
+            const peer = peersRef.current.get(remotePeerId)
+            if (!peer) return
+            for (const candidate of peer.pendingCandidates) {
+                await peer.connection.addIceCandidate(new RTCIceCandidate(candidate))
+                    .catch(err => console.warn('[WebRTC] Error adding queued ICE candidate:', err))
+            }
+            peer.pendingCandidates = []
         }
 
         /**

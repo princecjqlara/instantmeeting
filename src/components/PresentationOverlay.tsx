@@ -24,6 +24,7 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [showPicker, setShowPicker] = useState(false)
     const [isActive, setIsActive] = useState(false)
+    const [mediaError, setMediaError] = useState<string | null>(null)
     const videoRef = useRef<HTMLVideoElement>(null)
 
     // Fetch presentations for host
@@ -77,6 +78,7 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
     const goToSlide = (index: number) => {
         if (index < 0 || index >= slides.length) return
         setCurrentIndex(index)
+        setMediaError(null)
         broadcastSlide(index)
     }
 
@@ -103,6 +105,11 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
         }
     }, [currentIndex, isActive])
 
+    // Clear media error when slide changes
+    useEffect(() => {
+        setMediaError(null)
+    }, [activeSlide?.index, activeSlide?.url])
+
     // ─── Guest View: Show what host is broadcasting ──────────
     if (!isHost) {
         if (!activeSlide) return null
@@ -114,15 +121,26 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
                         <span className={styles.slideCounter}>{activeSlide.index + 1} / {activeSlide.total}</span>
                     </div>
                     <div className={styles.slideContent}>
-                        {activeSlide.type === 'video' ? (
+                        {mediaError ? (
+                            <div style={{ color: '#ff6b6b', textAlign: 'center', padding: '40px 20px', fontSize: 14 }}>
+                                <p style={{ margin: 0 }}>Failed to load slide</p>
+                                <p style={{ margin: '4px 0 0', opacity: 0.7, fontSize: 12 }}>{mediaError}</p>
+                            </div>
+                        ) : activeSlide.type === 'video' ? (
                             <video
                                 src={activeSlide.url}
                                 autoPlay
                                 controls
                                 className={styles.slideMedia}
+                                onError={() => setMediaError('Video could not be loaded')}
                             />
                         ) : (
-                            <img src={activeSlide.url} alt="Presentation" className={styles.slideMedia} />
+                            <img
+                                src={activeSlide.url}
+                                alt="Presentation"
+                                className={styles.slideMedia}
+                                onError={() => setMediaError('Image could not be loaded')}
+                            />
                         )}
                     </div>
                 </div>
@@ -202,7 +220,12 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
 
                 {/* Slide */}
                 <div className={styles.slideContent}>
-                    {currentSlide?.media_type === 'video' ? (
+                    {mediaError ? (
+                        <div style={{ color: '#ff6b6b', textAlign: 'center', padding: '40px 20px', fontSize: 14 }}>
+                            <p style={{ margin: 0 }}>Failed to load slide</p>
+                            <p style={{ margin: '4px 0 0', opacity: 0.7, fontSize: 12 }}>{mediaError}</p>
+                        </div>
+                    ) : currentSlide?.media_type === 'video' ? (
                         <video
                             ref={videoRef}
                             key={currentSlide.id}
@@ -210,12 +233,14 @@ export default function PresentationOverlay({ isHost, activeSlide, onSlideChange
                             controls
                             autoPlay
                             className={styles.slideMedia}
+                            onError={() => setMediaError('Video could not be loaded')}
                         />
                     ) : (
                         <img
                             src={currentSlide?.media_url}
                             alt={`Slide ${currentIndex + 1}`}
                             className={styles.slideMedia}
+                            onError={() => setMediaError('Image could not be loaded')}
                         />
                     )}
 
