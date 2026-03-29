@@ -74,6 +74,7 @@ interface UseWebRTCReturn {
     guestTranscript: string | null
     liveTranscript: string | null
     recognitionError: string | null
+    shouldStopWelcomeAudio: boolean
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
@@ -84,6 +85,7 @@ interface UseWebRTCReturn {
     startGuestRecognition: () => void
     stopGuestRecognition: () => void
     clearGuestTranscript: () => void
+    sendStopWelcomeAudio: () => void
 }
 
 const MEDIA_INIT_TIMEOUT_MS = 15000
@@ -104,9 +106,10 @@ type SignalMessage =
     | { type: 'recognition-result'; from: string; text: string }
     | { type: 'recognition-interim'; from: string; text: string }
     | { type: 'recognition-error'; from: string; error: string }
+    | { type: 'stop-welcome-audio'; from: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
-export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
+export function useWebRTC(roomId: string, displayName: string, isHost = false): UseWebRTCReturn {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null)
     const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -120,6 +123,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [guestTranscript, setGuestTranscript] = useState<string | null>(null)
     const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
     const [recognitionError, setRecognitionError] = useState<string | null>(null)
+    const [shouldStopWelcomeAudio, setShouldStopWelcomeAudio] = useState(false)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -529,6 +533,15 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                 localStreamRef.current = stream
                 setLocalStream(stream)
 
+                // Guests join with mic muted by default
+                if (!isHost) {
+                    const audioTrack = stream.getAudioTracks()[0]
+                    if (audioTrack) {
+                        audioTrack.enabled = false
+                        setIsMuted(true)
+                    }
+                }
+
                 // Step 2: Create and subscribe to Supabase Realtime Broadcast channel
                 const channel = supabase.channel(`room:${roomId}`, {
                     config: { broadcast: { self: false } },
@@ -745,6 +758,12 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                 setRecognitionError(message.error)
                             }
                             break
+
+                        case 'stop-welcome-audio':
+                            if (message.from !== peerId) {
+                                setShouldStopWelcomeAudio(true)
+                            }
+                            break
                     }
                 })
 
@@ -903,6 +922,12 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
     const clearGuestTranscript = useCallback(() => setGuestTranscript(null), [])
 
+    const sendStopWelcomeAudio = useCallback(() => {
+        const sendSignal = sendSignalRef.current
+        if (!peerIdRef.current || !sendSignal) return
+        sendSignal({ type: 'stop-welcome-audio', from: peerIdRef.current })
+    }, [])
+
     return {
         localStream,
         remoteStreams,
@@ -924,8 +949,10 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         guestTranscript,
         liveTranscript,
         recognitionError,
+        shouldStopWelcomeAudio,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
+        sendStopWelcomeAudio,
     }
 }

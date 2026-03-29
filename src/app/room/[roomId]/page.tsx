@@ -172,6 +172,13 @@ export default function RoomPage({ params }: RoomPageProps) {
                 displayName={displayName}
                 onLeave={handleLeave}
                 isHost={!!session?.user}
+                onStopWelcomeAudio={() => {
+                    if (welcomeAudioRef.current) {
+                        welcomeAudioRef.current.pause()
+                        welcomeAudioRef.current.src = ''
+                        welcomeAudioRef.current = null
+                    }
+                }}
             />
         )
     }

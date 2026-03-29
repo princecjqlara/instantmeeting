@@ -28,6 +28,7 @@ import {
     FaBrain,
     FaDesktop,
     FaDoorOpen,
+    FaVolumeMute,
 } from 'react-icons/fa'
 import styles from './VideoChat.module.css'
 
@@ -40,6 +41,8 @@ interface VideoChatProps {
     onLeave: () => void
     /** Whether this user is the host (authenticated). AI panel only shown for hosts. */
     isHost?: boolean
+    /** Called when the host sends a stop-welcome-audio signal (guest side) */
+    onStopWelcomeAudio?: () => void
 }
 
 /**
@@ -111,7 +114,7 @@ function VideoTile({
     )
 }
 
-export default function VideoChat({ roomId, displayName, onLeave, isHost = false }: VideoChatProps) {
+export default function VideoChat({ roomId, displayName, onLeave, isHost = false, onStopWelcomeAudio }: VideoChatProps) {
     const {
         localStream,
         remoteStreams,
@@ -133,12 +136,21 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         guestTranscript,
         liveTranscript,
         recognitionError,
+        shouldStopWelcomeAudio,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
-    } = useWebRTC(roomId, displayName)
+        sendStopWelcomeAudio,
+    } = useWebRTC(roomId, displayName, isHost)
 
     const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
+
+    // Guest: stop welcome audio when host sends the signal
+    useEffect(() => {
+        if (shouldStopWelcomeAudio && onStopWelcomeAudio) {
+            onStopWelcomeAudio()
+        }
+    }, [shouldStopWelcomeAudio, onStopWelcomeAudio])
 
     const [isChatOpen, setIsChatOpen] = useState(false)
     const [chatInput, setChatInput] = useState('')
@@ -394,6 +406,14 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                 </form>
             </aside>
 
+            {/* ─── Unmute Tip (Guest only, shown while muted) ──────────────── */}
+            {!isHost && isMuted && (
+                <div className={styles.unmuteTip}>
+                    <FaMicrophoneSlash className={styles.unmuteTipIcon} />
+                    <span>Your mic is muted — click <FaMicrophone style={{ verticalAlign: 'middle' }} /> to speak</span>
+                </div>
+            )}
+
             {/* ─── Control Bar ────────────────────────────────────────────────── */}
             <div className={styles.controlBar}>
                 <button
@@ -449,6 +469,17 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                     >
                         <FaBrain />
                         <span className={styles.aiBadge}>AI</span>
+                    </button>
+                )}
+
+                {/* Stop Welcome Audio — Host Only */}
+                {isHost && (
+                    <button
+                        onClick={sendStopWelcomeAudio}
+                        className={`${styles.controlBtn} ${styles.stopAudioBtn}`}
+                        title="Stop guest welcome audio"
+                    >
+                        <FaVolumeMute />
                     </button>
                 )}
 
