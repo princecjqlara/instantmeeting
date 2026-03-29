@@ -106,9 +106,22 @@ export default function AIAssistantPanel({
 
         fetch(`/api/ai/meeting-config?meetingId=${roomId}`)
             .then((res) => res.json())
-            .then((data) => {
+            .then(async (data) => {
                 if (data.ai_objective) setObjective(data.ai_objective)
                 if (data.ai_flow) setFlowSteps(data.ai_flow)
+                // Resolve knowledge base name from ID
+                if (data.ai_knowledge_base_id) {
+                    try {
+                        const kbRes = await fetch('/api/ai/knowledge-base')
+                        if (kbRes.ok) {
+                            const kbs = await kbRes.json()
+                            const match = kbs.find((kb: any) => kb.id === data.ai_knowledge_base_id)
+                            if (match) setKnowledgeBaseName(match.name)
+                        }
+                    } catch {
+                        // KB name lookup failed — non-critical
+                    }
+                }
             })
             .catch(() => {
                 // Config not found — that's fine

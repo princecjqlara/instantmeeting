@@ -164,6 +164,14 @@ export default function RoomPage({ params }: RoomPageProps) {
         )
     }
 
+    const handleStopWelcomeAudio = useCallback(() => {
+        if (welcomeAudioRef.current) {
+            welcomeAudioRef.current.pause()
+            welcomeAudioRef.current.src = ''
+            welcomeAudioRef.current = null
+        }
+    }, [])
+
     // If we have a name and have joined, show the video chat
     if (hasJoined && displayName) {
         return (
@@ -172,13 +180,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                 displayName={displayName}
                 onLeave={handleLeave}
                 isHost={!!session?.user}
-                onStopWelcomeAudio={() => {
-                    if (welcomeAudioRef.current) {
-                        welcomeAudioRef.current.pause()
-                        welcomeAudioRef.current.src = ''
-                        welcomeAudioRef.current = null
-                    }
-                }}
+                onStopWelcomeAudio={handleStopWelcomeAudio}
             />
         )
     }
