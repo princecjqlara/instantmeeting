@@ -197,7 +197,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         return () => clearTimeout(timer)
     }, [meetingEnded, leaveRoom, onLeave])
 
-    // Auto-end meeting for host when all guests have left
+    // Auto-end meeting for host when no guests are present
     const hadRemotePeersRef = useRef(false)
     useEffect(() => {
         if (!isHost || meetingEnded) return
@@ -208,20 +208,18 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
             return
         }
 
-        // If we had peers and now they're all gone, auto-end after a delay
-        if (hadRemotePeersRef.current && remoteStreams.length === 0) {
-            const timer = setTimeout(async () => {
-                // Double-check still no peers after the delay
-                if (hadRemotePeersRef.current) {
-                    try {
-                        await fetch(`/api/meetings/${roomId}/end`, { method: 'POST' })
-                    } catch {}
-                    endMeetingForAll()
-                }
-            }, 10000) // 10s grace period
+        // No guests present — auto-end after a grace period
+        // 10s if guests already left, 2 minutes if nobody ever joined
+        const delay = hadRemotePeersRef.current ? 10000 : 120000
 
-            return () => clearTimeout(timer)
-        }
+        const timer = setTimeout(async () => {
+            try {
+                await fetch(`/api/meetings/${roomId}/end`, { method: 'POST' })
+            } catch {}
+            endMeetingForAll()
+        }, delay)
+
+        return () => clearTimeout(timer)
     }, [isHost, remoteStreams.length, meetingEnded, roomId, endMeetingForAll])
 
     const handleChatSubmit = (event: React.FormEvent<HTMLFormElement>) => {
