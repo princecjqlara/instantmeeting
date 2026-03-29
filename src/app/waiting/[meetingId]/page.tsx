@@ -204,7 +204,10 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
                 if (!response.ok) {
                     console.error('API error:', result.error)
-                    setError(result.error || 'Meeting not found')
+                    if (isMounted) {
+                        setError(result.error || 'Meeting not found')
+                        setLoading(false)
+                    }
                     return
                 }
 
@@ -425,6 +428,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     if (loading && !data) {
         return (
+            <InAppBrowserGate>
             <div className={styles.container}>
                 {/* Skeleton loading UI */}
                 <div className={styles.reelSection}>
@@ -447,16 +451,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     </div>
                 </div>
             </div>
+            </InAppBrowserGate>
         )
     }
 
     if (error) {
         return (
+            <InAppBrowserGate>
             <div className={styles.error}>
                 <h2>Oops!</h2>
                 <p>{error}</p>
                 <a href="/" className="button-secondary">Go Home</a>
             </div>
+            </InAppBrowserGate>
         )
     }
 
