@@ -8,6 +8,7 @@ import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
+import InAppBrowserGate from '@/components/InAppBrowserGate'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -487,6 +488,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     // Waiting room with reels
     return (
+        <InAppBrowserGate>
         <div ref={containerRef} className={styles.container}>
             {/* Reel Player */}
             <div className={styles.reelSection}>
@@ -691,5 +693,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             )}
 
         </div>
+        </InAppBrowserGate>
     )
 }
