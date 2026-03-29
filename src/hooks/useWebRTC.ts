@@ -137,24 +137,71 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     const cleanupRef = useRef<(() => void) | null>(null)
 
     // ─── Toggle Mute ────────────────────────────────────────────────────────
-    const toggleMute = useCallback(() => {
-        if (localStreamRef.current) {
-            const audioTrack = localStreamRef.current.getAudioTracks()[0]
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled
-                setIsMuted(!audioTrack.enabled)
+    const toggleMute = useCallback(async () => {
+        // If no stream yet (joined without media), request mic now
+        if (!localStreamRef.current) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+                const audioTrack = stream.getAudioTracks()[0]
+                if (!audioTrack) return
+                const existing = localStreamRef.current as MediaStream | null
+                if (existing) {
+                    existing.addTrack(audioTrack)
+                } else {
+                    localStreamRef.current = stream
+                }
+                setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
+                peersRef.current.forEach((peer) => {
+                    peer.connection.addTrack(audioTrack, localStreamRef.current!)
+                })
+                setIsMuted(false)
+                return
+            } catch {
+                console.warn('[WebRTC] Could not get microphone')
+                return
             }
+        }
+
+        const audioTrack = localStreamRef.current.getAudioTracks()[0]
+        if (audioTrack) {
+            audioTrack.enabled = !audioTrack.enabled
+            setIsMuted(!audioTrack.enabled)
         }
     }, [])
 
     // ─── Toggle Camera ──────────────────────────────────────────────────────
-    const toggleCamera = useCallback(() => {
-        if (localStreamRef.current) {
-            const videoTrack = localStreamRef.current.getVideoTracks()[0]
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled
-                setIsCameraOff(!videoTrack.enabled)
+    const toggleCamera = useCallback(async () => {
+        // If no stream or no video tracks yet, request camera now
+        if (!localStreamRef.current || localStreamRef.current.getVideoTracks().length === 0) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+                })
+                const videoTrack = stream.getVideoTracks()[0]
+                if (!videoTrack) return
+                const existing = localStreamRef.current as MediaStream | null
+                if (existing) {
+                    existing.addTrack(videoTrack)
+                } else {
+                    localStreamRef.current = stream
+                }
+                cameraTrackRef.current = videoTrack
+                setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
+                peersRef.current.forEach((peer) => {
+                    peer.connection.addTrack(videoTrack, localStreamRef.current!)
+                })
+                setIsCameraOff(false)
+                return
+            } catch {
+                console.warn('[WebRTC] Could not get camera')
+                return
             }
+        }
+
+        const videoTrack = localStreamRef.current.getVideoTracks()[0]
+        if (videoTrack) {
+            videoTrack.enabled = !videoTrack.enabled
+            setIsCameraOff(!videoTrack.enabled)
         }
     }, [])
 
@@ -495,15 +542,13 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          */
         const init = async () => {
             try {
-                // Step 1: Get local media stream (camera + microphone)
-                if (!navigator.mediaDevices?.getUserMedia) {
-                    throw new Error('MEDIA_DEVICES_UNAVAILABLE')
-                }
-
-                let mediaTimeoutId: ReturnType<typeof setTimeout> | null = null
-                const stream = await (async () => {
+                // Step 1: Try to get local media stream (camera + microphone)
+                // If permission is denied or unavailable, join without media
+                let stream: MediaStream | null = null
+                if (navigator.mediaDevices?.getUserMedia) {
+                    let mediaTimeoutId: ReturnType<typeof setTimeout> | null = null
                     try {
-                        return await Promise.race([
+                        stream = await Promise.race([
                             navigator.mediaDevices.getUserMedia({
                                 video: {
                                     width: { ideal: 1280 },
@@ -522,24 +567,33 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 }, MEDIA_INIT_TIMEOUT_MS)
                             }),
                         ])
+                    } catch (mediaErr) {
+                        console.warn('[WebRTC] Media access failed, joining without camera/mic:', mediaErr)
+                        // Continue without media — user can enable later
                     } finally {
                         if (mediaTimeoutId) {
                             clearTimeout(mediaTimeoutId)
                             mediaTimeoutId = null
                         }
                     }
-                })()
+                }
 
-                localStreamRef.current = stream
-                setLocalStream(stream)
+                if (stream) {
+                    localStreamRef.current = stream
+                    setLocalStream(stream)
 
-                // Guests join with mic muted by default
-                if (!isHost) {
-                    const audioTrack = stream.getAudioTracks()[0]
-                    if (audioTrack) {
-                        audioTrack.enabled = false
-                        setIsMuted(true)
+                    // Guests join with mic muted by default
+                    if (!isHost) {
+                        const audioTrack = stream.getAudioTracks()[0]
+                        if (audioTrack) {
+                            audioTrack.enabled = false
+                            setIsMuted(true)
+                        }
                     }
+                } else {
+                    // No media — mark camera and mic as off
+                    setIsCameraOff(true)
+                    setIsMuted(true)
                 }
 
                 // Step 2: Create and subscribe to Supabase Realtime Broadcast channel
@@ -806,17 +860,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 }, REALTIME_SUBSCRIBE_TIMEOUT_MS)
             } catch (err) {
                 console.error('[WebRTC] Init error:', err)
-                if (err instanceof Error && err.message === 'MEDIA_PERMISSION_TIMEOUT') {
-                    setError('Camera/microphone permission is still pending. Please allow access and try again.')
-                } else if (err instanceof Error && err.message === 'MEDIA_DEVICES_UNAVAILABLE') {
-                    setError('Camera/microphone is unavailable in this browser context. Use HTTPS (or localhost) and try again.')
-                } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
-                    setError('Camera/microphone access denied. Please allow access and try again.')
-                } else if (err instanceof DOMException && err.name === 'NotFoundError') {
-                    setError('No camera or microphone found. Please connect a device and try again.')
-                } else {
-                    setError('Failed to initialize video chat. Please try again.')
-                }
+                setError('Failed to initialize video chat. Please try again.')
                 setIsConnecting(false)
             }
         }
