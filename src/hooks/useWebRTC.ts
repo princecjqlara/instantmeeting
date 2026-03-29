@@ -72,6 +72,7 @@ interface UseWebRTCReturn {
     activePresentation: PresentationSlideData | null
     meetingEnded: boolean
     guestTranscript: string | null
+    liveTranscript: string | null
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
@@ -100,6 +101,7 @@ type SignalMessage =
     | { type: 'start-recognition'; from: string }
     | { type: 'stop-recognition'; from: string }
     | { type: 'recognition-result'; from: string; text: string }
+    | { type: 'recognition-interim'; from: string; text: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
@@ -114,6 +116,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [activePresentation, setActivePresentation] = useState<PresentationSlideData | null>(null)
     const [meetingEnded, setMeetingEnded] = useState(false)
     const [guestTranscript, setGuestTranscript] = useState<string | null>(null)
+    const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -606,15 +609,31 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                     }
                                     const recognition = new SpeechRecognition()
                                     recognition.lang = 'fil-PH'
-                                    recognition.interimResults = false
+                                    recognition.interimResults = true
                                     recognition.continuous = true
 
-                                    // Accumulate transcript locally, send only when stopped
+                                    // Accumulate transcript locally and send live updates
                                     let accumulated = ''
                                     recognition.onresult = (event: any) => {
-                                        accumulated = Array.from(event.results)
-                                            .map((result: any) => result[0].transcript)
-                                            .join(' ')
+                                        let finalText = ''
+                                        let interimText = ''
+                                        for (let i = 0; i < event.results.length; i++) {
+                                            const result = event.results[i]
+                                            if (result.isFinal) {
+                                                finalText += result[0].transcript + ' '
+                                            } else {
+                                                interimText += result[0].transcript
+                                            }
+                                        }
+                                        accumulated = finalText.trim()
+                                        const liveText = (finalText + interimText).trim()
+                                        if (liveText) {
+                                            sendSignal({
+                                                type: 'recognition-interim',
+                                                from: peerId,
+                                                text: liveText,
+                                            })
+                                        }
                                     }
 
                                     // Send final transcript when recognition ends
@@ -664,6 +683,13 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                         case 'recognition-result':
                             if (message.from !== peerId) {
                                 setGuestTranscript(message.text)
+                                setLiveTranscript(null)
+                            }
+                            break
+
+                        case 'recognition-interim':
+                            if (message.from !== peerId) {
+                                setLiveTranscript(message.text)
                             }
                             break
                     }
@@ -811,6 +837,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         const sendSignal = sendSignalRef.current
         if (!peerIdRef.current || !sendSignal) return
         setGuestTranscript(null)
+        setLiveTranscript(null)
         sendSignal({ type: 'start-recognition', from: peerIdRef.current })
     }, [])
 
@@ -841,6 +868,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         endMeetingForAll,
         leaveRoom,
         guestTranscript,
+        liveTranscript,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,

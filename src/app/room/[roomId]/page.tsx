@@ -109,39 +109,58 @@ export default function RoomPage({ params }: RoomPageProps) {
         return () => clearTimeout(timer)
     }, [meetingEndedExternally, handleLeave])
 
-    // Pretend Host: Fetch and auto-play welcome audio for guests
-    useEffect(() => {
-        if (!hasJoined || session?.user) return
-        
-        let audio: HTMLAudioElement | null = null
+    // Welcome audio for guests — pre-fetch the URL, then play on user gesture (join click)
+    const welcomeAudioRef = useRef<HTMLAudioElement | null>(null)
+    const hasPlayedWelcomeRef = useRef(false)
 
-        const playWelcomeAudio = async () => {
+    // Pre-fetch the welcome audio URL so it's ready when the guest joins
+    useEffect(() => {
+        if (session?.user) return // host doesn't need welcome audio
+
+        const prefetchAudio = async () => {
             try {
                 const res = await fetch(`/api/waiting?meetingId=${roomId}`)
                 if (res.ok) {
                     const data = await res.json()
                     const audioUrl = data.assignedMember?.welcome_audio_url || data.host?.welcome_audio_url
-                    
                     if (audioUrl) {
-                        audio = new Audio(audioUrl)
+                        const audio = new Audio(audioUrl)
                         audio.volume = 0.85
-                        await audio.play().catch(e => console.warn('Browser auto-play blocked:', e))
+                        audio.preload = 'auto'
+                        welcomeAudioRef.current = audio
                     }
                 }
-            } catch (err) {
-                console.warn('Failed to fetch welcome audio:', err)
+            } catch {
+                // Ignore fetch errors
             }
         }
 
-        playWelcomeAudio()
+        prefetchAudio()
 
         return () => {
-            if (audio) {
-                audio.pause()
-                audio.src = ''
+            if (welcomeAudioRef.current) {
+                welcomeAudioRef.current.pause()
+                welcomeAudioRef.current.src = ''
+                welcomeAudioRef.current = null
             }
         }
-    }, [hasJoined, session, roomId])
+    }, [session, roomId])
+
+    // Play welcome audio when guest has joined (triggered by user gesture)
+    useEffect(() => {
+        if (!hasJoined || session?.user || hasPlayedWelcomeRef.current) return
+        hasPlayedWelcomeRef.current = true
+
+        const playAudio = () => {
+            if (welcomeAudioRef.current) {
+                welcomeAudioRef.current.play().catch(e => console.warn('Welcome audio play failed:', e))
+            }
+        }
+
+        // Small delay to ensure the video chat has initialized
+        const timer = setTimeout(playAudio, 500)
+        return () => clearTimeout(timer)
+    }, [hasJoined, session])
 
     // Meeting ended externally (host ended from dashboard)
     if (meetingEndedExternally) {

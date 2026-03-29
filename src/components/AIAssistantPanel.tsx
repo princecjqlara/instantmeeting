@@ -65,6 +65,7 @@ interface AIAssistantPanelProps {
     roomId: string
     chatMessages?: ChatHistoryMessage[]
     guestTranscript?: string | null
+    liveTranscript?: string | null
     startGuestRecognition?: () => void
     stopGuestRecognition?: () => void
     clearGuestTranscript?: () => void
@@ -76,6 +77,7 @@ export default function AIAssistantPanel({
     roomId,
     chatMessages = [],
     guestTranscript = null,
+    liveTranscript = null,
     startGuestRecognition,
     stopGuestRecognition,
     clearGuestTranscript,
@@ -435,17 +437,22 @@ export default function AIAssistantPanel({
                         </div>
                     )}
 
-                    {/* Recording Indicator */}
+                    {/* Recording Indicator with Live Transcription */}
                     {isRecordingGuest && (
                         <div className={styles.recordingBanner}>
-                            <FaMicrophone className={styles.pulseIcon} />
-                            <span>Listening to guest...</span>
-                            <button
-                                className={styles.recordingStopBtn}
-                                onClick={toggleRecordGuest}
-                            >
-                                Stop
-                            </button>
+                            <div className={styles.recordingTop}>
+                                <FaMicrophone className={styles.pulseIcon} />
+                                <span>Listening to guest...</span>
+                                <button
+                                    className={styles.recordingStopBtn}
+                                    onClick={toggleRecordGuest}
+                                >
+                                    Stop
+                                </button>
+                            </div>
+                            {liveTranscript && (
+                                <p className={styles.liveTranscript}>{liveTranscript}</p>
+                            )}
                         </div>
                     )}
 

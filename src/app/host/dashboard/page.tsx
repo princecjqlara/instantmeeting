@@ -427,6 +427,38 @@ export default function Dashboard() {
         }
     }
 
+    const endAllActiveMeetings = async () => {
+        const activeMeetings = meetings.filter(m => m.status === 'active')
+        if (activeMeetings.length === 0) return
+        if (!confirm(`End all ${activeMeetings.length} active meeting(s)?`)) return
+
+        for (const meeting of activeMeetings) {
+            try {
+                await fetch(`/api/meetings/${meeting.id}/end`, { method: 'POST' })
+
+                // Broadcast end-meeting to room
+                const channel = supabase.channel(`room:${meeting.id}`)
+                channel.subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        channel.send({
+                            type: 'broadcast',
+                            event: 'end-meeting',
+                            payload: { sender: 'host' },
+                        }).then(() => supabase.removeChannel(channel))
+                    }
+                })
+            } catch (err) {
+                console.error(`Failed to end meeting ${meeting.id}:`, err)
+            }
+        }
+
+        setMeetings(prev =>
+            prev.map(m =>
+                m.status === 'active' ? { ...m, status: 'completed' as const } : m
+            )
+        )
+    }
+
     const requestReschedule = async (meetingId: string) => {
         try {
             const response = await fetch(`/api/meetings/${meetingId}/request-reschedule`, {
@@ -1049,6 +1081,16 @@ export default function Dashboard() {
                         <div className={styles.meetingsHeader}>
                             <h2>Your Meetings</h2>
                             <span className={styles.meetingsCount}>{meetings.length} total</span>
+                            {meetings.some(m => m.status === 'active') && (
+                                <button
+                                    onClick={endAllActiveMeetings}
+                                    className={styles.endAllBtn}
+                                    title="End all active meetings"
+                                >
+                                    <FaStop style={{ fontSize: 10 }} />
+                                    End All Active
+                                </button>
+                            )}
                         </div>
 
                         {meetings.length === 0 ? (

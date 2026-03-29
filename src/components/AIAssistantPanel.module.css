@@ -632,15 +632,35 @@
     border-radius: 10px;
     flex-shrink: 0;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     color: #ef4444;
     font-size: 12px;
     font-weight: 500;
 }
 
-.recordingBanner span {
+.recordingTop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.recordingTop span {
     flex: 1;
+}
+
+.liveTranscript {
+    margin: 0;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    font-style: italic;
+    color: #e2e0f0;
+    line-height: 1.4;
+    max-height: 80px;
+    overflow-y: auto;
 }
 
 .recordingStopBtn {

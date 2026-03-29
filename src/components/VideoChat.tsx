@@ -131,6 +131,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         endMeetingForAll,
         leaveRoom,
         guestTranscript,
+        liveTranscript,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
@@ -182,6 +183,33 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
 
         return () => clearTimeout(timer)
     }, [meetingEnded, leaveRoom, onLeave])
+
+    // Auto-end meeting for host when all guests have left
+    const hadRemotePeersRef = useRef(false)
+    useEffect(() => {
+        if (!isHost || meetingEnded) return
+
+        // Track that we once had remote peers
+        if (remoteStreams.length > 0) {
+            hadRemotePeersRef.current = true
+            return
+        }
+
+        // If we had peers and now they're all gone, auto-end after a delay
+        if (hadRemotePeersRef.current && remoteStreams.length === 0) {
+            const timer = setTimeout(async () => {
+                // Double-check still no peers after the delay
+                if (hadRemotePeersRef.current) {
+                    try {
+                        await fetch(`/api/meetings/${roomId}/end`, { method: 'POST' })
+                    } catch {}
+                    endMeetingForAll()
+                }
+            }, 10000) // 10s grace period
+
+            return () => clearTimeout(timer)
+        }
+    }, [isHost, remoteStreams.length, meetingEnded, roomId, endMeetingForAll])
 
     const handleChatSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -303,6 +331,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                         timestamp: m.timestamp,
                     }))}
                     guestTranscript={guestTranscript}
+                    liveTranscript={liveTranscript}
                     startGuestRecognition={startGuestRecognition}
                     stopGuestRecognition={stopGuestRecognition}
                     clearGuestTranscript={clearGuestTranscript}
