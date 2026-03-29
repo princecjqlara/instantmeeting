@@ -75,6 +75,8 @@ interface UseWebRTCReturn {
     liveTranscript: string | null
     recognitionError: string | null
     shouldStopWelcomeAudio: boolean
+    mediaPermissionError: string | null
+    clearMediaPermissionError: () => void
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
@@ -124,6 +126,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
     const [recognitionError, setRecognitionError] = useState<string | null>(null)
     const [shouldStopWelcomeAudio, setShouldStopWelcomeAudio] = useState(false)
+    const [mediaPermissionError, setMediaPermissionError] = useState<string | null>(null)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -136,74 +139,78 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     const sendSignalRef = useRef<((message: SignalMessage) => void) | null>(null)
     const cleanupRef = useRef<(() => void) | null>(null)
 
+    // ─── Request media helper ─────────────────────────────────────────────
+    const requestMedia = useCallback(async (constraints: MediaStreamConstraints): Promise<MediaStream | null> => {
+        setMediaPermissionError(null)
+        try {
+            return await navigator.mediaDevices.getUserMedia(constraints)
+        } catch (err) {
+            if (err instanceof DOMException && err.name === 'NotAllowedError') {
+                setMediaPermissionError('Permission denied. Please allow camera/mic access in your browser settings, then try again.')
+            } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+                setMediaPermissionError('No camera or microphone found. Please connect a device.')
+            } else {
+                setMediaPermissionError('Could not access camera/microphone. Please check browser permissions.')
+            }
+            return null
+        }
+    }, [])
+
+    const addTrackToStream = useCallback((track: MediaStreamTrack) => {
+        const existing = localStreamRef.current
+        if (existing) {
+            existing.addTrack(track)
+        } else {
+            localStreamRef.current = new MediaStream([track])
+        }
+        setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
+        peersRef.current.forEach((peer) => {
+            peer.connection.addTrack(track, localStreamRef.current!)
+        })
+    }, [])
+
     // ─── Toggle Mute ────────────────────────────────────────────────────────
     const toggleMute = useCallback(async () => {
-        // If no stream yet (joined without media), request mic now
-        if (!localStreamRef.current) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
-                const audioTrack = stream.getAudioTracks()[0]
-                if (!audioTrack) return
-                const existing = localStreamRef.current as MediaStream | null
-                if (existing) {
-                    existing.addTrack(audioTrack)
-                } else {
-                    localStreamRef.current = stream
-                }
-                setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
-                peersRef.current.forEach((peer) => {
-                    peer.connection.addTrack(audioTrack, localStreamRef.current!)
-                })
-                setIsMuted(false)
-                return
-            } catch {
-                console.warn('[WebRTC] Could not get microphone')
-                return
-            }
+        // If no audio track yet, request mic
+        const hasAudio = localStreamRef.current?.getAudioTracks().length ?? 0
+        if (!hasAudio) {
+            const stream = await requestMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+            if (!stream) return
+            const audioTrack = stream.getAudioTracks()[0]
+            if (!audioTrack) return
+            addTrackToStream(audioTrack)
+            setIsMuted(false)
+            return
         }
 
-        const audioTrack = localStreamRef.current.getAudioTracks()[0]
+        const audioTrack = localStreamRef.current!.getAudioTracks()[0]
         if (audioTrack) {
             audioTrack.enabled = !audioTrack.enabled
             setIsMuted(!audioTrack.enabled)
         }
-    }, [])
+    }, [requestMedia, addTrackToStream])
 
     // ─── Toggle Camera ──────────────────────────────────────────────────────
     const toggleCamera = useCallback(async () => {
-        // If no stream or no video tracks yet, request camera now
-        if (!localStreamRef.current || localStreamRef.current.getVideoTracks().length === 0) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-                })
-                const videoTrack = stream.getVideoTracks()[0]
-                if (!videoTrack) return
-                const existing = localStreamRef.current as MediaStream | null
-                if (existing) {
-                    existing.addTrack(videoTrack)
-                } else {
-                    localStreamRef.current = stream
-                }
-                cameraTrackRef.current = videoTrack
-                setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
-                peersRef.current.forEach((peer) => {
-                    peer.connection.addTrack(videoTrack, localStreamRef.current!)
-                })
-                setIsCameraOff(false)
-                return
-            } catch {
-                console.warn('[WebRTC] Could not get camera')
-                return
-            }
+        // If no video track yet, request camera
+        const hasVideo = localStreamRef.current?.getVideoTracks().length ?? 0
+        if (!hasVideo) {
+            const stream = await requestMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } })
+            if (!stream) return
+            const videoTrack = stream.getVideoTracks()[0]
+            if (!videoTrack) return
+            cameraTrackRef.current = videoTrack
+            addTrackToStream(videoTrack)
+            setIsCameraOff(false)
+            return
         }
 
-        const videoTrack = localStreamRef.current.getVideoTracks()[0]
+        const videoTrack = localStreamRef.current!.getVideoTracks()[0]
         if (videoTrack) {
             videoTrack.enabled = !videoTrack.enabled
             setIsCameraOff(!videoTrack.enabled)
         }
-    }, [])
+    }, [requestMedia, addTrackToStream])
 
     // ─── Toggle Screen Share ─────────────────────────────────────────────
     const toggleScreenShare = useCallback(async () => {
@@ -965,6 +972,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     }, [])
 
     const clearGuestTranscript = useCallback(() => setGuestTranscript(null), [])
+    const clearMediaPermissionError = useCallback(() => setMediaPermissionError(null), [])
 
     const sendStopWelcomeAudio = useCallback(() => {
         const sendSignal = sendSignalRef.current
@@ -994,6 +1002,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
         liveTranscript,
         recognitionError,
         shouldStopWelcomeAudio,
+        mediaPermissionError,
+        clearMediaPermissionError,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,

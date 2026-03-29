@@ -137,6 +137,8 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         liveTranscript,
         recognitionError,
         shouldStopWelcomeAudio,
+        mediaPermissionError,
+        clearMediaPermissionError,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
@@ -404,8 +406,22 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                 </form>
             </aside>
 
+            {/* ─── Media Permission Error Banner ──────────────────────────── */}
+            {mediaPermissionError && (
+                <div className={styles.mediaPermissionBanner}>
+                    <FaExclamationTriangle className={styles.mediaPermissionIcon} />
+                    <span>{mediaPermissionError}</span>
+                    <button
+                        className={styles.mediaPermissionDismiss}
+                        onClick={clearMediaPermissionError}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+
             {/* ─── Unmute Tip (Guest only, shown while muted) ──────────────── */}
-            {!isHost && isMuted && (
+            {!isHost && isMuted && !mediaPermissionError && (
                 <div className={styles.unmuteTip}>
                     <FaMicrophoneSlash className={styles.unmuteTipIcon} />
                     <span>Your mic is muted — click <FaMicrophone style={{ verticalAlign: 'middle' }} /> to speak</span>

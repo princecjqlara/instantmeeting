@@ -535,6 +535,52 @@
     }
 }
 
+/* ─── Media Permission Error Banner ──────────────────────────────────────── */
+.mediaPermissionBanner {
+    position: absolute;
+    bottom: 130px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: rgba(229, 62, 62, 0.2);
+    border: 1px solid rgba(229, 62, 62, 0.5);
+    border-radius: 12px;
+    color: #fca5a5;
+    font-size: 13px;
+    font-weight: 500;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 20;
+    max-width: calc(100vw - 32px);
+    animation: fadeInUp 0.3s ease;
+}
+
+.mediaPermissionIcon {
+    color: #f87171;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.mediaPermissionDismiss {
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fca5a5;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mediaPermissionDismiss:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
 /* ─── Stop Welcome Audio Button (host only) ─────────────────────────────── */
 .stopAudioBtn {
     background: rgba(255, 200, 55, 0.18) !important;
