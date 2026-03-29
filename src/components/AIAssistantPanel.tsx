@@ -91,6 +91,7 @@ export default function AIAssistantPanel({
     const [meetingNotes, setMeetingNotes] = useState<MeetingNotes | null>(null)
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false)
     const [isRecordingGuest, setIsRecordingGuest] = useState(false)
+    const [pendingTranscript, setPendingTranscript] = useState<string | null>(null)
 
     const chatScrollRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -228,6 +229,7 @@ export default function AIAssistantPanel({
     const toggleRecordGuest = () => {
         if (!isRecordingGuest) {
             setIsRecordingGuest(true)
+            setPendingTranscript(null)
             startGuestRecognition?.()
         } else {
             setIsRecordingGuest(false)
@@ -235,13 +237,25 @@ export default function AIAssistantPanel({
         }
     }
 
+    // When guest transcript arrives, store it as pending (don't auto-submit)
     useEffect(() => {
         if (guestTranscript) {
-            sendMessage(`Guest said: "${guestTranscript}"`)
+            setPendingTranscript(guestTranscript)
             clearGuestTranscript?.()
             setIsRecordingGuest(false)
+            stopGuestRecognition?.()
         }
-    }, [guestTranscript, sendMessage, clearGuestTranscript])
+    }, [guestTranscript, clearGuestTranscript, stopGuestRecognition])
+
+    const handleGenerateFromTranscript = () => {
+        if (!pendingTranscript) return
+        sendMessage(`Guest said: "${pendingTranscript}"`)
+        setPendingTranscript(null)
+    }
+
+    const dismissTranscript = () => {
+        setPendingTranscript(null)
+    }
 
     const generateSummary = async () => {
         setIsGeneratingSummary(true)
@@ -385,6 +399,53 @@ export default function AIAssistantPanel({
                                     {s}
                                 </button>
                             ))}
+                        </div>
+                    )}
+
+                    {/* Pending Transcript Preview */}
+                    {pendingTranscript && (
+                        <div className={styles.transcriptPreview}>
+                            <div className={styles.transcriptHeader}>
+                                <FaMicrophone style={{ fontSize: 11, color: '#a78bfa' }} />
+                                <span>Guest said:</span>
+                                <button
+                                    className={styles.transcriptDismiss}
+                                    onClick={dismissTranscript}
+                                    title="Dismiss"
+                                >
+                                    &times;
+                                </button>
+                            </div>
+                            <p className={styles.transcriptText}>&ldquo;{pendingTranscript}&rdquo;</p>
+                            <button
+                                className={styles.generateBtn}
+                                onClick={handleGenerateFromTranscript}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <FaSpinner className="spin" /> Generating...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaBrain /> Generate Response
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Recording Indicator */}
+                    {isRecordingGuest && (
+                        <div className={styles.recordingBanner}>
+                            <FaMicrophone className={styles.pulseIcon} />
+                            <span>Listening to guest...</span>
+                            <button
+                                className={styles.recordingStopBtn}
+                                onClick={toggleRecordGuest}
+                            >
+                                Stop
+                            </button>
                         </div>
                     )}
 

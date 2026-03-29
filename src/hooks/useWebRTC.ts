@@ -562,20 +562,41 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                                     const recognition = new SpeechRecognition()
                                     recognition.lang = 'fil-PH'
                                     recognition.interimResults = false
-                                    recognition.continuous = true 
+                                    recognition.continuous = true
 
+                                    // Accumulate transcript locally, send only when stopped
+                                    let accumulated = ''
                                     recognition.onresult = (event: any) => {
-                                        const transcript = Array.from(event.results)
+                                        accumulated = Array.from(event.results)
                                             .map((result: any) => result[0].transcript)
                                             .join(' ')
-                                        
-                                        sendSignal({
-                                            type: 'recognition-result',
-                                            from: peerId,
-                                            text: transcript
-                                        })
                                     }
-                                    
+
+                                    // Send final transcript when recognition ends
+                                    recognition.onend = () => {
+                                        if (accumulated.trim()) {
+                                            sendSignal({
+                                                type: 'recognition-result',
+                                                from: peerId,
+                                                text: accumulated.trim()
+                                            })
+                                        }
+                                        recognitionRef.current = null
+                                    }
+
+                                    recognition.onerror = (event: any) => {
+                                        console.error('Speech recognition error:', event.error)
+                                        // Send whatever was accumulated before the error
+                                        if (accumulated.trim()) {
+                                            sendSignal({
+                                                type: 'recognition-result',
+                                                from: peerId,
+                                                text: accumulated.trim()
+                                            })
+                                        }
+                                        recognitionRef.current = null
+                                    }
+
                                     try {
                                         recognition.start()
                                         recognitionRef.current = recognition
@@ -590,8 +611,8 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                             if (message.from !== peerId && recognitionRef.current) {
                                 try {
                                     recognitionRef.current.stop()
+                                    // recognitionRef.current is cleared in onend handler
                                 } catch (e) {}
-                                recognitionRef.current = null
                             }
                             break
 
