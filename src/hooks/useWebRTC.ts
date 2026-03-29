@@ -431,9 +431,33 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
             // Log connection state changes for debugging
             pc.onconnectionstatechange = () => {
                 console.log(`[WebRTC] Connection to ${remotePeerId}: ${pc.connectionState}`)
+                if (pc.connectionState === 'connected') {
+                    // Ensure peer appears in remoteStreams even without tracks
+                    setRemoteStreams(prev => {
+                        if (prev.find(s => s.peerId === remotePeerId)) return prev
+                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: new MediaStream() }]
+                    })
+                }
                 if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
                     // Remove remote stream when peer disconnects
                     setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
+                }
+            }
+
+            // Handle renegotiation when tracks are added after connection is established
+            pc.onnegotiationneeded = async () => {
+                try {
+                    const offer = await pc.createOffer()
+                    await pc.setLocalDescription(offer)
+                    sendSignal({
+                        type: 'offer',
+                        from: peerId,
+                        to: remotePeerId,
+                        name: displayName,
+                        sdp: { sdp: offer.sdp, type: offer.type },
+                    })
+                } catch (err) {
+                    console.warn('[WebRTC] Renegotiation failed:', err)
                 }
             }
 
@@ -496,9 +520,33 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          */
         const handleAnswer = async (remotePeerId: string, answerData: RTCSessionDescriptionInit) => {
             const peer = peersRef.current.get(remotePeerId)
-            if (peer && !peer.connection.currentRemoteDescription) {
+            if (!peer) return
+            try {
                 await peer.connection.setRemoteDescription(new RTCSessionDescription(answerData))
                 await flushPendingCandidates(remotePeerId)
+            } catch (err) {
+                console.warn('[WebRTC] Error setting remote description for answer:', err)
+            }
+        }
+
+        /**
+         * Handle renegotiation offer from an existing peer (e.g., new tracks added).
+         */
+        const handleRenegotiation = async (remotePeerId: string, offerData: RTCSessionDescriptionInit) => {
+            const peer = peersRef.current.get(remotePeerId)
+            if (!peer) return
+            try {
+                await peer.connection.setRemoteDescription(new RTCSessionDescription(offerData))
+                const answer = await peer.connection.createAnswer()
+                await peer.connection.setLocalDescription(answer)
+                sendSignal({
+                    type: 'answer',
+                    from: peerId,
+                    to: remotePeerId,
+                    sdp: { sdp: answer.sdp, type: answer.type },
+                })
+            } catch (err) {
+                console.warn('[WebRTC] Renegotiation answer failed:', err)
             }
         }
 
@@ -627,9 +675,15 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                             break
 
                         case 'offer':
-                            // Someone sent us an offer
-                            if (message.to === peerId && !peersRef.current.has(message.from)) {
-                                handleOffer(message.from, message.name, message.sdp)
+                            // Someone sent us an offer (new connection or renegotiation)
+                            if (message.to === peerId) {
+                                const existingPeer = peersRef.current.get(message.from)
+                                if (existingPeer) {
+                                    // Renegotiation — reuse existing connection
+                                    handleRenegotiation(message.from, message.sdp)
+                                } else {
+                                    handleOffer(message.from, message.name, message.sdp)
+                                }
                             }
                             break
 

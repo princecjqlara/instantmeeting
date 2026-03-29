@@ -49,10 +49,17 @@ export async function POST(req: NextRequest) {
 
     if (meetingId) {
         const supabase = getSupabase()
+        const { data: user } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', session.user.email)
+            .single()
+
         const { data: meeting } = await supabase
             .from('meetings')
             .select('ai_objective, ai_flow, ai_knowledge_base_id')
             .eq('id', meetingId)
+            .eq('user_id', user?.id ?? '')
             .single()
 
         if (meeting) {

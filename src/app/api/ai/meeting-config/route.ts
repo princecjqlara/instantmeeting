@@ -57,11 +57,23 @@ export async function GET(req: NextRequest) {
         })
     }
 
+    // Resolve user ID for ownership check
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+    if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Per-meeting config — try meeting first, fall back to user defaults
     const { data, error } = await supabase
         .from('meetings')
         .select('ai_objective, ai_flow, ai_knowledge_base_id')
         .eq('id', meetingId)
+        .eq('user_id', user.id)
         .single()
 
     if (error) {
@@ -131,6 +143,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true })
     }
 
+    // Resolve user ID for ownership check
+    const { data: user } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', session.user.email)
+        .single()
+
+    if (!user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
     // Per-meeting config
     const updateData: Record<string, unknown> = {}
 
@@ -150,6 +173,7 @@ export async function POST(req: NextRequest) {
         .from('meetings')
         .update(updateData)
         .eq('id', meetingId)
+        .eq('user_id', user.id)
 
     if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
