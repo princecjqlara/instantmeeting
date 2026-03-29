@@ -132,6 +132,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         leaveRoom,
         guestTranscript,
         liveTranscript,
+        recognitionError,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
@@ -332,6 +333,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                     }))}
                     guestTranscript={guestTranscript}
                     liveTranscript={liveTranscript}
+                    recognitionError={recognitionError}
                     startGuestRecognition={startGuestRecognition}
                     stopGuestRecognition={stopGuestRecognition}
                     clearGuestTranscript={clearGuestTranscript}

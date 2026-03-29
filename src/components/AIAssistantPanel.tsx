@@ -66,6 +66,7 @@ interface AIAssistantPanelProps {
     chatMessages?: ChatHistoryMessage[]
     guestTranscript?: string | null
     liveTranscript?: string | null
+    recognitionError?: string | null
     startGuestRecognition?: () => void
     stopGuestRecognition?: () => void
     clearGuestTranscript?: () => void
@@ -78,6 +79,7 @@ export default function AIAssistantPanel({
     chatMessages = [],
     guestTranscript = null,
     liveTranscript = null,
+    recognitionError = null,
     startGuestRecognition,
     stopGuestRecognition,
     clearGuestTranscript,
@@ -248,6 +250,13 @@ export default function AIAssistantPanel({
             stopGuestRecognition?.()
         }
     }, [guestTranscript, clearGuestTranscript, stopGuestRecognition])
+
+    // Stop recording state when an error comes from the guest
+    useEffect(() => {
+        if (recognitionError && isRecordingGuest) {
+            setIsRecordingGuest(false)
+        }
+    }, [recognitionError, isRecordingGuest])
 
     const handleGenerateFromTranscript = () => {
         if (!pendingTranscript) return
@@ -453,6 +462,13 @@ export default function AIAssistantPanel({
                             {liveTranscript && (
                                 <p className={styles.liveTranscript}>{liveTranscript}</p>
                             )}
+                        </div>
+                    )}
+
+                    {/* Recognition Error */}
+                    {recognitionError && !isRecordingGuest && (
+                        <div className={styles.recognitionError}>
+                            {recognitionError}
                         </div>
                     )}
 

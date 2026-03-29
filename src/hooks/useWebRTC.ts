@@ -73,6 +73,7 @@ interface UseWebRTCReturn {
     meetingEnded: boolean
     guestTranscript: string | null
     liveTranscript: string | null
+    recognitionError: string | null
     toggleMute: () => void
     toggleCamera: () => void
     toggleScreenShare: () => void
@@ -102,6 +103,7 @@ type SignalMessage =
     | { type: 'stop-recognition'; from: string }
     | { type: 'recognition-result'; from: string; text: string }
     | { type: 'recognition-interim'; from: string; text: string }
+    | { type: 'recognition-error'; from: string; error: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn {
@@ -117,6 +119,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
     const [meetingEnded, setMeetingEnded] = useState(false)
     const [guestTranscript, setGuestTranscript] = useState<string | null>(null)
     const [liveTranscript, setLiveTranscript] = useState<string | null>(null)
+    const [recognitionError, setRecognitionError] = useState<string | null>(null)
 
     // Refs to persist across renders without causing re-renders
     const peersRef = useRef<Map<string, PeerData>>(new Map())
@@ -603,91 +606,113 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                         case 'start-recognition':
                             if (message.from !== peerId) {
                                 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-                                if (SpeechRecognition) {
-                                    if (recognitionRef.current) {
-                                        try { recognitionRef.current.stop() } catch (e) {}
-                                    }
-                                    const recognition = new SpeechRecognition()
-                                    recognition.lang = 'fil-PH'
-                                    recognition.interimResults = true
-                                    recognition.continuous = true
+                                if (!SpeechRecognition) {
+                                    // Browser doesn't support Speech Recognition
+                                    sendSignal({
+                                        type: 'recognition-error',
+                                        from: peerId,
+                                        error: 'Speech recognition not supported in guest browser',
+                                    })
+                                    break
+                                }
 
-                                    // Accumulate transcript locally and send throttled live updates
-                                    let accumulated = ''
-                                    let lastInterimSent = 0
-                                    let pendingInterimId: ReturnType<typeof setTimeout> | null = null
+                                if (recognitionRef.current) {
+                                    try { recognitionRef.current.stop() } catch (e) {}
+                                }
+                                const recognition = new SpeechRecognition()
+                                recognition.lang = 'fil-PH'
+                                recognition.interimResults = true
+                                recognition.continuous = true
 
-                                    recognition.onresult = (event: any) => {
-                                        let finalText = ''
-                                        let interimText = ''
-                                        for (let i = 0; i < event.results.length; i++) {
-                                            const result = event.results[i]
-                                            if (result.isFinal) {
-                                                finalText += result[0].transcript + ' '
-                                            } else {
-                                                interimText += result[0].transcript
-                                            }
+                                // Accumulate transcript locally and send throttled live updates
+                                let accumulated = ''
+                                let lastInterimSent = 0
+                                let pendingInterimId: ReturnType<typeof setTimeout> | null = null
+
+                                recognition.onresult = (event: any) => {
+                                    let finalText = ''
+                                    let interimText = ''
+                                    for (let i = 0; i < event.results.length; i++) {
+                                        const result = event.results[i]
+                                        if (result.isFinal) {
+                                            finalText += result[0].transcript + ' '
+                                        } else {
+                                            interimText += result[0].transcript
                                         }
-                                        accumulated = finalText.trim()
-                                        const liveText = (finalText + interimText).trim()
-                                        if (!liveText) return
+                                    }
+                                    accumulated = finalText.trim()
+                                    const liveText = (finalText + interimText).trim()
+                                    if (!liveText) return
 
-                                        // Throttle interim signals to max once per 500ms
-                                        const now = Date.now()
-                                        if (pendingInterimId) clearTimeout(pendingInterimId)
+                                    // Throttle interim signals to max once per 500ms
+                                    const now = Date.now()
+                                    if (pendingInterimId) clearTimeout(pendingInterimId)
 
-                                        if (now - lastInterimSent >= 500) {
-                                            lastInterimSent = now
+                                    if (now - lastInterimSent >= 500) {
+                                        lastInterimSent = now
+                                        sendSignal({
+                                            type: 'recognition-interim',
+                                            from: peerId,
+                                            text: liveText,
+                                        })
+                                    } else {
+                                        pendingInterimId = setTimeout(() => {
+                                            lastInterimSent = Date.now()
                                             sendSignal({
                                                 type: 'recognition-interim',
                                                 from: peerId,
                                                 text: liveText,
                                             })
-                                        } else {
-                                            // Schedule a send for the latest text
-                                            pendingInterimId = setTimeout(() => {
-                                                lastInterimSent = Date.now()
-                                                sendSignal({
-                                                    type: 'recognition-interim',
-                                                    from: peerId,
-                                                    text: liveText,
-                                                })
-                                            }, 500 - (now - lastInterimSent))
-                                        }
+                                        }, 500 - (now - lastInterimSent))
                                     }
+                                }
 
-                                    // Send final transcript when recognition ends
-                                    recognition.onend = () => {
-                                        if (pendingInterimId) clearTimeout(pendingInterimId)
-                                        if (accumulated.trim()) {
-                                            sendSignal({
-                                                type: 'recognition-result',
-                                                from: peerId,
-                                                text: accumulated.trim()
-                                            })
-                                        }
-                                        recognitionRef.current = null
+                                // Send final transcript when recognition ends
+                                recognition.onend = () => {
+                                    if (pendingInterimId) clearTimeout(pendingInterimId)
+                                    if (accumulated.trim()) {
+                                        sendSignal({
+                                            type: 'recognition-result',
+                                            from: peerId,
+                                            text: accumulated.trim()
+                                        })
                                     }
+                                    recognitionRef.current = null
+                                }
 
-                                    recognition.onerror = (event: any) => {
-                                        console.error('Speech recognition error:', event.error)
-                                        if (pendingInterimId) clearTimeout(pendingInterimId)
-                                        if (accumulated.trim()) {
-                                            sendSignal({
-                                                type: 'recognition-result',
-                                                from: peerId,
-                                                text: accumulated.trim()
-                                            })
-                                        }
-                                        recognitionRef.current = null
+                                recognition.onerror = (event: any) => {
+                                    console.error('Speech recognition error:', event.error)
+                                    if (pendingInterimId) clearTimeout(pendingInterimId)
+                                    // Send error back to host
+                                    sendSignal({
+                                        type: 'recognition-error',
+                                        from: peerId,
+                                        error: event.error === 'not-allowed'
+                                            ? 'Microphone permission denied on guest browser'
+                                            : event.error === 'no-speech'
+                                            ? 'No speech detected from guest'
+                                            : `Recognition error: ${event.error}`,
+                                    })
+                                    if (accumulated.trim()) {
+                                        sendSignal({
+                                            type: 'recognition-result',
+                                            from: peerId,
+                                            text: accumulated.trim()
+                                        })
                                     }
+                                    recognitionRef.current = null
+                                }
 
-                                    try {
-                                        recognition.start()
-                                        recognitionRef.current = recognition
-                                    } catch (err) {
-                                        console.error('Failed to start recognition:', err)
-                                    }
+                                try {
+                                    recognition.start()
+                                    recognitionRef.current = recognition
+                                } catch (err: any) {
+                                    console.error('Failed to start recognition:', err)
+                                    sendSignal({
+                                        type: 'recognition-error',
+                                        from: peerId,
+                                        error: `Failed to start: ${err?.message || 'unknown error'}`,
+                                    })
                                 }
                             }
                             break
@@ -711,6 +736,13 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                         case 'recognition-interim':
                             if (message.from !== peerId) {
                                 setLiveTranscript(message.text)
+                                setRecognitionError(null)
+                            }
+                            break
+
+                        case 'recognition-error':
+                            if (message.from !== peerId) {
+                                setRecognitionError(message.error)
                             }
                             break
                     }
@@ -859,6 +891,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         if (!peerIdRef.current || !sendSignal) return
         setGuestTranscript(null)
         setLiveTranscript(null)
+        setRecognitionError(null)
         sendSignal({ type: 'start-recognition', from: peerIdRef.current })
     }, [])
 
@@ -890,6 +923,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
         leaveRoom,
         guestTranscript,
         liveTranscript,
+        recognitionError,
         startGuestRecognition,
         stopGuestRecognition,
         clearGuestTranscript,
