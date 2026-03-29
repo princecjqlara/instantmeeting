@@ -63,10 +63,22 @@ function VideoTile({
 }) {
     const videoRef = useRef<HTMLVideoElement>(null)
 
-    // Attach the MediaStream to the <video> element whenever it changes
+    // Attach the MediaStream to the <video> element whenever it changes.
+    // Also listen for track additions so new audio/video tracks are picked up
+    // even when the MediaStream object reference stays the same.
     useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream
+        if (!videoRef.current || !stream) return
+        videoRef.current.srcObject = stream
+
+        const handleTrackAdded = () => {
+            if (videoRef.current) {
+                videoRef.current.srcObject = null
+                videoRef.current.srcObject = stream
+            }
+        }
+        stream.addEventListener('addtrack', handleTrackAdded)
+        return () => {
+            stream.removeEventListener('addtrack', handleTrackAdded)
         }
     }, [stream])
 

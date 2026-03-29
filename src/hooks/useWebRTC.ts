@@ -324,11 +324,7 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
 
             // Handle incoming tracks from the remote peer
             pc.ontrack = (event) => {
-                // Use event.streams if available, otherwise create a new MediaStream
-                let remoteStream = event.streams?.[0]
-                if (!remoteStream && event.track) {
-                    remoteStream = new MediaStream([event.track])
-                }
+                const remoteStream = event.streams?.[0]
 
                 if (remoteStream) {
                     setRemoteStreams(prev => {
@@ -337,11 +333,33 @@ export function useWebRTC(roomId: string, displayName: string): UseWebRTCReturn 
                             // Force new object reference so React detects the update
                             return prev.map(s =>
                                 s.peerId === remotePeerId
-                                    ? { peerId: s.peerId, name: s.name, stream: remoteStream! }
+                                    ? { peerId: s.peerId, name: s.name, stream: remoteStream }
                                     : s
                             )
                         }
-                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: remoteStream! }]
+                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: remoteStream }]
+                    })
+                } else if (event.track) {
+                    // Fallback: no event.streams — add track to existing stream or create one
+                    setRemoteStreams(prev => {
+                        const exists = prev.find(s => s.peerId === remotePeerId)
+                        if (exists) {
+                            // Add the new track to the existing MediaStream
+                            if (!exists.stream.getTrackById(event.track.id)) {
+                                exists.stream.addTrack(event.track)
+                            }
+                            // Force new object reference so React re-renders
+                            return prev.map(s =>
+                                s.peerId === remotePeerId
+                                    ? { peerId: s.peerId, name: s.name, stream: exists.stream }
+                                    : s
+                            )
+                        }
+                        return [...prev, {
+                            peerId: remotePeerId,
+                            name: remoteName,
+                            stream: new MediaStream([event.track]),
+                        }]
                     })
                 }
             }
