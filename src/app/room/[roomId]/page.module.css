@@ -104,6 +104,49 @@
     cursor: not-allowed;
 }
 
+/* ─── In-App Browser Warning ────────────────────────────────────────────── */
+.inAppWarning {
+    width: 100%;
+    padding: 14px 16px;
+    background: rgba(255, 159, 67, 0.12);
+    border: 1px solid rgba(255, 159, 67, 0.35);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.inAppWarning p {
+    color: #fbbf6a;
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+.inAppHint {
+    color: #9ca0b3 !important;
+    font-size: 11px !important;
+}
+
+.openBrowserBtn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 18px;
+    border-radius: 8px;
+    border: none;
+    background: #667eea;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.openBrowserBtn:hover {
+    background: #5a6fd6;
+}
+
 @media (max-width: 480px) {
     .joinCard {
         padding: 32px 24px;

@@ -581,6 +581,23 @@
     background: rgba(255, 255, 255, 0.25);
 }
 
+.mediaPermissionOpenBtn {
+    border: none;
+    background: #667eea;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.mediaPermissionOpenBtn:hover {
+    background: #5a6fd6;
+}
+
 /* ─── Stop Welcome Audio Button (host only) ─────────────────────────────── */
 .stopAudioBtn {
     background: rgba(255, 200, 55, 0.18) !important;

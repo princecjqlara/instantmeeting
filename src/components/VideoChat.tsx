@@ -410,13 +410,33 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
             {mediaPermissionError && (
                 <div className={styles.mediaPermissionBanner}>
                     <FaExclamationTriangle className={styles.mediaPermissionIcon} />
-                    <span>{mediaPermissionError}</span>
-                    <button
-                        className={styles.mediaPermissionDismiss}
-                        onClick={clearMediaPermissionError}
-                    >
-                        Dismiss
-                    </button>
+                    {mediaPermissionError === 'IN_APP_BROWSER' ? (
+                        <>
+                            <span>This browser doesn&apos;t support camera/mic. Open in your default browser.</span>
+                            <button
+                                className={styles.mediaPermissionOpenBtn}
+                                onClick={() => {
+                                    // Try to force open in system browser
+                                    const url = window.location.href
+                                    window.open(url, '_system')
+                                    // Fallback: copy to clipboard
+                                    navigator.clipboard?.writeText(url).catch(() => {})
+                                }}
+                            >
+                                Open in Browser
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <span>{mediaPermissionError}</span>
+                            <button
+                                className={styles.mediaPermissionDismiss}
+                                onClick={clearMediaPermissionError}
+                            >
+                                Dismiss
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
 

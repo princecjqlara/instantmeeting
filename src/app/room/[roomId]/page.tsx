@@ -17,7 +17,7 @@ import { useState, use, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
-import { FaVideo, FaArrowRight, FaDoorOpen } from 'react-icons/fa'
+import { FaVideo, FaArrowRight, FaDoorOpen, FaExternalLinkAlt } from 'react-icons/fa'
 import styles from './page.module.css'
 
 interface RoomPageProps {
@@ -185,6 +185,9 @@ export default function RoomPage({ params }: RoomPageProps) {
         )
     }
 
+    // Detect in-app browsers
+    const isInAppBrowser = typeof navigator !== 'undefined' && /FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i.test(navigator.userAgent || '')
+
     // Otherwise, show a name prompt (for unauthenticated users without stored name)
     return (
         <div className={styles.container}>
@@ -193,6 +196,25 @@ export default function RoomPage({ params }: RoomPageProps) {
                     <FaVideo />
                 </div>
                 <h1>Join Video Room</h1>
+
+                {isInAppBrowser && (
+                    <div className={styles.inAppWarning}>
+                        <p>For the best experience with camera and mic, open this link in your default browser.</p>
+                        <button
+                            type="button"
+                            className={styles.openBrowserBtn}
+                            onClick={() => {
+                                const url = window.location.href
+                                window.open(url, '_system')
+                                navigator.clipboard?.writeText(url).catch(() => {})
+                            }}
+                        >
+                            <FaExternalLinkAlt /> Open in Browser
+                        </button>
+                        <p className={styles.inAppHint}>Or copy this link and paste it in Chrome / Safari</p>
+                    </div>
+                )}
+
                 <p>Enter your name to join the meeting</p>
 
                 <form

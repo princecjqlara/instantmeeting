@@ -139,22 +139,43 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     const sendSignalRef = useRef<((message: SignalMessage) => void) | null>(null)
     const cleanupRef = useRef<(() => void) | null>(null)
 
+    // ─── Detect in-app browsers that don't support getUserMedia ────────────
+    const isInAppBrowser = useCallback(() => {
+        const ua = navigator.userAgent || ''
+        return /FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i.test(ua)
+    }, [])
+
     // ─── Request media helper ─────────────────────────────────────────────
     const requestMedia = useCallback(async (constraints: MediaStreamConstraints): Promise<MediaStream | null> => {
         setMediaPermissionError(null)
+
+        // Check if getUserMedia is available at all
+        if (!navigator.mediaDevices?.getUserMedia) {
+            if (isInAppBrowser()) {
+                setMediaPermissionError('IN_APP_BROWSER')
+            } else {
+                setMediaPermissionError('Camera/microphone not available. Use HTTPS or try a different browser.')
+            }
+            return null
+        }
+
         try {
             return await navigator.mediaDevices.getUserMedia(constraints)
         } catch (err) {
-            if (err instanceof DOMException && err.name === 'NotAllowedError') {
+            if (isInAppBrowser()) {
+                setMediaPermissionError('IN_APP_BROWSER')
+            } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
                 setMediaPermissionError('Permission denied. Please allow camera/mic access in your browser settings, then try again.')
             } else if (err instanceof DOMException && err.name === 'NotFoundError') {
                 setMediaPermissionError('No camera or microphone found. Please connect a device.')
+            } else if (err instanceof DOMException && err.name === 'NotSupportedError') {
+                setMediaPermissionError('IN_APP_BROWSER')
             } else {
                 setMediaPermissionError('Could not access camera/microphone. Please check browser permissions.')
             }
             return null
         }
-    }, [])
+    }, [isInAppBrowser])
 
     const addTrackToStream = useCallback((track: MediaStreamTrack) => {
         const existing = localStreamRef.current
