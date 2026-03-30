@@ -943,14 +943,17 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 recognition.onerror = (event: any) => {
                                     console.error('Speech recognition error:', event.error)
                                     if (pendingInterimId) clearTimeout(pendingInterimId)
-                                    // Send error back to host
+
+                                    // 'no-speech' is not fatal in continuous mode — let onend auto-restart
+                                    if (event.error === 'no-speech') return
+
+                                    // Fatal errors — stop and report
+                                    intentionallyStopped = true // prevent auto-restart in onend
                                     sendSignal({
                                         type: 'recognition-error',
                                         from: peerId,
                                         error: event.error === 'not-allowed'
                                             ? 'Microphone permission denied on guest browser'
-                                            : event.error === 'no-speech'
-                                            ? 'No speech detected from guest'
                                             : `Recognition error: ${event.error}`,
                                     })
                                     if (accumulated.trim()) {
