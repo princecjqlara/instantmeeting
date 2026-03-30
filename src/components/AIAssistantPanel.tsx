@@ -315,7 +315,8 @@ export default function AIAssistantPanel({
             recognition.onend = () => {
                 if (intentionallyStopped) {
                     if (accumulated.trim()) {
-                        setPendingTranscript(accumulated.trim())
+                        // Auto-generate AI response from transcript
+                        sendMessage(`Guest said: "${accumulated.trim()}"`)
                     }
                     setIsRecordingGuest(false)
                     setLocalLiveTranscript(null)
@@ -328,7 +329,7 @@ export default function AIAssistantPanel({
                     }
                 } else {
                     if (accumulated.trim()) {
-                        setPendingTranscript(accumulated.trim())
+                        sendMessage(`Guest said: "${accumulated.trim()}"`)
                     }
                     setIsRecordingGuest(false)
                     setLocalLiveTranscript(null)
@@ -345,7 +346,7 @@ export default function AIAssistantPanel({
                         : `Recognition error: ${event.error}`
                 )
                 if (accumulated.trim()) {
-                    setPendingTranscript(accumulated.trim())
+                    sendMessage(`Guest said: "${accumulated.trim()}"`)
                 }
                 setIsRecordingGuest(false)
                 localRecognitionRef.current = null
@@ -374,14 +375,14 @@ export default function AIAssistantPanel({
     // Also accept transcripts from guest-side recognition (legacy/fallback)
     useEffect(() => {
         if (guestTranscript) {
-            setPendingTranscript(guestTranscript)
+            sendMessage(`Guest said: "${guestTranscript}"`)
             clearGuestTranscript?.()
             setIsRecordingGuest(false)
             if (localRecognitionRef.current) {
                 localRecognitionRef.current.stop()
             }
         }
-    }, [guestTranscript, clearGuestTranscript])
+    }, [guestTranscript, clearGuestTranscript, sendMessage])
 
     const handleGenerateFromTranscript = () => {
         if (!pendingTranscript) return
