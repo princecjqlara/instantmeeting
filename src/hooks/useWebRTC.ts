@@ -846,8 +846,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     try { recognitionRef.current.stop() } catch (e) {}
                                 }
                                 const recognition = new SpeechRecognition()
-                                // Use browser's default language instead of hardcoding
-                                recognition.lang = navigator.language || 'en-US'
+                                // Filipino handles Taglish (Tagalog + English mix) well in Chrome
+                                recognition.lang = 'fil-PH'
                                 recognition.interimResults = true
                                 recognition.continuous = true
 
