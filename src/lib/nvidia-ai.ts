@@ -7,7 +7,7 @@
  */
 
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
-const CHAT_MODEL = 'nvidia/llama-3.1-nemotron-70b-instruct'
+const CHAT_MODEL = 'meta/llama-3.1-8b-instruct'
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5'
 
 function getApiKey(): string {
