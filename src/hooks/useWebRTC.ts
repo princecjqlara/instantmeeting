@@ -867,12 +867,12 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                             interimText += result[0].transcript
                                         }
                                     }
-                                    // Append new final text to accumulated (don't overwrite)
+                                    // In continuous mode, event.results contains ALL results
+                                    // so finalText already has every final transcript — just set, don't append
                                     if (finalText.trim()) {
-                                        accumulated = accumulated ? accumulated + ' ' + finalText.trim() : finalText.trim()
+                                        accumulated = finalText.trim()
                                     }
-                                    const liveText = accumulated ? accumulated + ' ' + interimText : interimText
-                                    const trimmedLive = liveText.trim()
+                                    const trimmedLive = (finalText + interimText).trim()
                                     if (!trimmedLive) return
 
                                     // Throttle interim signals to max once per 500ms
@@ -898,17 +898,46 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     }
                                 }
 
+                                // Track whether we intentionally stopped
+                                let intentionallyStopped = false
+
                                 // Send final transcript when recognition ends
                                 recognition.onend = () => {
                                     if (pendingInterimId) clearTimeout(pendingInterimId)
-                                    if (accumulated.trim()) {
-                                        sendSignal({
-                                            type: 'recognition-result',
-                                            from: peerId,
-                                            text: accumulated.trim()
-                                        })
+                                    if (intentionallyStopped) {
+                                        // User/host clicked stop — send final result
+                                        if (accumulated.trim()) {
+                                            sendSignal({
+                                                type: 'recognition-result',
+                                                from: peerId,
+                                                text: accumulated.trim()
+                                            })
+                                        }
+                                        recognitionRef.current = null
+                                    } else {
+                                        // Chrome killed recognition (timeout/network) — auto-restart
+                                        console.log('[WebRTC] SpeechRecognition ended unexpectedly, restarting...')
+                                        try {
+                                            recognition.start()
+                                        } catch (err) {
+                                            console.warn('[WebRTC] Failed to restart recognition:', err)
+                                            if (accumulated.trim()) {
+                                                sendSignal({
+                                                    type: 'recognition-result',
+                                                    from: peerId,
+                                                    text: accumulated.trim()
+                                                })
+                                            }
+                                            recognitionRef.current = null
+                                        }
                                     }
-                                    recognitionRef.current = null
+                                }
+
+                                // Patch stop() to set the intentional flag
+                                const originalStop = recognition.stop.bind(recognition)
+                                recognition.stop = () => {
+                                    intentionallyStopped = true
+                                    originalStop()
                                 }
 
                                 recognition.onerror = (event: any) => {
