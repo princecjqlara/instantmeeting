@@ -255,33 +255,124 @@ export default function AIAssistantPanel({
         sendMessage(input)
     }
 
+    // Local speech recognition — runs on HOST browser, no signaling needed
+    const localRecognitionRef = useRef<any>(null)
+    const [localLiveTranscript, setLocalLiveTranscript] = useState<string | null>(null)
+    const [localRecognitionError, setLocalRecognitionError] = useState<string | null>(null)
+
     const toggleRecordGuest = () => {
         if (!isRecordingGuest) {
+            // Start local speech recognition on host's browser
+            const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+            if (!SpeechRecognition) {
+                setLocalRecognitionError('Speech recognition not supported in this browser. Use Chrome.')
+                return
+            }
+
             setIsRecordingGuest(true)
             setPendingTranscript(null)
-            startGuestRecognition?.()
+            setLocalLiveTranscript(null)
+            setLocalRecognitionError(null)
+
+            const recognition = new SpeechRecognition()
+            recognition.lang = 'fil-PH'
+            recognition.interimResults = true
+            recognition.continuous = true
+
+            let accumulated = ''
+            let intentionallyStopped = false
+            let restartCount = 0
+
+            recognition.onresult = (event: any) => {
+                let finalText = ''
+                let interimText = ''
+                for (let i = 0; i < event.results.length; i++) {
+                    const result = event.results[i]
+                    if (result.isFinal) {
+                        finalText += result[0].transcript + ' '
+                    } else {
+                        interimText += result[0].transcript
+                    }
+                }
+                if (finalText.trim()) {
+                    accumulated = finalText.trim()
+                }
+                const live = (finalText + interimText).trim()
+                if (live) {
+                    setLocalLiveTranscript(live)
+                }
+            }
+
+            recognition.onend = () => {
+                if (intentionallyStopped) {
+                    if (accumulated.trim()) {
+                        setPendingTranscript(accumulated.trim())
+                    }
+                    setIsRecordingGuest(false)
+                    setLocalLiveTranscript(null)
+                    localRecognitionRef.current = null
+                } else if (restartCount < 10) {
+                    restartCount++
+                    try { recognition.start() } catch {
+                        setIsRecordingGuest(false)
+                        localRecognitionRef.current = null
+                    }
+                } else {
+                    if (accumulated.trim()) {
+                        setPendingTranscript(accumulated.trim())
+                    }
+                    setIsRecordingGuest(false)
+                    setLocalLiveTranscript(null)
+                    localRecognitionRef.current = null
+                }
+            }
+
+            recognition.onerror = (event: any) => {
+                if (event.error === 'no-speech') return
+                intentionallyStopped = true
+                setLocalRecognitionError(
+                    event.error === 'not-allowed'
+                        ? 'Microphone permission denied'
+                        : `Recognition error: ${event.error}`
+                )
+                if (accumulated.trim()) {
+                    setPendingTranscript(accumulated.trim())
+                }
+                setIsRecordingGuest(false)
+                localRecognitionRef.current = null
+            }
+
+            try {
+                recognition.start()
+                localRecognitionRef.current = recognition
+                // Patch stop to set intentional flag
+                const origStop = recognition.stop.bind(recognition)
+                recognition.stop = () => { intentionallyStopped = true; origStop() }
+            } catch (err: any) {
+                setLocalRecognitionError(`Failed to start: ${err?.message || 'unknown'}`)
+                setIsRecordingGuest(false)
+            }
         } else {
-            setIsRecordingGuest(false)
-            stopGuestRecognition?.()
+            // Stop
+            if (localRecognitionRef.current) {
+                localRecognitionRef.current.stop()
+            } else {
+                setIsRecordingGuest(false)
+            }
         }
     }
 
-    // When guest transcript arrives, store it as pending (don't auto-submit)
+    // Also accept transcripts from guest-side recognition (legacy/fallback)
     useEffect(() => {
         if (guestTranscript) {
             setPendingTranscript(guestTranscript)
             clearGuestTranscript?.()
             setIsRecordingGuest(false)
-            stopGuestRecognition?.()
+            if (localRecognitionRef.current) {
+                localRecognitionRef.current.stop()
+            }
         }
-    }, [guestTranscript, clearGuestTranscript, stopGuestRecognition])
-
-    // Stop recording state when an error comes from the guest
-    useEffect(() => {
-        if (recognitionError && isRecordingGuest) {
-            setIsRecordingGuest(false)
-        }
-    }, [recognitionError, isRecordingGuest])
+    }, [guestTranscript, clearGuestTranscript])
 
     const handleGenerateFromTranscript = () => {
         if (!pendingTranscript) return
@@ -476,7 +567,7 @@ export default function AIAssistantPanel({
                         <div className={styles.recordingBanner}>
                             <div className={styles.recordingTop}>
                                 <FaMicrophone className={styles.pulseIcon} />
-                                <span>Listening to guest...</span>
+                                <span>Listening...</span>
                                 <button
                                     className={styles.recordingStopBtn}
                                     onClick={toggleRecordGuest}
@@ -485,20 +576,15 @@ export default function AIAssistantPanel({
                                 </button>
                             </div>
                             <p className={styles.liveTranscript}>
-                                {liveTranscript || 'Waiting for guest to speak...'}
+                                {localLiveTranscript || liveTranscript || 'Speak now...'}
                             </p>
-                            {recognitionError && (
-                                <p className={styles.liveTranscript} style={{ color: '#f87171' }}>
-                                    {recognitionError}
-                                </p>
-                            )}
                         </div>
                     )}
 
-                    {/* Recognition Error (shown after recording stops) */}
-                    {recognitionError && !isRecordingGuest && (
+                    {/* Recognition Error */}
+                    {(localRecognitionError || (recognitionError && !isRecordingGuest)) && (
                         <div className={styles.recognitionError}>
-                            {recognitionError}
+                            {localRecognitionError || recognitionError}
                         </div>
                     )}
 
