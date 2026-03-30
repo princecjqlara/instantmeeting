@@ -848,8 +848,10 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     try { recognitionRef.current.stop() } catch (e) {}
                                 }
                                 const recognition = new SpeechRecognition()
-                                // Filipino handles Taglish (Tagalog + English mix) well in Chrome
-                                recognition.lang = 'fil-PH'
+                                // Use en-US for reliable recognition — handles Taglish well enough
+                                // since Filipino speakers mix English words frequently.
+                                // fil-PH often produces zero results in Chrome.
+                                recognition.lang = 'en-US'
                                 recognition.interimResults = true
                                 recognition.continuous = true
 
@@ -859,6 +861,19 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 let pendingInterimId: ReturnType<typeof setTimeout> | null = null
                                 let restartCount = 0
                                 const MAX_RESTARTS = 10
+
+                                // Status events for debugging
+                                recognition.onaudiostart = () => {
+                                    console.log('[WebRTC] SpeechRecognition: audio capture started')
+                                    sendSignal({
+                                        type: 'recognition-interim',
+                                        from: peerId,
+                                        text: '(listening...)',
+                                    })
+                                }
+                                recognition.onspeechstart = () => {
+                                    console.log('[WebRTC] SpeechRecognition: speech detected')
+                                }
 
                                 recognition.onresult = (event: any) => {
                                     let finalText = ''
