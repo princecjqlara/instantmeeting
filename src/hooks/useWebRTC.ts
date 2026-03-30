@@ -848,10 +848,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     try { recognitionRef.current.stop() } catch (e) {}
                                 }
                                 const recognition = new SpeechRecognition()
-                                // Use en-US for reliable recognition — handles Taglish well enough
-                                // since Filipino speakers mix English words frequently.
-                                // fil-PH often produces zero results in Chrome.
-                                recognition.lang = 'en-US'
+                                // Filipino for Taglish (Tagalog + English mix)
+                                recognition.lang = 'fil-PH'
                                 recognition.interimResults = true
                                 recognition.continuous = true
 
