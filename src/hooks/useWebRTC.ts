@@ -186,7 +186,13 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
         }
         setLocalStream(new MediaStream(localStreamRef.current!.getTracks()))
         peersRef.current.forEach((peer) => {
-            peer.connection.addTrack(track, localStreamRef.current!)
+            const state = peer.connection.connectionState
+            if (state === 'closed' || state === 'failed') return
+            try {
+                peer.connection.addTrack(track, localStreamRef.current!)
+            } catch (err) {
+                console.warn('[WebRTC] Error adding track to peer:', err)
+            }
         })
     }, [])
 
@@ -234,8 +240,12 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     }, [requestMedia, addTrackToStream])
 
     // ─── Toggle Screen Share ─────────────────────────────────────────────
+    const isScreenSharingRef = useRef(false)
+    isScreenSharingRef.current = isScreenSharing
+
     const toggleScreenShare = useCallback(async () => {
-        if (isScreenSharing) {
+        // Use ref to avoid stale closure (especially in screenTrack.onended callback)
+        if (isScreenSharingRef.current) {
             // Stop screen sharing — restore camera track
             const screenTrack = screenStreamRef.current?.getVideoTracks()[0]
             if (screenTrack) {
@@ -254,6 +264,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
                 // Replace track in all peer connections
                 peersRef.current.forEach((peer) => {
+                    const state = peer.connection.connectionState
+                    if (state === 'closed' || state === 'failed') return
                     const sender = peer.connection.getSenders().find(
                         (s) => s.track?.kind === 'video'
                     )
@@ -295,6 +307,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
                     // Replace track in all peer connections
                     peersRef.current.forEach((peer) => {
+                        const state = peer.connection.connectionState
+                        if (state === 'closed' || state === 'failed') return
                         const sender = peer.connection.getSenders().find(
                             (s) => s.track?.kind === 'video'
                         )
@@ -318,7 +332,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 console.log('[WebRTC] Screen share cancelled or failed:', err)
             }
         }
-    }, [isScreenSharing])
+    }, [])
 
     // ─── Send Chat Message ──────────────────────────────────────────────────
     const sendChatMessage = useCallback((text: string) => {
@@ -386,6 +400,9 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
         // Track peers currently in initial negotiation to suppress onnegotiationneeded
         const initialNegotiationPeers = new Set<string>()
+
+        // Queue ICE candidates that arrive before the peer connection is created
+        const earlyIceCandidates = new Map<string, RTCIceCandidateInit[]>()
 
         /**
          * Create a new RTCPeerConnection for a remote peer.
@@ -518,6 +535,14 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
             // Store the peer connection
             peersRef.current.set(remotePeerId, { connection: pc, name: remoteName, pendingCandidates: [] })
 
+            // Flush any ICE candidates that arrived before this peer connection was created
+            const earlyCandidates = earlyIceCandidates.get(remotePeerId)
+            if (earlyCandidates && earlyCandidates.length > 0) {
+                const peer = peersRef.current.get(remotePeerId)!
+                peer.pendingCandidates.push(...earlyCandidates)
+                earlyIceCandidates.delete(remotePeerId)
+            }
+
             return pc
         }
 
@@ -622,7 +647,14 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          */
         const handleCandidate = async (remotePeerId: string, candidateData: RTCIceCandidateInit) => {
             const peer = peersRef.current.get(remotePeerId)
-            if (!peer) return
+            if (!peer) {
+                // Peer connection not created yet — queue for later
+                if (!earlyIceCandidates.has(remotePeerId)) {
+                    earlyIceCandidates.set(remotePeerId, [])
+                }
+                earlyIceCandidates.get(remotePeerId)!.push(candidateData)
+                return
+            }
 
             if (peer.connection.remoteDescription) {
                 await peer.connection.addIceCandidate(new RTCIceCandidate(candidateData))
@@ -733,6 +765,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                             // New peer joined — if we were here first, send them an offer
                             if (message.peerId !== peerId && !peersRef.current.has(message.peerId)) {
                                 createOffer(message.peerId, message.name)
+                                    .catch(err => console.error('[WebRTC] createOffer failed:', err))
                             }
                             break
 
@@ -747,8 +780,10 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 if (existingPeer) {
                                     // Renegotiation — reuse existing connection
                                     handleRenegotiation(message.from, message.sdp)
+                                        .catch(err => console.error('[WebRTC] handleRenegotiation failed:', err))
                                 } else {
                                     handleOffer(message.from, message.name, message.sdp)
+                                        .catch(err => console.error('[WebRTC] handleOffer failed:', err))
                                 }
                             }
                             break
@@ -757,6 +792,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                             // Someone answered our offer
                             if (message.to === peerId) {
                                 handleAnswer(message.from, message.sdp)
+                                    .catch(err => console.error('[WebRTC] handleAnswer failed:', err))
                             }
                             break
 
@@ -764,6 +800,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                             // ICE candidate from a peer
                             if (message.to === peerId) {
                                 handleCandidate(message.from, message.candidate)
+                                    .catch(err => console.error('[WebRTC] handleCandidate failed:', err))
                             }
                             break
 
