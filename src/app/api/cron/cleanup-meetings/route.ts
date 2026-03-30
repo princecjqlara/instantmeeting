@@ -75,7 +75,51 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // 2. End 'pending' meetings older than 2 hours (never started)
+    // 2. End 'active' meetings with no guests for over 5 minutes
+    //    Check waiting_guests: if no guest has status 'admitted' or 'in_meeting'
+    //    and the meeting has been active for at least 5 min, end it.
+    const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString()
+    const { data: activeMeetings } = await supabase
+        .from('meetings')
+        .select('id')
+        .eq('status', 'active')
+        .lt('host_joined_at', fiveMinAgo)
+
+    let noGuestCount = 0
+    for (const meeting of activeMeetings || []) {
+        // Check if any guest is currently in the meeting
+        const { count } = await supabase
+            .from('waiting_guests')
+            .select('id', { count: 'exact', head: true })
+            .eq('meeting_id', meeting.id)
+            .in('status', ['admitted', 'in_meeting'])
+
+        if ((count ?? 0) === 0) {
+            const { error: updateError } = await supabase
+                .from('meetings')
+                .update({ status: 'completed', ended_at: now.toISOString() })
+                .eq('id', meeting.id)
+
+            if (!updateError) {
+                await supabase
+                    .from('waiting_guests')
+                    .update({ status: 'left' })
+                    .eq('meeting_id', meeting.id)
+                    .neq('status', 'left')
+
+                const channel = supabase.channel(`room:${meeting.id}`)
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'signal',
+                    payload: { type: 'end-meeting', from: 'system' },
+                }).catch(() => {})
+
+                noGuestCount++
+            }
+        }
+    }
+
+    // 4. End 'pending' meetings older than 2 hours (never started)
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString()
     const { data: pendingEnded, error: pendingError } = await supabase
         .from('meetings')
@@ -93,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     const pendingCount = pendingEnded?.length || 0
 
-    // 3. End 'active' meetings with no host_joined_at older than 1 hour
+    // 5. End 'active' meetings with no host_joined_at older than 1 hour
     const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString()
     const { data: noHostEnded, error: noHostError } = await supabase
         .from('meetings')
@@ -112,11 +156,12 @@ export async function POST(req: NextRequest) {
 
     const noHostCount = noHostEnded?.length || 0
 
-    console.log(`[Cron] Cleanup: ${endedCount} active expired, ${pendingCount} pending expired, ${noHostCount} no-host expired`)
+    console.log(`[Cron] Cleanup: ${endedCount} active expired, ${noGuestCount} no-guest, ${pendingCount} pending expired, ${noHostCount} no-host expired`)
 
     return NextResponse.json({
         cleaned: {
             activeExpired: endedCount,
+            noGuestExpired: noGuestCount,
             pendingExpired: pendingCount,
             noHostExpired: noHostCount,
         },

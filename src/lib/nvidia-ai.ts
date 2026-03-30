@@ -11,7 +11,7 @@ const CHAT_MODEL = 'nvidia/llama-3.1-nemotron-70b-instruct'
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5'
 
 function getApiKey(): string {
-    const key = process.env.NVIDIA_API_KEY
+    const key = process.env.NVIDIA_API_KEY?.trim()
     if (!key) {
         throw new Error('NVIDIA_API_KEY is not set in environment variables')
     }
