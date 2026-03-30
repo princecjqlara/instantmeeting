@@ -12,6 +12,7 @@ import ReelPlayer from '@/components/ReelPlayer'
 import AvailabilitySettings from '@/components/AvailabilitySettings'
 import CalendarDayModal from '@/components/CalendarDayModal'
 import AISetupPanel from '@/components/AISetupPanel'
+import AIAssistantPanel from '@/components/AIAssistantPanel'
 import PresentationManager from '@/components/PresentationManager'
 import styles from './page.module.css'
 import {
@@ -62,6 +63,7 @@ export default function Dashboard() {
     const [copiedId, setCopiedId] = useState<string | null>(null)
     const [copiedUniversal, setCopiedUniversal] = useState(false)
     const [aiSetupOpen, setAiSetupOpen] = useState(false)
+    const [aiTestOpen, setAiTestOpen] = useState(false)
     const [presManagerOpen, setPresManagerOpen] = useState(false)
     const [username, setUsername] = useState<string | null>(null)
     const [newMeetingTitle, setNewMeetingTitle] = useState('')
@@ -801,13 +803,22 @@ export default function Dashboard() {
                     <p style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '1rem' }}>
                         Configure your AI assistant that helps you during calls — set objectives, conversation flows, and upload knowledge base documents. Applies to all your meetings.
                     </p>
-                    <button
-                        className="button-primary"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' }}
-                        onClick={() => setAiSetupOpen(true)}
-                    >
-                        <FaBrain /> Configure AI Assistant
-                    </button>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button
+                            className="button-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)' }}
+                            onClick={() => setAiSetupOpen(true)}
+                        >
+                            <FaBrain /> Configure AI Assistant
+                        </button>
+                        <button
+                            className="button-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+                            onClick={() => setAiTestOpen(true)}
+                        >
+                            <FaBrain /> Test AI Assistant
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -1310,6 +1321,13 @@ export default function Dashboard() {
                 isOpen={aiSetupOpen}
                 onClose={() => setAiSetupOpen(false)}
                 meetingId="default"
+            />
+
+            {/* AI Test Panel */}
+            <AIAssistantPanel
+                isOpen={aiTestOpen}
+                onClose={() => setAiTestOpen(false)}
+                roomId="default"
             />
 
             {/* Presentation Manager Modal */}
