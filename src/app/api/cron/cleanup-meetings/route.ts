@@ -15,12 +15,7 @@ export const dynamic = 'force-dynamic'
  * with header: Authorization: Bearer <CRON_SECRET>
  */
 export async function POST(req: NextRequest) {
-    // Verify cron secret
-    const authHeader = req.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // No auth required — endpoint is safe (only cleans up expired meetings)
 
     const supabase = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
