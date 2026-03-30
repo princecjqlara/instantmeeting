@@ -472,13 +472,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
             // Log connection state changes for debugging
             pc.onconnectionstatechange = () => {
                 console.log(`[WebRTC] Connection to ${remotePeerId}: ${pc.connectionState}`)
-                if (pc.connectionState === 'connected') {
-                    // Ensure peer appears in remoteStreams even without tracks
-                    setRemoteStreams(prev => {
-                        if (prev.find(s => s.peerId === remotePeerId)) return prev
-                        return [...prev, { peerId: remotePeerId, name: remoteName, stream: new MediaStream() }]
-                    })
-                }
+                // Note: Do NOT add empty MediaStream here on 'connected' — it creates
+                // ghost/invisible peers. Peers only appear via ontrack when real media arrives.
                 if (pc.connectionState === 'failed') {
                     // Attempt ICE restart before giving up
                     console.log(`[WebRTC] Connection failed to ${remotePeerId}, attempting ICE restart`)
@@ -851,7 +846,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     try { recognitionRef.current.stop() } catch (e) {}
                                 }
                                 const recognition = new SpeechRecognition()
-                                recognition.lang = 'fil-PH'
+                                // Use browser's default language instead of hardcoding
+                                recognition.lang = navigator.language || 'en-US'
                                 recognition.interimResults = true
                                 recognition.continuous = true
 
@@ -871,9 +867,13 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                             interimText += result[0].transcript
                                         }
                                     }
-                                    accumulated = finalText.trim()
-                                    const liveText = (finalText + interimText).trim()
-                                    if (!liveText) return
+                                    // Append new final text to accumulated (don't overwrite)
+                                    if (finalText.trim()) {
+                                        accumulated = accumulated ? accumulated + ' ' + finalText.trim() : finalText.trim()
+                                    }
+                                    const liveText = accumulated ? accumulated + ' ' + interimText : interimText
+                                    const trimmedLive = liveText.trim()
+                                    if (!trimmedLive) return
 
                                     // Throttle interim signals to max once per 500ms
                                     const now = Date.now()
@@ -884,7 +884,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                         sendSignal({
                                             type: 'recognition-interim',
                                             from: peerId,
-                                            text: liveText,
+                                            text: trimmedLive,
                                         })
                                     } else {
                                         pendingInterimId = setTimeout(() => {
@@ -892,7 +892,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                             sendSignal({
                                                 type: 'recognition-interim',
                                                 from: peerId,
-                                                text: liveText,
+                                                text: trimmedLive,
                                             })
                                         }, 500 - (now - lastInterimSent))
                                     }
