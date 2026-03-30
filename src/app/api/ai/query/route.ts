@@ -77,10 +77,15 @@ export async function POST(req: NextRequest) {
                 Connection: 'keep-alive',
             },
         })
-    } catch (error) {
-        console.error('AI Query error:', error)
+    } catch (error: any) {
+        console.error('AI Query error:', error?.message || error)
+        const msg = error?.name === 'AbortError'
+            ? 'AI request timed out'
+            : error?.message?.includes('API key')
+            ? 'NVIDIA API key is missing or invalid'
+            : error?.message || 'AI query failed'
         return new Response(
-            JSON.stringify({ error: 'AI query failed' }),
+            JSON.stringify({ error: msg }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
         )
     }

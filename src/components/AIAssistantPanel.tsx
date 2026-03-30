@@ -176,7 +176,12 @@ export default function AIAssistantPanel({
                 })
 
                 if (!response.ok) {
-                    throw new Error('AI query failed')
+                    let errDetail = 'AI query failed'
+                    try {
+                        const errJson = await response.json()
+                        errDetail = errJson.error || errDetail
+                    } catch {}
+                    throw new Error(errDetail)
                 }
 
                 const reader = response.body?.getReader()
@@ -232,15 +237,19 @@ export default function AIAssistantPanel({
                 }
                 // Final flush to ensure last tokens are rendered
                 flushUpdate()
-            } catch (error) {
+            } catch (error: any) {
                 console.error('AI chat error:', error)
+                const errMsg = error?.message === 'AI query failed'
+                    ? '⚠️ AI service error — check NVIDIA API key and server logs.'
+                    : error?.name === 'AbortError'
+                    ? '⚠️ AI request timed out. Try a shorter question.'
+                    : `⚠️ ${error?.message || 'Something went wrong. Please try again.'}`
                 setMessages((prev) => [
                     ...prev,
                     {
                         id: `e-${Date.now()}`,
                         role: 'assistant',
-                        content:
-                            '⚠️ Sorry, I couldn\'t process that. Please try again.',
+                        content: errMsg,
                     },
                 ])
             } finally {
