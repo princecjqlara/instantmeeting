@@ -49,18 +49,13 @@ export async function POST(req: NextRequest) {
 
     if (meetingId) {
         const supabase = getSupabase()
-        const { data: user } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', session.user.email)
-            .single()
+        // Fetch user and meeting in parallel for speed
+        const [{ data: user }, { data: meetings }] = await Promise.all([
+            supabase.from('users').select('id').eq('email', session.user.email).single(),
+            supabase.from('meetings').select('ai_objective, ai_flow, ai_knowledge_base_id, user_id').eq('id', meetingId).single(),
+        ])
 
-        const { data: meeting } = await supabase
-            .from('meetings')
-            .select('ai_objective, ai_flow, ai_knowledge_base_id')
-            .eq('id', meetingId)
-            .eq('user_id', user?.id ?? '')
-            .single()
+        const meeting = meetings && user && meetings.user_id === user.id ? meetings : null
 
         if (meeting) {
             meetingContext = {

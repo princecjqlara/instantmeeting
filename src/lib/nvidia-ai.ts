@@ -21,6 +21,8 @@ function getApiKey(): string {
 /* ---------- Embeddings ---------- */
 
 export async function generateEmbedding(text: string): Promise<number[]> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
     const response = await fetch(`${NVIDIA_BASE_URL}/embeddings`, {
         method: 'POST',
         headers: {
@@ -34,7 +36,9 @@ export async function generateEmbedding(text: string): Promise<number[]> {
             encoding_format: 'float',
             truncate: 'END',
         }),
+        signal: controller.signal,
     })
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
         const errBody = await response.text()
@@ -101,6 +105,8 @@ export async function chatCompletion(
         stream?: false
     } = {}
 ): Promise<string> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -114,7 +120,9 @@ export async function chatCompletion(
             max_tokens: options.maxTokens ?? 1024,
             stream: false,
         }),
+        signal: controller.signal,
     })
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
         const errBody = await response.text()
@@ -133,6 +141,8 @@ export async function chatCompletionStream(
         maxTokens?: number
     } = {}
 ): Promise<ReadableStream<Uint8Array>> {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
     const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -146,7 +156,9 @@ export async function chatCompletionStream(
             max_tokens: options.maxTokens ?? 1024,
             stream: true,
         }),
+        signal: controller.signal,
     })
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
         const errBody = await response.text()

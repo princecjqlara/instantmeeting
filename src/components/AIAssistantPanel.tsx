@@ -191,8 +191,21 @@ export default function AIAssistantPanel({
                     { id: aiMsgId, role: 'assistant', content: '' },
                 ])
 
-                // Stream the response
+                // Stream the response — batch UI updates to reduce re-renders
                 let fullContent = ''
+                let pendingUpdate = false
+                const flushUpdate = () => {
+                    pendingUpdate = false
+                    const snapshot = fullContent
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === aiMsgId
+                                ? { ...m, content: snapshot }
+                                : m
+                        )
+                    )
+                }
+
                 while (true) {
                     const { done, value } = await reader.read()
                     if (done) break
@@ -207,19 +220,18 @@ export default function AIAssistantPanel({
                             const parsed = JSON.parse(trimmed.slice(6))
                             if (parsed.content) {
                                 fullContent += parsed.content
-                                setMessages((prev) =>
-                                    prev.map((m) =>
-                                        m.id === aiMsgId
-                                            ? { ...m, content: fullContent }
-                                            : m
-                                    )
-                                )
+                                if (!pendingUpdate) {
+                                    pendingUpdate = true
+                                    requestAnimationFrame(flushUpdate)
+                                }
                             }
                         } catch {
                             // Skip malformed SSE lines
                         }
                     }
                 }
+                // Final flush to ensure last tokens are rendered
+                flushUpdate()
             } catch (error) {
                 console.error('AI chat error:', error)
                 setMessages((prev) => [
