@@ -831,6 +831,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
                         case 'start-recognition':
                             if (message.from !== peerId) {
+                                console.log('[WebRTC] Received start-recognition signal from host')
                                 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
                                 if (!SpeechRecognition) {
                                     // Browser doesn't support Speech Recognition
@@ -881,6 +882,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
                                     if (now - lastInterimSent >= 500) {
                                         lastInterimSent = now
+                                        console.log('[WebRTC] Sending recognition-interim:', trimmedLive)
                                         sendSignal({
                                             type: 'recognition-interim',
                                             from: peerId,
@@ -969,6 +971,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 try {
                                     recognition.start()
                                     recognitionRef.current = recognition
+                                    console.log('[WebRTC] Speech recognition started successfully')
                                 } catch (err: any) {
                                     console.error('Failed to start recognition:', err)
                                     sendSignal({
@@ -998,6 +1001,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
                         case 'recognition-interim':
                             if (message.from !== peerId) {
+                                console.log('[WebRTC] Received recognition-interim:', message.text)
                                 setLiveTranscript(message.text)
                                 setRecognitionError(null)
                             }
@@ -1147,10 +1151,14 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
     // ─── Guest Speech Recognition ──────────────────────────────────────────────
     const startGuestRecognition = useCallback(() => {
         const sendSignal = sendSignalRef.current
-        if (!peerIdRef.current || !sendSignal) return
+        if (!peerIdRef.current || !sendSignal) {
+            console.warn('[WebRTC] Cannot start guest recognition: no peerId or sendSignal')
+            return
+        }
         setGuestTranscript(null)
-        setLiveTranscript(null)
+        setLiveTranscript('Waiting for guest to speak...')
         setRecognitionError(null)
+        console.log('[WebRTC] Sending start-recognition signal')
         sendSignal({ type: 'start-recognition', from: peerIdRef.current })
     }, [])
 

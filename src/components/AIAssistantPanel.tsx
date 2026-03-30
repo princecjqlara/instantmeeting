@@ -484,13 +484,18 @@ export default function AIAssistantPanel({
                                     Stop
                                 </button>
                             </div>
-                            {liveTranscript && (
-                                <p className={styles.liveTranscript}>{liveTranscript}</p>
+                            <p className={styles.liveTranscript}>
+                                {liveTranscript || 'Waiting for guest to speak...'}
+                            </p>
+                            {recognitionError && (
+                                <p className={styles.liveTranscript} style={{ color: '#f87171' }}>
+                                    {recognitionError}
+                                </p>
                             )}
                         </div>
                     )}
 
-                    {/* Recognition Error */}
+                    {/* Recognition Error (shown after recording stops) */}
                     {recognitionError && !isRecordingGuest && (
                         <div className={styles.recognitionError}>
                             {recognitionError}
