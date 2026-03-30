@@ -384,6 +384,9 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
         }
         sendSignalRef.current = sendSignal
 
+        // Track peers currently in initial negotiation to suppress onnegotiationneeded
+        const initialNegotiationPeers = new Set<string>()
+
         /**
          * Create a new RTCPeerConnection for a remote peer.
          * Sets up ICE candidate handling and track reception.
@@ -459,14 +462,37 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                         return [...prev, { peerId: remotePeerId, name: remoteName, stream: new MediaStream() }]
                     })
                 }
-                if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-                    // Remove remote stream when peer disconnects
+                if (pc.connectionState === 'failed') {
+                    // Attempt ICE restart before giving up
+                    console.log(`[WebRTC] Connection failed to ${remotePeerId}, attempting ICE restart`)
+                    pc.restartIce()
+                    pc.createOffer({ iceRestart: true }).then(offer => {
+                        pc.setLocalDescription(offer).then(() => {
+                            sendSignal({
+                                type: 'offer',
+                                from: peerId,
+                                to: remotePeerId,
+                                name: displayName,
+                                sdp: { sdp: offer.sdp, type: offer.type },
+                            })
+                        })
+                    }).catch(err => {
+                        console.warn('[WebRTC] ICE restart failed:', err)
+                        setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
+                    })
+                }
+                if (pc.connectionState === 'closed') {
                     setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
                 }
             }
 
             // Handle renegotiation when tracks are added after connection is established
+            // Suppressed during initial offer/answer exchange to avoid duplicate offers
             pc.onnegotiationneeded = async () => {
+                if (initialNegotiationPeers.has(remotePeerId)) {
+                    console.log('[WebRTC] Suppressing onnegotiationneeded during initial negotiation for', remotePeerId)
+                    return
+                }
                 try {
                     const offer = await pc.createOffer()
                     await pc.setLocalDescription(offer)
@@ -499,6 +525,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          * Create an offer and send it to a remote peer via Supabase Broadcast.
          */
         const createOffer = async (remotePeerId: string, remoteName: string) => {
+            initialNegotiationPeers.add(remotePeerId)
             const pc = createPeerConnection(remotePeerId, remoteName)
 
             // Create SDP offer
@@ -513,12 +540,14 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 name: displayName,
                 sdp: { sdp: offer.sdp, type: offer.type },
             })
+            // Don't remove from initialNegotiationPeers yet — wait for answer
         }
 
         /**
          * Handle an incoming offer from a remote peer — create an answer.
          */
         const handleOffer = async (remotePeerId: string, remoteName: string, offerData: RTCSessionDescriptionInit) => {
+            initialNegotiationPeers.add(remotePeerId)
             const pc = createPeerConnection(remotePeerId, remoteName)
 
             // Set the remote offer and create our answer
@@ -534,6 +563,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 to: remotePeerId,
                 sdp: { sdp: answer.sdp, type: answer.type },
             })
+            initialNegotiationPeers.delete(remotePeerId)
         }
 
         /**
@@ -547,6 +577,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 await flushPendingCandidates(remotePeerId)
             } catch (err) {
                 console.warn('[WebRTC] Error setting remote description for answer:', err)
+            } finally {
+                initialNegotiationPeers.delete(remotePeerId)
             }
         }
 
@@ -557,9 +589,22 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
             const peer = peersRef.current.get(remotePeerId)
             if (!peer) return
             try {
-                await peer.connection.setRemoteDescription(new RTCSessionDescription(offerData))
-                const answer = await peer.connection.createAnswer()
-                await peer.connection.setLocalDescription(answer)
+                const pc = peer.connection
+                // Handle glare: if we also sent an offer, use polite/impolite pattern
+                // The peer with the lower peerId is "polite" and rolls back
+                if (pc.signalingState === 'have-local-offer') {
+                    const isPolite = peerId < remotePeerId
+                    if (!isPolite) {
+                        // We're impolite — ignore their offer, they'll accept our answer
+                        console.log('[WebRTC] Ignoring renegotiation offer (impolite peer)')
+                        return
+                    }
+                    // We're polite — rollback our offer and accept theirs
+                    await pc.setLocalDescription({ type: 'rollback' })
+                }
+                await pc.setRemoteDescription(new RTCSessionDescription(offerData))
+                const answer = await pc.createAnswer()
+                await pc.setLocalDescription(answer)
                 sendSignal({
                     type: 'answer',
                     from: peerId,
