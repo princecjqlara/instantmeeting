@@ -105,6 +105,7 @@ type SignalMessage =
     | { type: 'end-meeting'; from: string }
     | { type: 'start-recognition'; from: string }
     | { type: 'stop-recognition'; from: string }
+    | { type: 'recognition-started'; from: string }
     | { type: 'recognition-result'; from: string; text: string }
     | { type: 'recognition-interim'; from: string; text: string }
     | { type: 'recognition-error'; from: string; error: string }
@@ -856,6 +857,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                 let accumulated = ''
                                 let lastInterimSent = 0
                                 let pendingInterimId: ReturnType<typeof setTimeout> | null = null
+                                let restartCount = 0
+                                const MAX_RESTARTS = 10
 
                                 recognition.onresult = (event: any) => {
                                     let finalText = ''
@@ -916,9 +919,10 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                             })
                                         }
                                         recognitionRef.current = null
-                                    } else {
+                                    } else if (restartCount < MAX_RESTARTS) {
                                         // Chrome killed recognition (timeout/network) — auto-restart
-                                        console.log('[WebRTC] SpeechRecognition ended unexpectedly, restarting...')
+                                        restartCount++
+                                        console.log(`[WebRTC] SpeechRecognition ended unexpectedly, restart ${restartCount}/${MAX_RESTARTS}`)
                                         try {
                                             recognition.start()
                                         } catch (err) {
@@ -932,6 +936,22 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                             }
                                             recognitionRef.current = null
                                         }
+                                    } else {
+                                        // Too many restarts — give up
+                                        console.warn('[WebRTC] SpeechRecognition max restarts reached')
+                                        sendSignal({
+                                            type: 'recognition-error',
+                                            from: peerId,
+                                            error: 'Speech recognition stopped after too many retries',
+                                        })
+                                        if (accumulated.trim()) {
+                                            sendSignal({
+                                                type: 'recognition-result',
+                                                from: peerId,
+                                                text: accumulated.trim()
+                                            })
+                                        }
+                                        recognitionRef.current = null
                                     }
                                 }
 
@@ -972,6 +992,11 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     recognition.start()
                                     recognitionRef.current = recognition
                                     console.log('[WebRTC] Speech recognition started successfully')
+                                    // Confirm to host that recognition started
+                                    sendSignal({
+                                        type: 'recognition-started',
+                                        from: peerId,
+                                    })
                                 } catch (err: any) {
                                     console.error('Failed to start recognition:', err)
                                     sendSignal({
@@ -992,8 +1017,16 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                             }
                             break
 
+                        case 'recognition-started':
+                            if (message.from !== peerId) {
+                                console.log('[WebRTC] Guest confirmed recognition started')
+                                setLiveTranscript('Guest mic activated — listening...')
+                            }
+                            break
+
                         case 'recognition-result':
                             if (message.from !== peerId) {
+                                console.log('[WebRTC] Received recognition-result:', message.text)
                                 setGuestTranscript(message.text)
                                 setLiveTranscript(null)
                             }
