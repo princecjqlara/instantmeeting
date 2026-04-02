@@ -52,7 +52,9 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(tenants)
+    return NextResponse.json(tenants, {
+        headers: { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' },
+    })
 }
 
 /**

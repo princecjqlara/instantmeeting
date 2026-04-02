@@ -147,7 +147,8 @@ export async function GET() {
     }
 
     return NextResponse.json(
-        normalizeProfileSettings(user, { fallbackName: session.user.name || '' })
+        normalizeProfileSettings(user, { fallbackName: session.user.name || '' }),
+        { headers: { 'Cache-Control': 'private, max-age=15, stale-while-revalidate=60' } }
     )
 }
 

@@ -53,7 +53,9 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(meetings)
+    return NextResponse.json(meetings, {
+        headers: { 'Cache-Control': 'private, max-age=5, stale-while-revalidate=15' },
+    })
 }
 
 // POST: Create a new meeting with in-app video room

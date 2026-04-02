@@ -101,9 +101,11 @@ export default function Dashboard() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [meetingsRes, contentRes] = await Promise.all([
+                const [meetingsRes, contentRes, profileRes, teamRes] = await Promise.all([
                     fetch('/api/meetings'),
-                    fetch('/api/content')
+                    fetch('/api/content'),
+                    fetch('/api/profile/settings'),
+                    fetch('/api/team')
                 ])
 
                 if (meetingsRes.ok) {
@@ -116,8 +118,6 @@ export default function Dashboard() {
                     setContent(contentData)
                 }
 
-                // Fetch username for universal link
-                const profileRes = await fetch('/api/profile/settings')
                 if (profileRes.ok) {
                     const profileData = await profileRes.json()
                     if (profileData.username) {
@@ -128,8 +128,6 @@ export default function Dashboard() {
                     }
                 }
 
-                // Fetch team data
-                const teamRes = await fetch('/api/team')
                 if (teamRes.ok) {
                     const teamData = await teamRes.json()
                     if (teamData.team) {

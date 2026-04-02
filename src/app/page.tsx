@@ -15,49 +15,50 @@ export default function Home() {
   const [loggingIn, setLoggingIn] = useState(false)
 
   useEffect(() => {
+    let rafId: number | null = null
+
     const handleScroll = () => {
-      const scrollPosition = window.scrollY
-      const windowHeight = window.innerHeight
+      if (rafId !== null) return
+      rafId = requestAnimationFrame(() => {
+        rafId = null
+        const scrollPosition = window.scrollY
+        const windowHeight = window.innerHeight
 
-      // Parallax effect for phone frame
-      const phoneFrame = document.querySelector(`.${styles.phoneFrame}`) as HTMLElement
-      if (phoneFrame) {
-        const phoneSpeed = 0.3
-        const phoneOffset = scrollPosition * phoneSpeed
-        phoneFrame.style.transform = `translateY(${phoneOffset}px)`
-      }
-
-      // Parallax effect for features
-      const features = document.querySelectorAll(`.${styles.feature}`)
-      features.forEach((feature, index) => {
-        const element = feature as HTMLElement
-        const rect = element.getBoundingClientRect()
-        const elementTop = rect.top + scrollPosition
-        const elementCenter = elementTop + rect.height / 2
-
-        // Only animate when element is in viewport
-        if (elementCenter < scrollPosition + windowHeight && elementTop > scrollPosition) {
-          const featureSpeed = 0.2 + (index * 0.1)
-          const featureOffset = (scrollPosition - elementTop + windowHeight) * featureSpeed
-          element.style.transform = `translateY(${featureOffset}px)`
+        // Parallax effect for phone frame
+        const phoneFrame = document.querySelector(`.${styles.phoneFrame}`) as HTMLElement
+        if (phoneFrame) {
+          phoneFrame.style.transform = `translateY(${scrollPosition * 0.3}px)`
         }
-      })
 
-      // Floating particles parallax
-      const particles = document.querySelectorAll(`.${styles.parallaxParticle}`)
-      particles.forEach((particle, index) => {
-        const element = particle as HTMLElement
-        const particleSpeed = 0.5 + (index * 0.2)
-        const particleOffset = scrollPosition * particleSpeed
-        element.style.transform = `translateY(${particleOffset}px)`
+        // Parallax effect for features
+        const features = document.querySelectorAll(`.${styles.feature}`)
+        features.forEach((feature, index) => {
+          const element = feature as HTMLElement
+          const rect = element.getBoundingClientRect()
+          const elementTop = rect.top + scrollPosition
+          const elementCenter = elementTop + rect.height / 2
+
+          if (elementCenter < scrollPosition + windowHeight && elementTop > scrollPosition) {
+            const featureOffset = (scrollPosition - elementTop + windowHeight) * (0.2 + index * 0.1)
+            element.style.transform = `translateY(${featureOffset}px)`
+          }
+        })
+
+        // Floating particles parallax
+        const particles = document.querySelectorAll(`.${styles.parallaxParticle}`)
+        particles.forEach((particle, index) => {
+          const element = particle as HTMLElement
+          element.style.transform = `translateY(${scrollPosition * (0.5 + index * 0.2)}px)`
+        })
       })
     }
 
-    window.addEventListener('scroll', handleScroll)
-    handleScroll() // Initial call
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    handleScroll()
 
     return () => {
       window.removeEventListener('scroll', handleScroll)
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [])
 

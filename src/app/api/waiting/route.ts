@@ -158,6 +158,8 @@ export async function GET(req: NextRequest) {
             guestStatus?.join_token
             ? `${origin}/api/join/${guestStatus.join_token}`
             : null,
+    }, {
+        headers: { 'Cache-Control': 'private, max-age=3, stale-while-revalidate=10' },
     })
 }
 
