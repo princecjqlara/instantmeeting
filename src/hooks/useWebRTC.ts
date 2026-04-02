@@ -848,8 +848,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                                     try { recognitionRef.current.stop() } catch (e) {}
                                 }
                                 const recognition = new SpeechRecognition()
-                                // Filipino for Taglish (Tagalog + English mix)
-                                recognition.lang = 'fil-PH'
+                                // en-PH handles Taglish (Tagalog + English mix) better than fil-PH
+                                recognition.lang = 'en-PH'
                                 recognition.interimResults = true
                                 recognition.continuous = true
 

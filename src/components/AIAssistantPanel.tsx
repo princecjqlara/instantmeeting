@@ -284,7 +284,7 @@ export default function AIAssistantPanel({
             setLocalRecognitionError(null)
 
             const recognition = new SpeechRecognition()
-            recognition.lang = 'fil-PH'
+            recognition.lang = 'en-PH'
             recognition.interimResults = true
             recognition.continuous = true
 
