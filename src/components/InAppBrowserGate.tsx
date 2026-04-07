@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
  * If not an in-app browser, renders children normally.
  */
 
-const IN_APP_REGEX = /FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i
+const IN_APP_REGEX = /FBAN|FBAV|Messenger|Instagram|musical_ly|BytedanceWebview|MicroMessenger|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i
 
 function isInAppBrowser(): boolean {
     if (typeof navigator === 'undefined') return false
