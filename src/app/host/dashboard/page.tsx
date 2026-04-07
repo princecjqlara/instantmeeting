@@ -84,6 +84,9 @@ export default function Dashboard() {
     const [newMemberName, setNewMemberName] = useState('')
     const [newMemberEmail, setNewMemberEmail] = useState('')
     const [copiedClockLink, setCopiedClockLink] = useState(false)
+    const [widgetCfg, setWidgetCfg] = useState<{ widgetKey: string; domains: string[]; enabled: boolean } | null>(null)
+    const [widgetDomain, setWidgetDomain] = useState('')
+    const [copiedEmbed, setCopiedEmbed] = useState(false)
     const supabase = createClient()
 
     // Pagination state
@@ -707,6 +710,18 @@ export default function Dashboard() {
                     </div>
                 </section>
             )}
+
+
+            {/* Website Widget — inline DIY setup */}
+            <WidgetSetupCard
+                cfg={widgetCfg}
+                setCfg={setWidgetCfg}
+                domain={widgetDomain}
+                setDomain={setWidgetDomain}
+                copied={copiedEmbed}
+                setCopied={setCopiedEmbed}
+            />
+
 
             {/* Welcome Voice Message */}
             <section className={styles.createSection}>
@@ -1334,5 +1349,138 @@ export default function Dashboard() {
                 onClose={() => setPresManagerOpen(false)}
             />
         </div>
+    )
+}
+
+function WidgetSetupCard({
+    cfg, setCfg, domain, setDomain, copied, setCopied,
+}: {
+    cfg: { widgetKey: string; domains: string[]; enabled: boolean } | null
+    setCfg: React.Dispatch<React.SetStateAction<{ widgetKey: string; domains: string[]; enabled: boolean } | null>>
+    domain: string
+    setDomain: (v: string) => void
+    copied: boolean
+    setCopied: (v: boolean) => void
+}) {
+    useEffect(() => {
+        fetch('/api/host/widget/config')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => d && setCfg({ widgetKey: d.widgetKey, domains: d.domains || [], enabled: !!d.enabled }))
+            .catch(() => { })
+    }, [setCfg])
+
+    if (!cfg) return null
+
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const embed = `<script src="${origin}/widget/im.js" data-key="${cfg.widgetKey}" async></script>`
+
+    const save = async (patch: Partial<{ domains: string[]; enabled: boolean }>) => {
+        await fetch('/api/host/widget/config', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+        })
+        setCfg((c) => (c ? { ...c, ...patch } : c))
+    }
+
+    const addDomain = () => {
+        const d = domain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
+        if (!d || cfg.domains.includes(d)) return
+        save({ domains: [...cfg.domains, d] })
+        setDomain('')
+    }
+
+    const removeDomain = (d: string) =>
+        save({ domains: cfg.domains.filter((x) => x !== d) })
+
+    const card: React.CSSProperties = {
+        background: '#14141f', border: '1px solid #222', borderRadius: 12,
+        padding: 24, marginBottom: 24,
+    }
+    const stepHead: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 8px' }
+    const stepWrap: React.CSSProperties = { marginBottom: 20 }
+    const muted: React.CSSProperties = { color: '#888', fontSize: 12, margin: '4px 0 10px' }
+
+    return (
+        <section style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, color: '#fff' }}>🌐 Website Widget — DIY Setup</h2>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#ccc' }}>
+                    <input
+                        type="checkbox"
+                        checked={cfg.enabled}
+                        onChange={(e) => save({ enabled: e.target.checked })}
+                    />
+                    {cfg.enabled ? 'Enabled' : 'Disabled'}
+                </label>
+            </div>
+
+            <div style={stepWrap}>
+                <h3 style={stepHead}>Step 1 — Add your website hostname</h3>
+                <p style={muted}>No <code>https://</code>, no trailing slash. Example: <code>joes-plumbing.com</code></p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                        value={domain}
+                        onChange={(e) => setDomain(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && addDomain()}
+                        placeholder="yourdomain.com"
+                        style={{
+                            flex: 1, padding: '10px 12px', background: '#0f0f17',
+                            border: '1px solid #2a2a3a', borderRadius: 8, color: '#fff', fontSize: 14,
+                        }}
+                    />
+                    <button onClick={addDomain} className="button-secondary">Add</button>
+                </div>
+                <ul style={{ listStyle: 'none', padding: 0, marginTop: 12 }}>
+                    {cfg.domains.map((d) => (
+                        <li key={d} style={{
+                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                            padding: '8px 12px', background: '#1a1a25', borderRadius: 8, marginBottom: 6,
+                            color: '#ddd', fontSize: 13,
+                        }}>
+                            <span>✓ {d}</span>
+                            <button
+                                onClick={() => removeDomain(d)}
+                                style={{ background: 'transparent', color: '#e57373', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                            >
+                                Remove
+                            </button>
+                        </li>
+                    ))}
+                    {cfg.domains.length === 0 && <li style={{ color: '#666', fontSize: 12 }}>No domains yet — add one above.</li>}
+                </ul>
+            </div>
+
+            <div style={stepWrap}>
+                <h3 style={stepHead}>Step 2 — Copy this snippet into your website</h3>
+                <p style={muted}>Paste it just before <code>&lt;/body&gt;</code> on every page (or in your theme&apos;s &quot;custom HTML / footer scripts&quot; setting).</p>
+                <pre style={{
+                    background: '#0f0f17', padding: 14, borderRadius: 10, overflowX: 'auto',
+                    fontSize: 12, color: '#9bd', margin: 0,
+                }}>{embed}</pre>
+                <button
+                    onClick={() => {
+                        navigator.clipboard?.writeText(embed)
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 1500)
+                    }}
+                    className="button-secondary"
+                    style={{ marginTop: 10 }}
+                >
+                    {copied ? <><FaCheck /> Copied</> : <><FaCopy /> Copy embed code</>}
+                </button>
+            </div>
+
+            <div style={stepWrap}>
+                <h3 style={stepHead}>Step 3 — Watch visitors live</h3>
+                <p style={muted}>Once the snippet is live, visitors show up here in real time so you can invite them into a meeting.</p>
+                <a href="/host/widget/live" className="button-primary" style={{ display: 'inline-block', textDecoration: 'none' }}>
+                    👀 Watch Visitors Live
+                </a>
+                <a href="/host/widget" style={{ marginLeft: 12, color: '#7aa2ff', fontSize: 13 }}>
+                    Advanced settings →
+                </a>
+            </div>
+        </section>
     )
 }
