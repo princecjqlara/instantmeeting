@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 import { buildGuestJoinInsights } from '@/lib/guest-join-insights'
+import { buildLeadSummaryRows } from '@/lib/lead-summary'
 import {
     FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
     FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
@@ -135,6 +136,30 @@ export default function LeadsPage() {
         () => buildGuestJoinInsights(leads, browserTimeZone),
         [browserTimeZone, leads]
     )
+
+    const summaryRows = useMemo(
+        () => buildLeadSummaryRows(filteredLeads, browserTimeZone),
+        [browserTimeZone, filteredLeads]
+    )
+
+    const formSubmissions = useMemo(
+        () => filteredLeads.filter(l => Array.isArray(l.custom_fields) && l.custom_fields.length > 0),
+        [filteredLeads]
+    )
+
+    const formFieldLabels = useMemo(() => {
+        const labels: string[] = []
+        const seen = new Set<string>()
+        formSubmissions.forEach(lead => {
+            lead.custom_fields?.forEach(f => {
+                if (!seen.has(f.label)) {
+                    seen.add(f.label)
+                    labels.push(f.label)
+                }
+            })
+        })
+        return labels
+    }, [formSubmissions])
 
     const busiestWeekday = useMemo(() => {
         return joinInsights.weekdays.reduce((best, current) => {
@@ -327,6 +352,121 @@ export default function LeadsPage() {
                         </button>
                     ))}
                 </div>
+            </section>
+
+            <section className={styles.summarySection}>
+                <div className={styles.summaryHeader}>
+                    <div>
+                        <h2 className={styles.summaryTitle}>Lead Summary Table</h2>
+                        <p className={styles.summaryDescription}>
+                            Review every visible lead, their submitted form details, and the full meeting timeline in {browserTimeZone}.
+                        </p>
+                    </div>
+                    <span className={styles.summaryBadge}>{summaryRows.length} visible leads</span>
+                </div>
+
+                {summaryRows.length === 0 ? (
+                    <div className={styles.summaryEmpty}>
+                        <p>No lead rows to show yet.</p>
+                        <span>New form submissions will appear here automatically.</span>
+                    </div>
+                ) : (
+                    <div className={styles.summaryTableWrap}>
+                        <table className={styles.summaryTable}>
+                            <thead>
+                                <tr>
+                                    <th>Lead</th>
+                                    <th>Meeting</th>
+                                    <th>Status</th>
+                                    <th>Scheduled Start</th>
+                                    <th>Joined</th>
+                                    <th>Admitted</th>
+                                    <th>Wait Time</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Form Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {summaryRows.map((row) => (
+                                    <tr key={row.id}>
+                                        <td className={styles.summaryLeadCell}>{row.name}</td>
+                                        <td>{row.meetingTitle}</td>
+                                        <td>
+                                            <span className={styles.summaryStatus}>{row.status}</span>
+                                        </td>
+                                        <td className={styles.summaryTimeCell}>{row.scheduledAt}</td>
+                                        <td className={styles.summaryTimeCell}>{row.joinedAt}</td>
+                                        <td className={styles.summaryTimeCell}>{row.admittedAt}</td>
+                                        <td>{row.waitDuration}</td>
+                                        <td>{row.email}</td>
+                                        <td>{row.phone}</td>
+                                        <td className={styles.summaryDetailsCell}>{row.details}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </section>
+
+            <section className={styles.summarySection}>
+                <div className={styles.summaryHeader}>
+                    <div>
+                        <h2 className={styles.summaryTitle}>Form Submissions</h2>
+                        <p className={styles.summaryDescription}>
+                            All leads who filled out the booking form, with their submitted answers.
+                        </p>
+                    </div>
+                    <span className={styles.summaryBadge}>{formSubmissions.length} submissions</span>
+                </div>
+
+                {formSubmissions.length === 0 ? (
+                    <div className={styles.summaryEmpty}>
+                        <p>No form submissions yet.</p>
+                        <span>Leads who complete the booking form will be listed here.</span>
+                    </div>
+                ) : (
+                    <div className={styles.summaryTableWrap}>
+                        <table className={styles.summaryTable}>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Meeting</th>
+                                    <th>Submitted</th>
+                                    {formFieldLabels.map(label => (
+                                        <th key={label}>{label}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {formSubmissions.map(lead => {
+                                    const fieldMap = new Map(
+                                        (lead.custom_fields || []).map(f => [f.label, f.value])
+                                    )
+                                    return (
+                                        <tr key={lead.id}>
+                                            <td className={styles.summaryLeadCell}>{lead.guest_name}</td>
+                                            <td>{lead.guest_email || '—'}</td>
+                                            <td>{lead.guest_phone || '—'}</td>
+                                            <td>{lead.meetings?.title || '—'}</td>
+                                            <td className={styles.summaryTimeCell}>
+                                                {formatDate(lead.joined_at)} {formatTime(lead.joined_at)}
+                                            </td>
+                                            {formFieldLabels.map(label => (
+                                                <td key={label} className={styles.summaryDetailsCell}>
+                                                    {fieldMap.get(label) || '—'}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </section>
 
             {/* Leads List */}
