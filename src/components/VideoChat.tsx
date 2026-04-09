@@ -15,6 +15,7 @@ import { useRef, useEffect, useState } from 'react'
 import { useWebRTC, RemoteStream } from '@/hooks/useWebRTC'
 import AIAssistantPanel from './AIAssistantPanel'
 import PresentationOverlay from './PresentationOverlay'
+import WidgetVisitorsPanel from './WidgetVisitorsPanel'
 import {
     FaMicrophone,
     FaMicrophoneSlash,
@@ -343,6 +344,13 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
                     <div className={styles.waitingPulse} />
                     <p>Waiting for others to join...</p>
                 </div>
+            )}
+
+            {isHost && (
+                <WidgetVisitorsPanel
+                    variant="overlay"
+                    subtitle="Active website visitors stay visible during the call so you can monitor and invite them instantly."
+                />
             )}
 
             {/* ─── AI Assistant Panel (Host Only) ─────────────────────────── */}

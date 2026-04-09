@@ -14,6 +14,7 @@ import CalendarDayModal from '@/components/CalendarDayModal'
 import AISetupPanel from '@/components/AISetupPanel'
 import AIAssistantPanel from '@/components/AIAssistantPanel'
 import PresentationManager from '@/components/PresentationManager'
+import WidgetVisitorsPanel from '@/components/WidgetVisitorsPanel'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaSignInAlt, FaLink, FaCopy, FaCheck,
@@ -721,6 +722,10 @@ export default function Dashboard() {
                 copied={copiedEmbed}
                 setCopied={setCopiedEmbed}
             />
+
+            <section className={styles.createSection}>
+                <WidgetVisitorsPanel subtitle="Every active visitor appears here with auto mirror status and a quick screen shortcut." />
+            </section>
 
 
             {/* Welcome Voice Message */}
