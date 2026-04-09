@@ -11,17 +11,19 @@ import {
     FaTimes,
 } from 'react-icons/fa'
 import { buildBookingCalendarMonth, buildTimeSlots } from '@/lib/booking-calendar'
-
-interface BookingModalProps {
-    host: BookingHost
-    onClose: () => void
-    onSuccess?: () => void
-    meetingId?: string
-    guestId?: string
-    mode?: 'new' | 'reschedule'
+function mergeBookingCustomFields(
+    first: Array<{ id: string; label: string; value: string }>,
+    second: Array<{ id: string; label: string; value: string }>
+) {
+    const merged = new Map<string, { id: string; label: string; value: string }>()
+    for (const field of [...first, ...second]) {
+        if (!field.value.trim()) continue
+        merged.set(field.id, field)
+    }
+    return Array.from(merged.values())
 }
 
-interface BookingHost {
+export interface BookingHost {
     id: string
     name: string | null
     available_from: string | null
@@ -44,11 +46,31 @@ interface BookingHost {
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-export default function BookingModal({ host, onClose, onSuccess, meetingId, guestId, mode = 'new' }: BookingModalProps) {
+interface BookingGuestPrefill {
+    name?: string
+    email?: string
+    phone?: string
+    note?: string
+    customFields?: Array<{ id: string; label: string; value: string }>
+}
+
+interface BookingModalProps {
+    host: BookingHost
+    onClose: () => void
+    onSuccess?: () => void
+    meetingId?: string
+    guestId?: string
+    mode?: 'new' | 'reschedule'
+    initialGuest?: BookingGuestPrefill
+}
+
+export default function BookingModal({ host, onClose, onSuccess, meetingId, guestId, mode = 'new', initialGuest }: BookingModalProps) {
     const [step, setStep] = useState<'calendar' | 'details'>('calendar')
     const [formData, setFormData] = useState({
-        name: '',
-        note: ''
+        name: initialGuest?.name || '',
+        email: initialGuest?.email || '',
+        phone: initialGuest?.phone || '',
+        note: initialGuest?.note || ''
     })
     const [selectedDate, setSelectedDate] = useState('')
     const [selectedTime, setSelectedTime] = useState('')
@@ -64,6 +86,8 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
     const notePlaceholder = host.booking_note_placeholder || "I'd like to discuss..."
     const customFields = Array.isArray(host.booking_form_fields) ? host.booking_form_fields : []
     const displayTimeZone = host.timezone || 'UTC'
+    const hasCustomEmailField = customFields.some((field) => field.type === 'email')
+    const hasCustomPhoneField = customFields.some((field) => field.type === 'phone')
 
     const calendarCells = useMemo(() => buildBookingCalendarMonth({
         currentMonth: calendarMonth,
@@ -151,6 +175,19 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
             }))
                 .filter(field => field.value.trim() !== '')
 
+            const mergedCustomFields = mergeBookingCustomFields(
+                initialGuest?.customFields || [],
+                customFieldPayload
+            )
+
+            const guestEmail = hasCustomEmailField
+                ? customFieldPayload.find((field) => field.id === customFields.find((item) => item.type === 'email')?.id)?.value || ''
+                : formData.email.trim()
+
+            const guestPhone = hasCustomPhoneField
+                ? customFieldPayload.find((field) => field.id === customFields.find((item) => item.type === 'phone')?.id)?.value || ''
+                : formData.phone.trim()
+
             const endpoint = mode === 'reschedule' && meetingId
                 ? `/api/meetings/${meetingId}/reschedule/guest`
                 : '/api/meetings/public'
@@ -158,10 +195,12 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
             const payload: Record<string, unknown> = {
                 hostId: host.id,
                 guestName: formData.name,
+                guestEmail,
+                guestPhone,
                 note: formData.note,
                 date: selectedDate,
                 time: selectedTime,
-                customFields: customFieldPayload,
+                customFields: mergedCustomFields,
             }
 
             if (mode === 'reschedule' && meetingId) {
@@ -362,6 +401,30 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
                                     autoFocus
                                 />
                             </div>
+
+                            {!hasCustomEmailField && (
+                                <div className={styles.inputGroup}>
+                                    <label>Email (Optional)</label>
+                                    <input
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="jane@example.com"
+                                    />
+                                </div>
+                            )}
+
+                            {!hasCustomPhoneField && (
+                                <div className={styles.inputGroup}>
+                                    <label>Phone (Optional)</label>
+                                    <input
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                        placeholder="+1 (555) 123-4567"
+                                    />
+                                </div>
+                            )}
 
                             <div className={styles.inputGroup}>
                                 <label>Note (Optional)</label>

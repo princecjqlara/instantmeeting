@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx next:*)",
+      "Bash(git push:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx tsc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(find C:UsersbigclDownloadsinstantmeeting -name *schema* -o -name *migration* -o -name *supabase*)",
+      "Bash(grep -E \"\\\\.\\(sql|ts\\)$\")",
+      "Bash(find C:UsersbigclDownloadsinstantmeeting -path */node_modules -prune -o -type f \\\\\\(-name *.sql -o -name *schema* -o -name *migration* \\\\\\) -print)",
+      "Bash(find C:UsersbigclDownloadsinstantmeetingsrcappapi -type f -name *.ts)",
+      "Bash(ls C:/Users/bigcl/Downloads/instantmeeting/next.config*)",
+      "Bash(grep -r \"Listening\\\\|recording\\\\|Recording\\\\|speech\\\\|Speaking\" /c/Users/bigcl/Downloads/instantmeeting/src --include=*.tsx --include=*.ts)",
+      "Bash(curl:*)",
+      "Bash(grep -E \"\\(pages|app|src\\)$\")"
+    ]
+  }
+}

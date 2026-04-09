@@ -1,0 +1,36 @@
+
+> instantmeeting@0.1.0 dev
+> next dev --port 3000
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.254.129:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 849ms
+ GET /host/funnel 200 in 594ms (compile: 398ms, render: 196ms)
+ GET /api/auth/session 200 in 906ms (compile: 868ms, render: 38ms)
+ GET /api/funnel 200 in 2.7s (compile: 45ms, render: 2.7s)
+✓ Compiled in 90ms
+✓ Compiled in 232ms
+✓ Compiled in 196ms
+✓ Compiled in 200ms
+ POST /api/auth/_log 200 in 33ms (compile: 15ms, render: 18ms)
+ GET /host/funnel 200 in 427ms (compile: 100ms, render: 327ms)
+ GET /api/auth/session 200 in 29ms (compile: 5ms, render: 24ms)
+ GET /api/funnel 200 in 1109ms (compile: 5ms, render: 1103ms)
+✓ Compiled in 240ms
+✓ Compiled in 251ms
+ POST /api/auth/_log 200 in 30ms (compile: 17ms, render: 12ms)
+ GET /host/funnel 200 in 408ms (compile: 134ms, render: 274ms)
+ GET /api/auth/session 200 in 27ms (compile: 6ms, render: 21ms)
+ GET /api/funnel 200 in 567ms (compile: 7ms, render: 560ms)
+✓ Compiled in 246ms
+ GET /api/funnel 200 in 443ms (compile: 6ms, render: 437ms)
+✓ Compiled in 209ms
+✓ Compiled in 322ms
+✓ Compiled in 244ms
+ GET /host/funnel 200 in 257ms (compile: 73ms, render: 184ms)
+ GET /api/auth/session 200 in 29ms (compile: 15ms, render: 14ms)
+ GET /api/funnel 200 in 886ms (compile: 3ms, render: 883ms)

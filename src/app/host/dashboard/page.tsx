@@ -15,6 +15,7 @@ import AISetupPanel from '@/components/AISetupPanel'
 import AIAssistantPanel from '@/components/AIAssistantPanel'
 import PresentationManager from '@/components/PresentationManager'
 import WidgetVisitorsPanel from '@/components/WidgetVisitorsPanel'
+import InstantHomesConnectionCard from '@/components/InstantHomesConnectionCard'
 import styles from './page.module.css'
 import {
     FaPlus, FaSignOutAlt, FaSignInAlt, FaLink, FaCopy, FaCheck,
@@ -686,6 +687,9 @@ export default function Dashboard() {
 
             {/* Availability Settings */}
             <AvailabilitySettings />
+
+            {/* InstantHomes Connection */}
+            <InstantHomesConnectionCard userId={session?.user?.id as string} />
 
             {/* Universal Link */}
             {username && (

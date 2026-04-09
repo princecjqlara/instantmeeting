@@ -1,0 +1,99 @@
+
+> instantmeeting@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.254.129:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 1936ms
+ GET / 200 in 607ms (compile: 446ms, render: 161ms)
+ GET / 200 in 189ms (compile: 9ms, render: 180ms)
+ GET / 200 in 127ms (compile: 5ms, render: 122ms)
+ GET /api/auth/session 200 in 886ms (compile: 850ms, render: 36ms)
+ GET /api/auth/session 200 in 24ms (compile: 11ms, render: 13ms)
+ GET /api/auth/session 200 in 14ms (compile: 3ms, render: 11ms)
+ GET /host/dashboard 200 in 179ms (compile: 117ms, render: 62ms)
+ GET /host/dashboard 200 in 45ms (compile: 4ms, render: 41ms)
+ GET /api/auth/session 200 in 19ms (compile: 3ms, render: 16ms)
+ GET /api/auth/session 200 in 22ms (compile: 2ms, render: 19ms)
+ GET /api/auth/session 200 in 35ms (compile: 10ms, render: 25ms)
+ GET /api/profile/settings 200 in 932ms (compile: 116ms, render: 816ms)
+ GET /api/profile/settings 200 in 169ms (compile: 3ms, render: 166ms)
+ GET /api/content 200 in 1130ms (compile: 228ms, render: 903ms)
+ GET /api/profile/settings 200 in 186ms (compile: 2ms, render: 184ms)
+ GET /api/meetings 200 in 1332ms (compile: 78ms, render: 1254ms)
+ GET /api/profile/settings 200 in 133ms (compile: 1675µs, render: 131ms)
+ GET /api/content 200 in 313ms (compile: 1823µs, render: 312ms)
+ GET /api/team 200 in 1502ms (compile: 155ms, render: 1346ms)
+ GET /api/content 200 in 339ms (compile: 3ms, render: 337ms)
+ GET /api/meetings 200 in 545ms (compile: 3ms, render: 542ms)
+ GET /api/ai/meeting-config?meetingId=default 200 in 227ms (compile: 75ms, render: 153ms)
+ GET /api/availability 200 in 233ms (compile: 49ms, render: 185ms)
+ GET /api/ai/meeting-config?meetingId=default 200 in 150ms (compile: 4ms, render: 146ms)
+ GET /api/meetings 200 in 398ms (compile: 2ms, render: 395ms)
+ GET /api/team 200 in 789ms (compile: 2ms, render: 787ms)
+ GET /api/availability 200 in 413ms (compile: 2ms, render: 411ms)
+ GET /api/content 200 in 540ms (compile: 3ms, render: 537ms)
+ GET /api/meetings 200 in 482ms (compile: 1729µs, render: 480ms)
+ GET /api/team 200 in 1016ms (compile: 1488µs, render: 1015ms)
+ GET /api/team 200 in 571ms (compile: 2ms, render: 569ms)
+ GET /host/funnel 200 in 505ms (compile: 482ms, render: 23ms)
+ GET /api/funnel 200 in 452ms (compile: 39ms, render: 413ms)
+ GET /api/funnel 200 in 314ms (compile: 3ms, render: 311ms)
+ POST /api/funnel 200 in 587ms (compile: 3ms, render: 584ms)
+ POST /api/funnel 409 in 308ms (compile: 2ms, render: 306ms)
+ GET /api/auth/session 200 in 34ms (compile: 10ms, render: 24ms)
+ GET /api/funnel 200 in 329ms (compile: 1954µs, render: 327ms)
+ GET /api/auth/session 200 in 26ms (compile: 13ms, render: 13ms)
+ GET /api/funnel 200 in 809ms (compile: 3ms, render: 806ms)
+ GET /host/funnel 200 in 58ms (compile: 3ms, render: 55ms)
+ GET /api/auth/session 200 in 25ms (compile: 11ms, render: 14ms)
+ GET /api/funnel 200 in 403ms (compile: 3ms, render: 400ms)
+✓ Compiled in 66ms
+ GET /api/auth/session 200 in 26ms (compile: 15ms, render: 11ms)
+ GET /api/funnel 200 in 1105ms (compile: 3ms, render: 1101ms)
+ GET /api/auth/session 200 in 42ms (compile: 15ms, render: 27ms)
+ GET /api/funnel 200 in 862ms (compile: 157ms, render: 706ms)
+ GET /host/funnel 200 in 59ms (compile: 4ms, render: 55ms)
+ GET /api/auth/session 200 in 25ms (compile: 13ms, render: 12ms)
+ GET /api/funnel 200 in 354ms (compile: 3ms, render: 351ms)
+ GET /host/funnel 200 in 60ms (compile: 5ms, render: 56ms)
+ GET /api/auth/session 200 in 28ms (compile: 15ms, render: 13ms)
+ GET /api/funnel 200 in 1309ms (compile: 308ms, render: 1002ms)
+✓ Compiled in 32ms
+ GET /host/funnel 200 in 51ms (compile: 3ms, render: 48ms)
+ GET /api/auth/session 200 in 27ms (compile: 13ms, render: 14ms)
+ GET /api/funnel 200 in 792ms (compile: 3ms, render: 789ms)
+✓ Compiled in 34ms
+ GET /host/funnel 200 in 51ms (compile: 4ms, render: 47ms)
+ GET /api/auth/session 200 in 26ms (compile: 11ms, render: 15ms)
+ GET /api/funnel 200 in 625ms (compile: 5ms, render: 621ms)
+✓ Compiled in 22ms
+ GET /host/funnel 200 in 52ms (compile: 5ms, render: 47ms)
+ GET /api/auth/session 200 in 26ms (compile: 13ms, render: 13ms)
+ GET /api/funnel 200 in 1265ms (compile: 3ms, render: 1262ms)
+ GET /host/funnel 200 in 46ms (compile: 3ms, render: 43ms)
+ GET /api/auth/session 200 in 22ms (compile: 11ms, render: 11ms)
+ GET /api/funnel 200 in 460ms (compile: 3ms, render: 457ms)
+✓ Compiled in 23ms
+ GET /host/funnel 200 in 52ms (compile: 4ms, render: 48ms)
+ GET /api/auth/session 200 in 30ms (compile: 15ms, render: 15ms)
+ GET /api/funnel 200 in 705ms (compile: 3ms, render: 702ms)
+✓ Compiled in 34ms
+ GET /host/funnel 200 in 46ms (compile: 4ms, render: 42ms)
+ GET /api/auth/session 200 in 24ms (compile: 13ms, render: 11ms)
+ GET /api/funnel 200 in 658ms (compile: 3ms, render: 656ms)
+✓ Compiled in 20ms
+✓ Compiled in 100ms
+✓ Compiled in 104ms
+ GET /host/funnel 200 in 335ms (compile: 118ms, render: 217ms)
+ GET /api/auth/session 200 in 28ms (compile: 17ms, render: 12ms)
+ GET /api/funnel 200 in 869ms (compile: 4ms, render: 865ms)
+✓ Compiled in 200ms
+✓ Compiled in 28ms
+ GET /host/funnel 200 in 281ms (compile: 92ms, render: 189ms)
+ GET /api/auth/session 200 in 27ms (compile: 14ms, render: 14ms)
+ GET /api/funnel 200 in 876ms (compile: 3ms, render: 873ms)

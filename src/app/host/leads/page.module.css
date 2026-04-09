@@ -382,6 +382,139 @@
     font-weight: 600;
 }
 
+.summarySection {
+    margin-bottom: 32px;
+    padding: 24px;
+    background:
+        linear-gradient(135deg, rgba(99, 102, 241, 0.12), transparent 36%),
+        var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+}
+
+.summaryHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.summaryTitle {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.summaryDescription {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.summaryBadge {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(129, 140, 248, 0.14);
+    border: 1px solid rgba(129, 140, 248, 0.24);
+    color: #c7d2fe;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.summaryTableWrap {
+    overflow-x: auto;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: rgba(7, 10, 20, 0.55);
+}
+
+.summaryTable {
+    width: 100%;
+    min-width: 1180px;
+    border-collapse: collapse;
+}
+
+.summaryTable th,
+.summaryTable td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: left;
+    vertical-align: top;
+    font-size: 14px;
+}
+
+.summaryTable th {
+    position: sticky;
+    top: 0;
+    background: rgba(10, 14, 28, 0.96);
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    z-index: 1;
+}
+
+.summaryTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.summaryTable tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.summaryLeadCell {
+    min-width: 160px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.summaryStatus {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.summaryTimeCell {
+    min-width: 165px;
+    white-space: nowrap;
+}
+
+.summaryDetailsCell {
+    min-width: 260px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.summaryEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 28px 20px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    text-align: center;
+}
+
+.summaryEmpty p {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.summaryEmpty span {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 /* Status Colors */
 .statusAdmitted { color: #34d399; }
 .statusWaiting { color: #fbbf24; }
@@ -832,6 +965,18 @@
     }
 
     .timezoneBadge {
+        white-space: normal;
+    }
+
+    .summarySection {
+        padding: 20px;
+    }
+
+    .summaryHeader {
+        flex-direction: column;
+    }
+
+    .summaryBadge {
         white-space: normal;
     }
 

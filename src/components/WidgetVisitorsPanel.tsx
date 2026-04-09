@@ -13,6 +13,13 @@ interface Visitor {
     status: string
     mirror_active?: boolean | null
     last_heartbeat_at: string
+    metadata?: {
+        source?: string
+        funnelSlug?: string
+        tenantSlug?: string
+        propertyAddress?: string
+        propertyPrice?: string
+    } | null
 }
 
 interface WidgetVisitorsPanelProps {
@@ -210,6 +217,29 @@ export default function WidgetVisitorsPanel({
                         </div>
 
                         {visitor.visitor_email && <div style={{ fontSize: 12, color: '#9ca3af' }}>{visitor.visitor_email}</div>}
+
+                        {/* IH Funnel Source Label */}
+                        {visitor.metadata?.source === 'instanthomes' && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '6px 10px',
+                                borderRadius: 10,
+                                background: 'rgba(16, 185, 129, 0.08)',
+                                border: '1px solid rgba(16, 185, 129, 0.15)',
+                                fontSize: 12,
+                            }}>
+                                <span>🏠</span>
+                                <span style={{ color: '#10b981', fontWeight: 600 }}>from InstantHomes funnel</span>
+                                {visitor.metadata.propertyAddress && (
+                                    <span style={{ color: '#9ca3af' }}>— {visitor.metadata.propertyAddress}</span>
+                                )}
+                                {visitor.metadata.propertyPrice && (
+                                    <span style={{ color: '#fcd34d', fontWeight: 600 }}>{visitor.metadata.propertyPrice}</span>
+                                )}
+                            </div>
+                        )}
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                             <button

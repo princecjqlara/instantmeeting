@@ -63,8 +63,13 @@ export default function Home() {
   }, [])
 
   // Redirect logged in users to dashboard
+  useEffect(() => {
+    if (status === 'authenticated') {
+      router.push('/host/dashboard')
+    }
+  }, [status, router])
+
   if (status === 'authenticated') {
-    router.push('/host/dashboard')
     return null
   }
 

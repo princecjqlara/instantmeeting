@@ -17,7 +17,7 @@ function getSupabaseClient() {
 export async function POST(req: NextRequest) {
     const supabase = getSupabaseClient()
     const body = await req.json()
-    const { hostId, guestName, guestEmail, note, date, time, customFields } = body
+    const { hostId, guestName, guestEmail, guestPhone, note, date, time, customFields } = body
 
     if (!hostId || !guestName || !date || !time) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
         meeting_id: meeting.id,
         guest_name: guestName,
         guest_email: guestEmail || null,
+        guest_phone: guestPhone || null,
         note: note || null,
         custom_fields: Array.isArray(customFields) ? customFields : [],
         status: 'waiting'
