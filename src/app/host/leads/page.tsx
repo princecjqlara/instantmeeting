@@ -12,6 +12,13 @@ import {
     FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash
 } from 'react-icons/fa'
 
+interface LeadAnswer {
+    question_id: string
+    question_text: string
+    type: string
+    answer: string | string[]
+}
+
 interface Lead {
     id: string
     guest_name: string
@@ -22,6 +29,11 @@ interface Lead {
     admitted_at?: string
     note?: string
     custom_fields?: Array<{ id: string; label: string; value: string }>
+    lead_form_id?: string | null
+    qualification_score?: number | null
+    qualification_verdict?: 'qualified' | 'unqualified' | 'review' | null
+    qualification_reasoning?: string | null
+    lead_answers?: LeadAnswer[] | null
     meetings: {
         id: string
         title: string
@@ -529,6 +541,34 @@ export default function LeadsPage() {
                                         <FaCalendarAlt />
                                         {lead.meetings?.title || 'Meeting'}
                                     </p>
+                                    {lead.qualification_verdict && (
+                                        <div style={{ display: 'flex', gap: 6, marginTop: 6, fontSize: 11 }}>
+                                            <span
+                                                style={{
+                                                    padding: '2px 8px',
+                                                    borderRadius: 999,
+                                                    fontWeight: 600,
+                                                    background:
+                                                        lead.qualification_verdict === 'qualified'
+                                                            ? 'rgba(34,197,94,0.15)'
+                                                            : lead.qualification_verdict === 'review'
+                                                              ? 'rgba(251,191,36,0.15)'
+                                                              : 'rgba(239,68,68,0.15)',
+                                                    color:
+                                                        lead.qualification_verdict === 'qualified'
+                                                            ? '#86efac'
+                                                            : lead.qualification_verdict === 'review'
+                                                              ? '#fcd34d'
+                                                              : '#fca5a5',
+                                                }}
+                                            >
+                                                {lead.qualification_verdict}
+                                                {typeof lead.qualification_score === 'number'
+                                                    ? ` · ${lead.qualification_score}`
+                                                    : ''}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className={styles.leadMeta}>
@@ -690,6 +730,62 @@ export default function LeadsPage() {
                                 <div className={styles.detailSection}>
                                     <h4>Note</h4>
                                     <p className={styles.noteText}>{selectedLead.note}</p>
+                                </div>
+                            )}
+
+                            {selectedLead.qualification_verdict && (
+                                <div className={styles.detailSection}>
+                                    <h4>AI Qualification</h4>
+                                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 8 }}>
+                                        <span
+                                            style={{
+                                                padding: '4px 10px',
+                                                borderRadius: 999,
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                background:
+                                                    selectedLead.qualification_verdict === 'qualified'
+                                                        ? 'rgba(34,197,94,0.15)'
+                                                        : selectedLead.qualification_verdict === 'review'
+                                                          ? 'rgba(251,191,36,0.15)'
+                                                          : 'rgba(239,68,68,0.15)',
+                                                color:
+                                                    selectedLead.qualification_verdict === 'qualified'
+                                                        ? '#86efac'
+                                                        : selectedLead.qualification_verdict === 'review'
+                                                          ? '#fcd34d'
+                                                          : '#fca5a5',
+                                            }}
+                                        >
+                                            {selectedLead.qualification_verdict.toUpperCase()}
+                                        </span>
+                                        {typeof selectedLead.qualification_score === 'number' && (
+                                            <span style={{ fontSize: 14, opacity: 0.85 }}>
+                                                Score: <strong>{selectedLead.qualification_score}</strong>/100
+                                            </span>
+                                        )}
+                                    </div>
+                                    {selectedLead.qualification_reasoning && (
+                                        <p className={styles.noteText}>{selectedLead.qualification_reasoning}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {selectedLead.lead_answers && selectedLead.lead_answers.length > 0 && (
+                                <div className={styles.detailSection}>
+                                    <h4>Form Answers</h4>
+                                    <div className={styles.detailGrid}>
+                                        {selectedLead.lead_answers.map((a) => (
+                                            <div key={a.question_id} className={styles.detailItem}>
+                                                <div>
+                                                    <label>{a.question_text}</label>
+                                                    <span>
+                                                        {Array.isArray(a.answer) ? a.answer.join(', ') : a.answer}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 

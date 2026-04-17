@@ -646,6 +646,13 @@ export default function Dashboard() {
                         Leads
                     </button>
                     <button
+                        onClick={() => router.push('/host/lead-forms')}
+                        className="button-secondary"
+                    >
+                        <FaUsersIcon />
+                        Instant Leads
+                    </button>
+                    <button
                         onClick={() => setShowPreview(true)}
                         className="button-secondary"
                         disabled={content.length === 0}
