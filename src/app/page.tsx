@@ -97,9 +97,6 @@ export default function Home() {
 
     return (
         <main className={styles.main}>
-            {/* Decorative blobs */}
-            <div className={styles.blob1} />
-            <div className={styles.blob2} />
 
             {/* Top Nav */}
             <nav className={styles.nav}>
@@ -107,8 +104,8 @@ export default function Home() {
                     <FaVideo /> InstantMeeting
                 </div>
                 <div className={styles.navActions}>
-                    <a href="#pricing" className={styles.navLink}>Pricing</a>
                     <a href="#features" className={styles.navLink}>Features</a>
+                    <a href="#pricing" className={styles.navLink}>Pricing</a>
                     <button
                         type="button"
                         className={styles.navLink}
@@ -121,7 +118,7 @@ export default function Home() {
                         className={styles.navJoin}
                         onClick={() => setShowSignup(true)}
                     >
-                        Join now
+                        Join now <FaArrowRight style={{ fontSize: 10 }} />
                     </button>
                 </div>
             </nav>
@@ -129,10 +126,12 @@ export default function Home() {
             {/* Hero */}
             <section className={styles.hero}>
                 <div className={styles.scarcityRow}>
-                    <span className={styles.slotsPill}>
-                        <strong>{slotsLeft}</strong> slots remaining at launch price
+                    <span>
+                        <span className={styles.slotsDot} />
+                        <strong>{slotsLeft}</strong> slots at launch price
                     </span>
-                    <span className={styles.timerPill}>
+                    <span className={styles.scarcityDivider} />
+                    <span>
                         Offer ends in{' '}
                         <strong>
                             {pad(hours)}:{pad(minutes)}:{pad(seconds)}
@@ -142,7 +141,7 @@ export default function Home() {
 
                 <h1 className={styles.heroTitle}>
                     Qualify, meet, and book clients
-                    <span className={styles.heroGradient}> from a single link.</span>
+                    <span className={styles.heroGradient}> from one link.</span>
                 </h1>
                 <p className={styles.heroSubtitle}>
                     Prospects fill a short intake form. Qualified leads are admitted
@@ -178,7 +177,7 @@ export default function Home() {
             {/* Features */}
             <section id="features" className={styles.features}>
                 <div className={styles.featureCard}>
-                    <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)' }}>
+                    <div className={styles.featureIcon}>
                         <FaMagic />
                     </div>
                     <h3>Scored intake forms</h3>
@@ -188,7 +187,7 @@ export default function Home() {
                     </p>
                 </div>
                 <div className={styles.featureCard}>
-                    <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#22c55e,#10b981)' }}>
+                    <div className={styles.featureIcon}>
                         <FaBolt />
                     </div>
                     <h3>Instant admission or booking</h3>
@@ -198,7 +197,7 @@ export default function Home() {
                     </p>
                 </div>
                 <div className={styles.featureCard}>
-                    <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>
+                    <div className={styles.featureIcon}>
                         <FaUsers />
                     </div>
                     <h3>Deploy anywhere</h3>
