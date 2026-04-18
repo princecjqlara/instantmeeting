@@ -692,6 +692,75 @@ export default function Dashboard() {
                 </div>
             </header>
 
+            {/* Quick Stats */}
+            {(() => {
+                const totalMeetings = meetings.length
+                const activeMeetings = meetings.filter((m) => m.status === 'active').length
+                const waitingGuests = meetings.reduce(
+                    (sum, m) =>
+                        sum +
+                        (m.waiting_guests || []).filter((g) => g.status === 'waiting').length,
+                    0
+                )
+                const contentItems = content.length
+                const stats: Array<{
+                    label: string
+                    value: number
+                    accent: string
+                    accent2: string
+                    icon: React.ReactNode
+                }> = [
+                    {
+                        label: 'Total meetings',
+                        value: totalMeetings,
+                        accent: '#6366f1',
+                        accent2: '#a855f7',
+                        icon: <FaVideo />,
+                    },
+                    {
+                        label: 'Active now',
+                        value: activeMeetings,
+                        accent: '#22c55e',
+                        accent2: '#10b981',
+                        icon: <FaUserCheck />,
+                    },
+                    {
+                        label: 'Guests waiting',
+                        value: waitingGuests,
+                        accent: '#f59e0b',
+                        accent2: '#f97316',
+                        icon: <FaUsersIcon />,
+                    },
+                    {
+                        label: 'Content items',
+                        value: contentItems,
+                        accent: '#ec4899',
+                        accent2: '#f43f5e',
+                        icon: <FaUpload />,
+                    },
+                ]
+                return (
+                    <section className={styles.quickStats}>
+                        {stats.map((s) => (
+                            <div
+                                key={s.label}
+                                className={styles.quickStat}
+                                style={
+                                    {
+                                        ['--qs-accent' as string]: s.accent,
+                                        ['--qs-accent-2' as string]: s.accent2,
+                                    } as React.CSSProperties
+                                }
+                            >
+                                <div className={styles.quickStatIcon}>{s.icon}</div>
+                                <div className={styles.quickStatValue}>{s.value}</div>
+                                <span className={styles.quickStatLabel}>{s.label}</span>
+                            </div>
+                        ))}
+                    </section>
+                )
+            })()}
+
             {/* Availability Settings */}
             <AvailabilitySettings />
 
