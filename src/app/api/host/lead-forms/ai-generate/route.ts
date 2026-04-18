@@ -134,26 +134,22 @@ export async function POST(req: NextRequest) {
 
         const raw = await chatCompletion(messages, { temperature: 0.4, maxTokens: 1600 })
 
-        const match = raw.match(/\{[\s\S]*\}/)
-        if (!match) {
-            return NextResponse.json(
-                { error: 'AI returned an invalid response. Try again.' },
-                { status: 502 }
-            )
+        const parsed = extractJson(raw)
+        let reply: string
+        let rawDraft: unknown
+        if (parsed) {
+            reply = asStr(parsed.reply).trim()
+            rawDraft = parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : null
+            if (!reply) {
+                reply = rawDraft
+                    ? 'Here is an updated draft for your review.'
+                    : stripJson(raw) || 'Could you share a bit more detail?'
+            }
+        } else {
+            // Model returned plain prose instead of JSON — treat as a clarifying reply.
+            reply = stripJson(raw).trim() || 'Could you share a bit more detail?'
+            rawDraft = null
         }
-
-        let parsed: AnyObj
-        try {
-            parsed = JSON.parse(match[0]) as AnyObj
-        } catch {
-            return NextResponse.json(
-                { error: 'AI response was not valid JSON. Try again.' },
-                { status: 502 }
-            )
-        }
-
-        const reply = asStr(parsed.reply).trim() || 'Here is an updated draft for your review.'
-        const rawDraft = parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : null
 
         if (!rawDraft) {
             return NextResponse.json({ reply, draft: null })
@@ -175,6 +171,45 @@ export async function POST(req: NextRequest) {
 }
 
 type AnyObj = Record<string, unknown>
+
+function extractJson(raw: string): AnyObj | null {
+    if (!raw) return null
+    const cleaned = raw.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim()
+    const first = cleaned.indexOf('{')
+    if (first < 0) return null
+    // Walk with brace balance + string awareness to find a complete object.
+    let depth = 0
+    let inStr = false
+    let esc = false
+    for (let i = first; i < cleaned.length; i++) {
+        const c = cleaned[i]
+        if (inStr) {
+            if (esc) esc = false
+            else if (c === '\\') esc = true
+            else if (c === '"') inStr = false
+            continue
+        }
+        if (c === '"') inStr = true
+        else if (c === '{') depth++
+        else if (c === '}') {
+            depth--
+            if (depth === 0) {
+                const slice = cleaned.slice(first, i + 1)
+                try {
+                    const v = JSON.parse(slice)
+                    return v && typeof v === 'object' ? (v as AnyObj) : null
+                } catch {
+                    return null
+                }
+            }
+        }
+    }
+    return null
+}
+
+function stripJson(raw: string): string {
+    return raw.replace(/```[\s\S]*?```/g, '').replace(/\{[\s\S]*\}/, '').trim()
+}
 
 function asStr(v: unknown, fallback = ''): string {
     return typeof v === 'string' ? v : fallback
