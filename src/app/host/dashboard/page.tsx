@@ -1478,93 +1478,120 @@ function WidgetSetupCard({
     const removeDomain = (d: string) =>
         save({ domains: cfg.domains.filter((x) => x !== d) })
 
-    const card: React.CSSProperties = {
-        background: '#14141f', border: '1px solid #222', borderRadius: 12,
-        padding: 24, marginBottom: 24,
-    }
-    const stepHead: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: '#fff', margin: '0 0 8px' }
-    const stepWrap: React.CSSProperties = { marginBottom: 20 }
-    const muted: React.CSSProperties = { color: '#888', fontSize: 12, margin: '4px 0 10px' }
-
     return (
-        <section style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 18, color: '#fff' }}>🌐 Website Widget — DIY Setup</h2>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#ccc' }}>
+        <section className={styles.widgetCard}>
+            <div className={styles.widgetHead}>
+                <div>
+                    <h2 className={styles.widgetTitle}>
+                        <FaLink style={{ color: '#a5b4fc' }} /> Website widget
+                    </h2>
+                    <span className={styles.widgetSubtitle}>
+                        Drop a tiny snippet on your site and start talking to visitors.
+                    </span>
+                </div>
+                <label className={styles.widgetToggle}>
                     <input
                         type="checkbox"
                         checked={cfg.enabled}
                         onChange={(e) => save({ enabled: e.target.checked })}
                     />
-                    {cfg.enabled ? 'Enabled' : 'Disabled'}
+                    {cfg.enabled ? 'On' : 'Off'}
                 </label>
             </div>
 
-            <div style={stepWrap}>
-                <h3 style={stepHead}>Step 1 — Add your website hostname</h3>
-                <p style={muted}>No <code>https://</code>, no trailing slash. Example: <code>joes-plumbing.com</code></p>
-                <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                        value={domain}
-                        onChange={(e) => setDomain(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && addDomain()}
-                        placeholder="yourdomain.com"
-                        style={{
-                            flex: 1, padding: '10px 12px', background: '#0f0f17',
-                            border: '1px solid #2a2a3a', borderRadius: 8, color: '#fff', fontSize: 14,
-                        }}
-                    />
-                    <button onClick={addDomain} className="button-secondary">Add</button>
-                </div>
-                <ul style={{ listStyle: 'none', padding: 0, marginTop: 12 }}>
-                    {cfg.domains.map((d) => (
-                        <li key={d} style={{
-                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            padding: '8px 12px', background: '#1a1a25', borderRadius: 8, marginBottom: 6,
-                            color: '#ddd', fontSize: 13,
-                        }}>
-                            <span>✓ {d}</span>
-                            <button
-                                onClick={() => removeDomain(d)}
-                                style={{ background: 'transparent', color: '#e57373', border: 'none', cursor: 'pointer', fontSize: 12 }}
-                            >
-                                Remove
+            <div className={styles.widgetSteps}>
+                <div className={styles.widgetStep}>
+                    <span className={styles.widgetStepNum}>1</span>
+                    <div className={styles.widgetStepBody}>
+                        <h3 className={styles.widgetStepTitle}>Add your site</h3>
+                        <p className={styles.widgetStepHint}>
+                            Just the hostname — e.g. <code>joes-plumbing.com</code>.
+                        </p>
+                        <div className={styles.widgetRow}>
+                            <input
+                                className={styles.widgetInput}
+                                value={domain}
+                                onChange={(e) => setDomain(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addDomain()}
+                                placeholder="yourdomain.com"
+                            />
+                            <button onClick={addDomain} className="button-secondary">
+                                <FaPlus /> Add
                             </button>
-                        </li>
-                    ))}
-                    {cfg.domains.length === 0 && <li style={{ color: '#666', fontSize: 12 }}>No domains yet — add one above.</li>}
-                </ul>
-            </div>
+                        </div>
+                        <ul className={styles.widgetDomains}>
+                            {cfg.domains.map((d) => (
+                                <li key={d} className={styles.widgetDomain}>
+                                    <FaCheck style={{ fontSize: 10 }} /> {d}
+                                    <button
+                                        onClick={() => removeDomain(d)}
+                                        className={styles.widgetDomainRemove}
+                                        aria-label={`Remove ${d}`}
+                                        title="Remove"
+                                    >
+                                        <FaTimes />
+                                    </button>
+                                </li>
+                            ))}
+                            {cfg.domains.length === 0 && (
+                                <li className={styles.widgetEmpty}>No sites added yet.</li>
+                            )}
+                        </ul>
+                    </div>
+                </div>
 
-            <div style={stepWrap}>
-                <h3 style={stepHead}>Step 2 — Copy this snippet into your website</h3>
-                <p style={muted}>Paste it just before <code>&lt;/body&gt;</code> on every page (or in your theme&apos;s &quot;custom HTML / footer scripts&quot; setting).</p>
-                <pre style={{
-                    background: '#0f0f17', padding: 14, borderRadius: 10, overflowX: 'auto',
-                    fontSize: 12, color: '#9bd', margin: 0,
-                }}>{embed}</pre>
-                <button
-                    onClick={() => {
-                        navigator.clipboard?.writeText(embed)
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 1500)
-                    }}
-                    className="button-secondary"
-                    style={{ marginTop: 10 }}
-                >
-                    {copied ? <><FaCheck /> Copied</> : <><FaCopy /> Copy embed code</>}
-                </button>
-            </div>
+                <div className={styles.widgetStep}>
+                    <span className={styles.widgetStepNum}>2</span>
+                    <div className={styles.widgetStepBody}>
+                        <h3 className={styles.widgetStepTitle}>Paste this on your site</h3>
+                        <p className={styles.widgetStepHint}>
+                            Drop it just before <code>&lt;/body&gt;</code> on every page.
+                        </p>
+                        <pre className={styles.widgetSnippet}>{embed}</pre>
+                        <div className={styles.widgetActions}>
+                            <button
+                                onClick={() => {
+                                    navigator.clipboard?.writeText(embed)
+                                    setCopied(true)
+                                    setTimeout(() => setCopied(false), 1500)
+                                }}
+                                className="button-secondary"
+                            >
+                                {copied ? (
+                                    <>
+                                        <FaCheck /> Copied
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaCopy /> Copy snippet
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-            <div style={stepWrap}>
-                <h3 style={stepHead}>Step 3 — Watch visitors live</h3>
-                <p style={muted}>Once the snippet is live, visitors show up here in real time so you can invite them into a meeting.</p>
-                <a href="/host/widget/live" className="button-primary" style={{ display: 'inline-block', textDecoration: 'none' }}>
-                    👀 Watch Visitors Live
-                </a>
-                <a href="/host/widget" style={{ marginLeft: 12, color: '#7aa2ff', fontSize: 13 }}>
-                    Advanced settings →
-                </a>
+                <div className={styles.widgetStep}>
+                    <span className={styles.widgetStepNum}>3</span>
+                    <div className={styles.widgetStepBody}>
+                        <h3 className={styles.widgetStepTitle}>Watch visitors live</h3>
+                        <p className={styles.widgetStepHint}>
+                            Once it&apos;s live, visitors appear here so you can invite them into a room.
+                        </p>
+                        <div className={styles.widgetActions}>
+                            <a
+                                href="/host/widget/live"
+                                className="button-primary"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}
+                            >
+                                <FaEye /> Watch visitors
+                            </a>
+                            <a href="/host/widget" className={styles.widgetLink}>
+                                Advanced settings →
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     )
