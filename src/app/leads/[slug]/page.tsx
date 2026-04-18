@@ -70,6 +70,21 @@ export default function LeadFormPage({ params }: Props) {
                     return
                 }
                 const data = (await res.json()) as FormBundle
+                // Normalize options so each has a unique id+value, even on legacy rows
+                data.questions = (data.questions || []).map((q) => {
+                    const seenIds = new Set<string>()
+                    const seenVals = new Set<string>()
+                    const opts = (q.options || []).map((raw, idx) => {
+                        let id = raw.id && !seenIds.has(raw.id) ? raw.id : `${q.id}__opt_${idx}`
+                        while (seenIds.has(id)) id = `${id}_${Math.random().toString(36).slice(2, 6)}`
+                        seenIds.add(id)
+                        let value = raw.value || raw.label || id
+                        while (seenVals.has(value)) value = `${value}_${idx}`
+                        seenVals.add(value)
+                        return { id, label: raw.label || `Option ${idx + 1}`, value }
+                    })
+                    return { ...q, options: opts }
+                })
                 setBundle(data)
             } catch {
                 setLoadError('Could not load form.')
@@ -292,22 +307,22 @@ export default function LeadFormPage({ params }: Props) {
                             autoFocus
                         />
                     ) : current.type === 'single_choice' ? (
-                        <div className={styles.options}>
+                        <div className={styles.options} role="radiogroup">
                             {current.options.map((opt) => {
-                                const optKey = opt.id || opt.value
-                                const selected = answerFor(current) === optKey
+                                const selected = answerFor(current) === opt.value
                                 return (
                                     <button
                                         type="button"
-                                        key={optKey}
+                                        key={opt.id}
                                         className={`${styles.option} ${selected ? styles.optionActive : ''}`}
-                                        onClick={() => updateAnswer(current, optKey)}
-                                        aria-pressed={selected}
+                                        onClick={() => updateAnswer(current, opt.value)}
+                                        role="radio"
+                                        aria-checked={selected}
                                     >
                                         <span className={styles.radio} aria-hidden>
                                             {selected && <span className={styles.radioDot} />}
                                         </span>
-                                        <span>{opt.label || 'Option'}</span>
+                                        <span>{opt.label}</span>
                                     </button>
                                 )
                             })}
@@ -315,26 +330,27 @@ export default function LeadFormPage({ params }: Props) {
                     ) : current.type === 'multi_choice' ? (
                         <div className={styles.options}>
                             {current.options.map((opt) => {
-                                const optKey = opt.id || opt.value
-                                const arr = (answerFor(current) as string[]) || []
-                                const checked = arr.includes(optKey)
+                                const raw = answerFor(current)
+                                const arr = Array.isArray(raw) ? raw : []
+                                const checked = arr.includes(opt.value)
                                 return (
                                     <button
                                         type="button"
-                                        key={optKey}
+                                        key={opt.id}
                                         className={`${styles.option} ${checked ? styles.optionActive : ''}`}
                                         onClick={() => {
                                             const next = checked
-                                                ? arr.filter((v) => v !== optKey)
-                                                : [...arr, optKey]
+                                                ? arr.filter((v) => v !== opt.value)
+                                                : [...arr, opt.value]
                                             updateAnswer(current, next)
                                         }}
-                                        aria-pressed={checked}
+                                        role="checkbox"
+                                        aria-checked={checked}
                                     >
                                         <span className={styles.checkbox} aria-hidden>
                                             {checked && <span className={styles.checkmark}>✓</span>}
                                         </span>
-                                        <span>{opt.label || 'Option'}</span>
+                                        <span>{opt.label}</span>
                                     </button>
                                 )
                             })}
