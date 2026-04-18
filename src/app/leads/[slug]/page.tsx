@@ -60,6 +60,13 @@ export default function LeadFormPage({ params }: Props) {
     const prefillAppliedRef = useRef(false)
     const answersRef = useRef<Record<string, string | string[]>>({})
     answersRef.current = answers
+    const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return () => {
+            if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+        }
+    }, [])
 
     useEffect(() => {
         params.then((p) => setSlug(p.slug))
@@ -148,20 +155,25 @@ export default function LeadFormPage({ params }: Props) {
         setAnswers((prev) => {
             const next = { ...prev }
             let changed = false
+            const used = { email: false, phone: false, name: false }
             for (const q of bundle.questions) {
                 if (next[q.id]) continue
-                if (q.type === 'email' && candidates.email) {
+                if (q.type === 'email' && candidates.email && !used.email) {
                     next[q.id] = candidates.email
+                    used.email = true
                     changed = true
-                } else if (q.type === 'phone' && candidates.phone) {
+                } else if (q.type === 'phone' && candidates.phone && !used.phone) {
                     next[q.id] = candidates.phone
+                    used.phone = true
                     changed = true
                 } else if (
                     q.type === 'short_answer' &&
                     candidates.name &&
-                    /name/i.test(q.question_text)
+                    !used.name &&
+                    /\bname\b/i.test(q.question_text)
                 ) {
                     next[q.id] = candidates.name
+                    used.name = true
                     changed = true
                 }
             }
@@ -245,10 +257,15 @@ export default function LeadFormPage({ params }: Props) {
 
     const handleSingleChoicePick = (q: PublicQuestion, value: string) => {
         updateAnswer(q, value)
-        // Auto-advance for single-choice: no extra click needed
+        // Auto-advance for single-choice. Guard against rapid double-clicks
+        // by cancelling any previously scheduled advance.
+        if (advanceTimerRef.current) {
+            clearTimeout(advanceTimerRef.current)
+        }
         const isLastStep = step === total - 1
         if (!isLastStep) {
-            setTimeout(() => {
+            advanceTimerRef.current = setTimeout(() => {
+                advanceTimerRef.current = null
                 autosave()
                 setStep((s) => (s < total - 1 ? s + 1 : s))
             }, 220)

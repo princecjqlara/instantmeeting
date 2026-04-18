@@ -1,28 +1,35 @@
 .page {
     min-height: 100vh;
-    background: #0a0a0a;
-    color: #f5f5f5;
-    padding: 24px 32px 64px;
+    background:
+        radial-gradient(900px 500px at 0% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
+        radial-gradient(800px 400px at 100% 0%, rgba(168, 85, 247, 0.07), transparent 55%),
+        #07070d;
+    color: #f5f5f7;
+    padding: 28px 36px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
 }
 
 .header {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .header h1 {
     flex: 1;
     margin: 0;
-    font-size: 24px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
 }
 
 .intro {
     opacity: 0.65;
     max-width: 720px;
     margin-bottom: 28px;
-    line-height: 1.5;
+    line-height: 1.55;
+    font-size: 14px;
 }
 
 .backBtn,
@@ -33,44 +40,59 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: transparent;
+    padding: 9px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
     color: #fff;
     font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition:
+        background 0.15s ease,
+        transform 0.08s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease;
+    letter-spacing: 0.1px;
 }
 
 .backBtn:hover,
 .secondaryBtn:hover,
 .iconBtn:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.secondaryBtn:active,
+.primaryBtn:active,
+.dangerBtn:active {
+    transform: translateY(1px);
 }
 
 .primaryBtn {
     background: linear-gradient(135deg, #6366f1, #a855f7);
     border-color: transparent;
+    box-shadow: 0 8px 24px -12px rgba(99, 102, 241, 0.7);
 }
 
 .primaryBtn:hover:not(:disabled) {
     transform: translateY(-1px);
+    box-shadow: 0 12px 28px -12px rgba(99, 102, 241, 0.9);
 }
 
 .primaryBtn:disabled {
-    opacity: 0.6;
+    opacity: 0.55;
     cursor: not-allowed;
 }
 
 .dangerBtn {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.08);
     border-color: rgba(239, 68, 68, 0.3);
     color: #fca5a5;
 }
 
 .dangerBtn:hover {
-    background: rgba(239, 68, 68, 0.2);
+    background: rgba(239, 68, 68, 0.16);
 }
 
 .list {
@@ -80,12 +102,13 @@
 }
 
 .empty {
-    padding: 40px;
+    padding: 44px 32px;
     text-align: center;
-    border: 1px dashed rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    opacity: 0.7;
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    border-radius: 14px;
+    opacity: 0.75;
     max-width: 720px;
+    line-height: 1.6;
 }
 
 .formCard {
@@ -93,43 +116,60 @@
     justify-content: space-between;
     align-items: center;
     gap: 20px;
-    padding: 18px 20px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
+    padding: 18px 22px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        transform 0.08s ease;
+}
+
+.formCard:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .formCard h3 {
     margin: 0 0 8px 0;
     font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
 }
 
 .metaRow {
     display: flex;
     gap: 10px;
+    align-items: center;
     font-size: 12px;
     margin-bottom: 10px;
 }
 
 .badge {
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .badgeActive {
-    background: rgba(34, 197, 94, 0.15);
+    background: rgba(34, 197, 94, 0.13);
     color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.25);
 }
 
 .badgeOff {
-    background: rgba(148, 163, 184, 0.15);
+    background: rgba(148, 163, 184, 0.12);
     color: #cbd5e1;
+    border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .threshold {
-    opacity: 0.6;
+    opacity: 0.55;
+    font-size: 11px;
 }
 
 .linkRow {
@@ -137,129 +177,163 @@
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 .linkRow code {
-    background: rgba(0, 0, 0, 0.35);
-    padding: 4px 8px;
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 5px 10px;
+    border-radius: 7px;
     font-size: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
 }
 
 .formActions {
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .editorGrid {
     display: grid;
     grid-template-columns: 1fr 1.2fr;
     gap: 20px;
-    max-width: 1200px;
+    max-width: 1220px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
     .editorGrid {
         grid-template-columns: 1fr;
     }
 }
 
 .card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 20px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow:
+        0 20px 48px -30px rgba(0, 0, 0, 0.7),
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
 }
 
 .cardHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 14px;
+    margin-bottom: 18px;
 }
 
 .cardHeader h2 {
     margin: 0;
-    font-size: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
 }
 
 .label {
     display: block;
     font-size: 12px;
-    opacity: 0.7;
-    margin: 14px 0 6px;
+    opacity: 0.72;
+    margin: 16px 0 6px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .smallLabel {
     font-size: 11px;
-    opacity: 0.6;
+    opacity: 0.62;
     display: block;
     margin-bottom: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .input,
 .textarea {
     width: 100%;
-    padding: 10px 12px;
+    padding: 11px 13px;
     background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
     color: #fff;
     font-size: 14px;
     font-family: inherit;
     outline: none;
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease;
 }
 
 .input:focus,
 .textarea:focus {
     border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+    background: rgba(0, 0, 0, 0.4);
 }
 
 .textarea {
     resize: vertical;
+    line-height: 1.5;
+    min-height: 60px;
 }
 
 .row {
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    align-items: flex-end;
 }
 
 .checkbox {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 13px;
-    opacity: 0.85;
+    opacity: 0.9;
     margin-top: 16px;
+    cursor: pointer;
+    user-select: none;
 }
 
 .qBlock {
-    padding: 14px;
+    padding: 16px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    border-radius: 12px;
     margin-bottom: 12px;
-    background: rgba(0, 0, 0, 0.2);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
+        rgba(0, 0, 0, 0.22);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 9px;
+    transition: border-color 0.15s ease;
+}
+
+.qBlock:hover {
+    border-color: rgba(255, 255, 255, 0.14);
 }
 
 .qHeader {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .grip {
     opacity: 0.4;
+    cursor: grab;
 }
 
 .qIndex {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 13px;
     flex: 1;
+    color: #c7d2fe;
+    letter-spacing: 0.04em;
 }
 
 .qActions {
@@ -268,12 +342,20 @@
 }
 
 .qActions button {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
-    border-radius: 6px;
-    padding: 4px 8px;
+    border-radius: 8px;
+    padding: 5px 9px;
     cursor: pointer;
+    font-size: 12px;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.qActions button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .qActions button:disabled {
@@ -282,32 +364,58 @@
 }
 
 .qActions .danger {
-    border-color: rgba(239, 68, 68, 0.4);
+    border-color: rgba(239, 68, 68, 0.35);
     color: #fca5a5;
 }
 
+.qActions .danger:hover {
+    background: rgba(239, 68, 68, 0.12);
+}
+
 .optionsEditor {
-    padding-left: 12px;
-    border-left: 2px solid rgba(99, 102, 241, 0.3);
+    padding: 10px 12px;
+    border-left: 2px solid rgba(99, 102, 241, 0.35);
+    background: rgba(99, 102, 241, 0.04);
+    border-radius: 0 8px 8px 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    margin-top: 4px;
 }
 
 .optRow {
     display: flex;
     gap: 6px;
+    align-items: center;
 }
 
 .optRow .danger {
-    padding: 6px 10px;
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    background: transparent;
+    padding: 7px 10px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.05);
     color: #fca5a5;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.optRow .danger:hover {
+    background: rgba(239, 68, 68, 0.15);
 }
 
 .danger {
     color: #fca5a5;
+}
+
+/* Subtle fade-in for cards / list */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.formCard,
+.qBlock,
+.card {
+    animation: fadeIn 0.18s ease both;
 }
