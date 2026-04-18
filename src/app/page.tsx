@@ -19,7 +19,7 @@ import {
     FaFacebook,
     FaSpinner,
 } from 'react-icons/fa'
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import styles from './page.module.css'
 
 export default function Home() {
@@ -32,6 +32,41 @@ export default function Home() {
     const [password, setPassword] = useState('')
     const [loginError, setLoginError] = useState('')
     const [loggingIn, setLoggingIn] = useState(false)
+
+    const offerEndsAt = useMemo(() => {
+        if (typeof window === 'undefined') return Date.now() + 24 * 60 * 60 * 1000
+        const envEnd = process.env.NEXT_PUBLIC_OFFER_ENDS_AT
+        if (envEnd) {
+            const t = Date.parse(envEnd)
+            if (!Number.isNaN(t)) return t
+        }
+        const stored = localStorage.getItem('offerEndsAt')
+        if (stored) {
+            const n = Number(stored)
+            if (n > Date.now()) return n
+        }
+        const ends = Date.now() + 24 * 60 * 60 * 1000
+        try {
+            localStorage.setItem('offerEndsAt', String(ends))
+        } catch {
+            /* ignore */
+        }
+        return ends
+    }, [])
+
+    const [now, setNow] = useState(() => Date.now())
+    useEffect(() => {
+        const t = setInterval(() => setNow(Date.now()), 1000)
+        return () => clearInterval(t)
+    }, [])
+
+    const remaining = Math.max(0, offerEndsAt - now)
+    const hours = Math.floor(remaining / (60 * 60 * 1000))
+    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000))
+    const seconds = Math.floor((remaining % (60 * 1000)) / 1000)
+    const pad = (n: number) => n.toString().padStart(2, '0')
+
+    const slotsLeft = 7
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -77,19 +112,35 @@ export default function Home() {
                     <a href="#features" className={styles.navLink}>Features</a>
                     <button
                         type="button"
-                        className={styles.navSignIn}
+                        className={styles.navLink}
                         onClick={() => setShowLogin(true)}
                     >
                         Sign in
+                    </button>
+                    <button
+                        type="button"
+                        className={styles.navJoin}
+                        onClick={() => setShowSignup(true)}
+                    >
+                        Join now
                     </button>
                 </div>
             </nav>
 
             {/* Hero */}
             <section className={styles.hero}>
-                <div className={styles.heroBadge}>
-                    <FaBolt /> Live &amp; booking rolled into one link
+                <div className={styles.scarcityRow}>
+                    <span className={styles.slotsPill}>
+                        🔥 Only <strong>{slotsLeft}</strong> slots left at ₱699
+                    </span>
+                    <span className={styles.timerPill}>
+                        Deal ends in{' '}
+                        <strong>
+                            {pad(hours)}:{pad(minutes)}:{pad(seconds)}
+                        </strong>
+                    </span>
                 </div>
+
                 <h1 className={styles.heroTitle}>
                     Turn website visitors into
                     <span className={styles.heroGradient}> booked calls.</span>
@@ -98,21 +149,28 @@ export default function Home() {
                     Qualify leads with AI forms, auto-admit the right ones, and let the
                     rest book a time — all from one link you paste anywhere.
                 </p>
+
+                <div className={styles.heroPriceRow}>
+                    <span className={styles.heroOldPrice}>₱1,499</span>
+                    <span className={styles.heroNewPrice}>₱699</span>
+                    <span className={styles.heroSave}>Save ₱800</span>
+                </div>
+
                 <div className={styles.heroCtas}>
                     <button
                         type="button"
-                        className={styles.btnPrimary}
+                        className={styles.btnPrimaryLg}
                         onClick={() => setShowSignup(true)}
                     >
-                        Get started — ₱699 <FaArrowRight />
+                        Join now <FaArrowRight />
                     </button>
                     <a href="#pricing" className={styles.btnGhost}>
                         See what&apos;s included
                     </a>
                 </div>
                 <div className={styles.heroTrust}>
-                    <span><FaCheck /> No contract</span>
-                    <span><FaCheck /> Cancel anytime</span>
+                    <span><FaCheck /> 1 month FB ads setup free</span>
+                    <span><FaCheck /> Lifetime access</span>
                     <span><FaCheck /> Paid via GCash</span>
                 </div>
             </section>
@@ -163,7 +221,13 @@ export default function Home() {
                 </div>
                 <div className={styles.pricingCard}>
                     <div className={styles.pricingRibbon}>
-                        <FaBolt /> Launch deal — 53% off
+                        <FaBolt /> Launch deal — 53% off · {slotsLeft} slots left
+                    </div>
+                    <div className={styles.countdownRow}>
+                        ⏳ Offer ends in{' '}
+                        <strong>
+                            {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
+                        </strong>
                     </div>
                     <div className={styles.pricingName}>Starter Pro</div>
                     <div className={styles.pricingPriceRow}>
@@ -196,7 +260,7 @@ export default function Home() {
                         className={styles.pricingCta}
                         onClick={() => setShowSignup(true)}
                     >
-                        Claim this deal <FaArrowRight />
+                        Join now — pay ₱699 <FaArrowRight />
                     </button>
                     <div className={styles.pricingSmall}>
                         Pay via GCash or scan our QR — admin verifies within 24 hours.
@@ -353,8 +417,9 @@ function SignupModal({
     const [success, setSuccess] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-    const gcashNumber = process.env.NEXT_PUBLIC_GCASH_NUMBER || '0917 123 4567'
-    const qrImage = process.env.NEXT_PUBLIC_GCASH_QR_URL || ''
+    const gcashNumber = process.env.NEXT_PUBLIC_GCASH_NUMBER || '0992 703 1276'
+    const gcashName = process.env.NEXT_PUBLIC_GCASH_NAME || 'PR***E C* L.'
+    const qrImage = process.env.NEXT_PUBLIC_GCASH_QR_URL || '/gcash-qr.jpg'
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -430,7 +495,10 @@ function SignupModal({
                                 <div>
                                     <strong>Send ₱699 via GCash</strong>
                                     <div className={styles.payMeta}>
-                                        Number: <code>{gcashNumber}</code> · or scan the QR
+                                        Number: <code>{gcashNumber}</code>
+                                    </div>
+                                    <div className={styles.payMeta}>
+                                        Account name: <strong style={{ color: '#e0e7ff' }}>{gcashName}</strong>
                                     </div>
                                 </div>
                             </div>
