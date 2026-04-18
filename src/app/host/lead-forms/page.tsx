@@ -113,6 +113,7 @@ function AiGenerateModal({
         unqualified_message: string
         auto_admit_threshold: number
         questions: Question[]
+        qualification_summary?: string[]
     }
     onRun: () => void
     onApply: () => void
@@ -306,6 +307,27 @@ function AiGenerateModal({
                             )}
                         </div>
 
+                        {draft.qualification_summary && draft.qualification_summary.length > 0 && (
+                            <div
+                                style={{
+                                    background: 'rgba(34,197,94,0.08)',
+                                    border: '1px solid rgba(34,197,94,0.25)',
+                                    borderRadius: 12,
+                                    padding: 14,
+                                    marginBottom: 14,
+                                }}
+                            >
+                                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#86efac', marginBottom: 8 }}>
+                                    How this form decides qualified vs. unqualified
+                                </div>
+                                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, lineHeight: 1.55, color: '#d1fae5' }}>
+                                    {draft.qualification_summary.map((line, i) => (
+                                        <li key={i}>{line}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
                         <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {draft.questions.map((q, i) => (
                                 <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>
@@ -401,6 +423,7 @@ export default function LeadFormsPage() {
         unqualified_message: string
         auto_admit_threshold: number
         questions: Question[]
+        qualification_summary?: string[]
     }>(null)
 
     useEffect(() => {
@@ -518,6 +541,9 @@ export default function LeadFormsPage() {
                         ? data.auto_admit_threshold
                         : 70,
                 questions: Array.isArray(data.questions) ? data.questions : [],
+                qualification_summary: Array.isArray(data.qualification_summary)
+                    ? data.qualification_summary
+                    : undefined,
             })
         } catch (err) {
             setAiError(err instanceof Error ? err.message : 'AI request failed.')
