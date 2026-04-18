@@ -155,23 +155,26 @@ export default function LeadsPage() {
     )
 
     const formSubmissions = useMemo(
-        () => filteredLeads.filter(l => Array.isArray(l.custom_fields) && l.custom_fields.length > 0),
+        () =>
+            filteredLeads.filter(
+                (l) =>
+                    (Array.isArray(l.custom_fields) && l.custom_fields.length > 0) ||
+                    (Array.isArray(l.lead_answers) && l.lead_answers.length > 0)
+            ),
         [filteredLeads]
     )
 
-    const formFieldLabels = useMemo(() => {
-        const labels: string[] = []
-        const seen = new Set<string>()
-        formSubmissions.forEach(lead => {
-            lead.custom_fields?.forEach(f => {
-                if (!seen.has(f.label)) {
-                    seen.add(f.label)
-                    labels.push(f.label)
-                }
-            })
-        })
-        return labels
-    }, [formSubmissions])
+    const answerToText = (a: LeadAnswer): string => {
+        if (Array.isArray(a.answer)) return a.answer.filter(Boolean).join(', ')
+        return String(a.answer ?? '')
+    }
+
+    const verdictStyles = (v?: string | null) => {
+        if (v === 'qualified') return { bg: 'rgba(34,197,94,0.15)', fg: '#86efac' }
+        if (v === 'review') return { bg: 'rgba(251,191,36,0.15)', fg: '#fcd34d' }
+        if (v === 'unqualified') return { bg: 'rgba(239,68,68,0.15)', fg: '#fca5a5' }
+        return { bg: 'rgba(255,255,255,0.06)', fg: 'rgba(255,255,255,0.7)' }
+    }
 
     const busiestWeekday = useMemo(() => {
         return joinInsights.weekdays.reduce((best, current) => {
@@ -425,9 +428,9 @@ export default function LeadsPage() {
             <section className={styles.summarySection}>
                 <div className={styles.summaryHeader}>
                     <div>
-                        <h2 className={styles.summaryTitle}>Form Submissions</h2>
+                        <h2 className={styles.summaryTitle}>Lead Form Submissions</h2>
                         <p className={styles.summaryDescription}>
-                            All leads who filled out the booking form, with their submitted answers.
+                            Guests who completed a lead form — with their answers and qualification.
                         </p>
                     </div>
                     <span className={styles.summaryBadge}>{formSubmissions.length} submissions</span>
@@ -436,7 +439,7 @@ export default function LeadsPage() {
                 {formSubmissions.length === 0 ? (
                     <div className={styles.summaryEmpty}>
                         <p>No form submissions yet.</p>
-                        <span>Leads who complete the booking form will be listed here.</span>
+                        <span>Guests who fill out your lead form will appear here.</span>
                     </div>
                 ) : (
                     <div className={styles.summaryTableWrap}>
@@ -447,31 +450,71 @@ export default function LeadsPage() {
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Meeting</th>
+                                    <th>Verdict</th>
+                                    <th>Score</th>
                                     <th>Submitted</th>
-                                    {formFieldLabels.map(label => (
-                                        <th key={label}>{label}</th>
-                                    ))}
+                                    <th>Answers</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {formSubmissions.map(lead => {
-                                    const fieldMap = new Map(
-                                        (lead.custom_fields || []).map(f => [f.label, f.value])
-                                    )
+                                {formSubmissions.map((lead) => {
+                                    const v = verdictStyles(lead.qualification_verdict)
+                                    const answers: Array<{ q: string; a: string }> = []
+                                    ;(lead.lead_answers || []).forEach((ans) => {
+                                        answers.push({
+                                            q: ans.question_text || 'Question',
+                                            a: answerToText(ans) || '—',
+                                        })
+                                    })
+                                    ;(lead.custom_fields || []).forEach((f) => {
+                                        answers.push({ q: f.label, a: f.value || '—' })
+                                    })
                                     return (
                                         <tr key={lead.id}>
-                                            <td className={styles.summaryLeadCell}>{lead.guest_name}</td>
+                                            <td className={styles.summaryLeadCell}>
+                                                {lead.guest_name}
+                                            </td>
                                             <td>{lead.guest_email || '—'}</td>
                                             <td>{lead.guest_phone || '—'}</td>
                                             <td>{lead.meetings?.title || '—'}</td>
+                                            <td>
+                                                {lead.qualification_verdict ? (
+                                                    <span
+                                                        className={styles.verdictPill}
+                                                        style={{ background: v.bg, color: v.fg }}
+                                                    >
+                                                        {lead.qualification_verdict}
+                                                    </span>
+                                                ) : (
+                                                    '—'
+                                                )}
+                                            </td>
+                                            <td className={styles.summaryScoreCell}>
+                                                {typeof lead.qualification_score === 'number'
+                                                    ? `${lead.qualification_score}/100`
+                                                    : '—'}
+                                            </td>
                                             <td className={styles.summaryTimeCell}>
                                                 {formatDate(lead.joined_at)} {formatTime(lead.joined_at)}
                                             </td>
-                                            {formFieldLabels.map(label => (
-                                                <td key={label} className={styles.summaryDetailsCell}>
-                                                    {fieldMap.get(label) || '—'}
-                                                </td>
-                                            ))}
+                                            <td className={styles.summaryAnswersCell}>
+                                                {answers.length === 0 ? (
+                                                    '—'
+                                                ) : (
+                                                    <ul className={styles.answersList}>
+                                                        {answers.map((row, idx) => (
+                                                            <li key={idx}>
+                                                                <span className={styles.answerLabel}>
+                                                                    {row.q}
+                                                                </span>
+                                                                <span className={styles.answerValue}>
+                                                                    {row.a}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </td>
                                         </tr>
                                     )
                                 })}
