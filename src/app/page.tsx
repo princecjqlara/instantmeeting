@@ -100,7 +100,6 @@ export default function Home() {
             {/* Decorative blobs */}
             <div className={styles.blob1} />
             <div className={styles.blob2} />
-            <div className={styles.blob3} />
 
             {/* Top Nav */}
             <nav className={styles.nav}>
@@ -131,10 +130,10 @@ export default function Home() {
             <section className={styles.hero}>
                 <div className={styles.scarcityRow}>
                     <span className={styles.slotsPill}>
-                        🔥 Only <strong>{slotsLeft}</strong> slots left at ₱699
+                        <strong>{slotsLeft}</strong> slots remaining at launch price
                     </span>
                     <span className={styles.timerPill}>
-                        Deal ends in{' '}
+                        Offer ends in{' '}
                         <strong>
                             {pad(hours)}:{pad(minutes)}:{pad(seconds)}
                         </strong>
@@ -142,12 +141,13 @@ export default function Home() {
                 </div>
 
                 <h1 className={styles.heroTitle}>
-                    Meet leads the moment
-                    <span className={styles.heroGradient}> they find you.</span>
+                    Qualify, meet, and book clients
+                    <span className={styles.heroGradient}> from a single link.</span>
                 </h1>
                 <p className={styles.heroSubtitle}>
-                    One link. Leads fill a short form, the good ones land straight in
-                    your room, the rest book a time.
+                    Prospects fill a short intake form. Qualified leads are admitted
+                    straight into your live video room. Everyone else books a time on
+                    your calendar.
                 </p>
 
                 <div className={styles.heroPriceRow}>
@@ -165,13 +165,13 @@ export default function Home() {
                         Join now <FaArrowRight />
                     </button>
                     <a href="#pricing" className={styles.btnGhost}>
-                        See what&apos;s included
+                        View plan details
                     </a>
                 </div>
                 <div className={styles.heroTrust}>
-                    <span><FaCheck /> 1 month FB ads setup free</span>
+                    <span><FaCheck /> Facebook ads setup included (1 month)</span>
                     <span><FaCheck /> Lifetime access</span>
-                    <span><FaCheck /> Paid via GCash</span>
+                    <span><FaCheck /> One-time payment via GCash</span>
                 </div>
             </section>
 
@@ -181,30 +181,30 @@ export default function Home() {
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)' }}>
                         <FaMagic />
                     </div>
-                    <h3>Qualifying form</h3>
+                    <h3>Scored intake forms</h3>
                     <p>
-                        A short form scores every lead and tells you who&apos;s worth
-                        your time.
+                        Configure a short form that scores every submission against
+                        your ideal-client criteria.
                     </p>
                 </div>
                 <div className={styles.featureCard}>
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#22c55e,#10b981)' }}>
                         <FaBolt />
                     </div>
-                    <h3>Instant meet or book</h3>
+                    <h3>Instant admission or booking</h3>
                     <p>
-                        Qualified leads go straight to your room. Everyone else picks a
-                        slot on your calendar.
+                        Qualified leads join your live video room immediately. Others
+                        are routed to your booking calendar automatically.
                     </p>
                 </div>
                 <div className={styles.featureCard}>
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>
                         <FaUsers />
                     </div>
-                    <h3>One link, anywhere</h3>
+                    <h3>Deploy anywhere</h3>
                     <p>
-                        Drop the widget on your site or share the link in your bio.
-                        Same flow everywhere.
+                        Embed the widget on your website or share the universal link.
+                        One consistent flow across every channel.
                     </p>
                 </div>
             </section>
@@ -213,15 +213,15 @@ export default function Home() {
             <section id="pricing" className={styles.pricing}>
                 <div className={styles.pricingHeader}>
                     <span className={styles.eyebrow}>Pricing</span>
-                    <h2>One plan. Pay once.</h2>
-                    <p>Launch price. No monthly fees.</p>
+                    <h2>Single plan, one-time payment</h2>
+                    <p>Launch pricing for early customers. No subscription, no hidden fees.</p>
                 </div>
                 <div className={styles.pricingCard}>
                     <div className={styles.pricingRibbon}>
-                        <FaBolt /> Launch deal — 53% off · {slotsLeft} slots left
+                        Launch pricing · 53% off · {slotsLeft} slots left
                     </div>
                     <div className={styles.countdownRow}>
-                        ⏳ Offer ends in{' '}
+                        Offer ends in{' '}
                         <strong>
                             {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
                         </strong>
@@ -236,20 +236,20 @@ export default function Home() {
                     <div className={styles.pricingBonus}>
                         <FaFacebook />
                         <div>
-                            <strong>First month of Facebook ads, on us</strong>
-                            <span>We set up and launch your first ad for free.</span>
+                            <strong>Facebook ads setup included</strong>
+                            <span>We configure and launch your first ad campaign during your first month.</span>
                         </div>
                     </div>
 
                     <ul className={styles.pricingFeatures}>
-                        <li><FaCheck /> Lead qualification forms</li>
-                        <li><FaCheck /> Instant admit for qualified leads</li>
-                        <li><FaCheck /> Booking calendar for everyone else</li>
+                        <li><FaCheck /> Scored lead qualification forms</li>
+                        <li><FaCheck /> Instant admission for qualified leads</li>
+                        <li><FaCheck /> Built-in booking calendar</li>
                         <li><FaCheck /> Live video room with content reels</li>
-                        <li><FaCheck /> Website embed widget</li>
-                        <li><FaCheck /> Team clock-in &amp; round-robin</li>
-                        <li><FaCheck /> Leads table with tags and bulk actions</li>
-                        <li><FaCheck /> 1 month Facebook ads setup</li>
+                        <li><FaCheck /> Embeddable website widget</li>
+                        <li><FaCheck /> Team clock-in with round-robin routing</li>
+                        <li><FaCheck /> Lead management with tags &amp; bulk actions</li>
+                        <li><FaCheck /> Facebook ads setup (1 month)</li>
                     </ul>
 
                     <button
@@ -257,18 +257,18 @@ export default function Home() {
                         className={styles.pricingCta}
                         onClick={() => setShowSignup(true)}
                     >
-                        Join now — pay ₱699 <FaArrowRight />
+                        Join now — ₱699 <FaArrowRight />
                     </button>
                     <div className={styles.pricingSmall}>
-                        Pay via GCash. We verify within 24 hours.
+                        Payment via GCash. Accounts verified within 24 hours.
                     </div>
                 </div>
             </section>
 
             {/* Guest quick-join */}
             <section className={styles.guestSection}>
-                <h3>Got a meeting link?</h3>
-                <p>Jump into a host&apos;s waiting room.</p>
+                <h3>Joining a meeting?</h3>
+                <p>Enter the meeting ID provided by your host.</p>
                 <form
                     className={styles.guestForm}
                     onSubmit={(e) => {
@@ -457,11 +457,11 @@ function SignupModal({
                     <div className={styles.successIcon}>
                         <FaCheck />
                     </div>
-                    <h2 className={styles.modalTitle}>You&apos;re in line 🎉</h2>
+                    <h2 className={styles.modalTitle}>Signup received</h2>
                     <p className={styles.modalSubtitle}>{success}</p>
                     <p className={styles.modalSubtitle}>
-                        Once verified, sign in with <strong>{email}</strong> and the password
-                        you just set.
+                        Once verified, sign in with <strong>{email}</strong> using the
+                        password you set above.
                     </p>
                     <button type="button" className={styles.btnPrimary} onClick={onSwitchToLogin}>
                         Go to sign in <FaArrowRight />
@@ -479,11 +479,11 @@ function SignupModal({
                 </button>
                 <div className={styles.signupGrid}>
                     <div>
-                        <h2 className={styles.modalTitle}>Claim your spot</h2>
+                        <h2 className={styles.modalTitle}>Complete your signup</h2>
                         <p className={styles.modalSubtitle}>
                             <strong style={{ color: '#fff' }}>₱699</strong>{' '}
                             <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>₱1,499</span>{' '}
-                            · includes 1 month Facebook ads setup.
+                            · Facebook ads setup included.
                         </p>
 
                         <div className={styles.paySteps}>
