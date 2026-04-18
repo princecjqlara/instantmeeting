@@ -1311,34 +1311,54 @@ export default function Dashboard() {
                                     const totalPages = Math.ceil(meetings.length / meetingsPerPage)
                                     if (totalPages <= 1) return null
 
+                                    const buildPages = (current: number, total: number): Array<number | 'ellipsis'> => {
+                                        if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+                                        const pages: Array<number | 'ellipsis'> = [1]
+                                        const left = Math.max(2, current - 1)
+                                        const right = Math.min(total - 1, current + 1)
+                                        if (left > 2) pages.push('ellipsis')
+                                        for (let p = left; p <= right; p++) pages.push(p)
+                                        if (right < total - 1) pages.push('ellipsis')
+                                        pages.push(total)
+                                        return pages
+                                    }
+                                    const pages = buildPages(currentPage, totalPages)
+
                                     return (
                                         <div className={styles.pagination}>
                                             <button
                                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                                 disabled={currentPage === 1}
                                                 className={styles.pageBtn}
+                                                aria-label="Previous page"
                                             >
-                                                Previous
+                                                ← Prev
                                             </button>
 
                                             <div className={styles.pageNumbers}>
-                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                                    <button
-                                                        key={page}
-                                                        onClick={() => setCurrentPage(page)}
-                                                        className={`${styles.pageNumber} ${currentPage === page ? styles.active : ''}`}
-                                                    >
-                                                        {page}
-                                                    </button>
-                                                ))}
+                                                {pages.map((p, i) =>
+                                                    p === 'ellipsis' ? (
+                                                        <span key={`e-${i}`} className={styles.pageEllipsis}>…</span>
+                                                    ) : (
+                                                        <button
+                                                            key={p}
+                                                            onClick={() => setCurrentPage(p)}
+                                                            className={`${styles.pageNumber} ${currentPage === p ? styles.active : ''}`}
+                                                            aria-current={currentPage === p ? 'page' : undefined}
+                                                        >
+                                                            {p}
+                                                        </button>
+                                                    )
+                                                )}
                                             </div>
 
                                             <button
                                                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                                                 disabled={currentPage === totalPages}
                                                 className={styles.pageBtn}
+                                                aria-label="Next page"
                                             >
-                                                Next
+                                                Next →
                                             </button>
                                         </div>
                                     )
