@@ -20,6 +20,45 @@ function pickFromAnswers(answers: LeadAnswer[], type: string): string | null {
     return v.trim() || null
 }
 
+function isHostActive(host: {
+    availability_mode?: string | null
+    available_from?: string | null
+    available_to?: string | null
+    timezone?: string | null
+}): boolean {
+    const mode = host.availability_mode || 'always'
+    if (mode === 'always') return true
+    if (mode === 'never') return false
+    if (mode !== 'scheduled') return true
+
+    const from = host.available_from
+    const to = host.available_to
+    if (!from || !to) return false
+
+    try {
+        const tz = host.timezone || 'UTC'
+        const now = new Date()
+        const fmt = new Intl.DateTimeFormat('en-GB', {
+            timeZone: tz,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        })
+        const [h, m] = fmt.format(now).split(':').map(Number)
+        const cur = h * 60 + m
+        const toMin = (s: string) => {
+            const [hh, mm] = s.split(':').map(Number)
+            return (hh || 0) * 60 + (mm || 0)
+        }
+        const a = toMin(from)
+        const b = toMin(to)
+        if (a === b) return false
+        return a < b ? cur >= a && cur < b : cur >= a || cur < b
+    } catch {
+        return false
+    }
+}
+
 function deriveName(answers: LeadAnswer[], fallback: string): string {
     for (const a of answers) {
         const text = a.question_text.toLowerCase()
@@ -69,6 +108,14 @@ export async function POST(req: NextRequest) {
         .order('order_index', { ascending: true })
 
     const qs = (questions || []) as LeadFormQuestion[]
+
+    const { data: host } = await supabase
+        .from('users')
+        .select('availability_mode, available_from, available_to, timezone')
+        .eq('id', form.user_id)
+        .maybeSingle()
+
+    const hostActive = isHostActive(host || {})
 
     // Validate required fields present
     for (const q of qs) {
@@ -143,6 +190,19 @@ export async function POST(req: NextRequest) {
         } catch {
             /* optional */
         }
+    }
+
+    // Host offline / outside availability window → show thank-you
+    // regardless of qualification. The lead is still saved above.
+    if (!hostActive) {
+        return NextResponse.json({
+            verdict: 'thanks',
+            score: qualification.score,
+            reasoning: qualification.reasoning,
+            message:
+                form.unqualified_message ||
+                "Thanks! The host isn't available right now — we'll follow up.",
+        })
     }
 
     // Qualified → auto-admit straight into the room
