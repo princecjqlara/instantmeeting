@@ -58,6 +58,8 @@ export default function LeadFormPage({ params }: Props) {
     const sessionRef = useRef<string | null>(null)
     const honeypotRef = useRef<string>('')
     const prefillAppliedRef = useRef(false)
+    const answersRef = useRef<Record<string, string | string[]>>({})
+    answersRef.current = answers
 
     useEffect(() => {
         params.then((p) => setSlug(p.slug))
@@ -198,16 +200,17 @@ export default function LeadFormPage({ params }: Props) {
 
     const autosave = async () => {
         if (!bundle) return
+        const latest = answersRef.current
         const payload = {
             sessionToken: sessionRef.current,
             formSlug: bundle.form.slug,
             answers: questions
-                .filter((q) => answers[q.id] !== undefined)
+                .filter((q) => latest[q.id] !== undefined)
                 .map((q) => ({
                     question_id: q.id,
                     question_text: q.question_text,
                     type: q.type,
-                    answer: answers[q.id],
+                    answer: latest[q.id],
                 })),
         }
         try {
