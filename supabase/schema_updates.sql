@@ -83,3 +83,23 @@ CREATE POLICY "Users can view engagement for their content" ON content_engagemen
 
 -- Success message
 SELECT 'Schema updated successfully' as message;
+
+-- Pending signups from the public pricing/signup page
+CREATE TABLE IF NOT EXISTS pending_signups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT NOT NULL,
+    name TEXT,
+    phone TEXT,
+    password_hash TEXT NOT NULL,
+    receipt_url TEXT,
+    amount INTEGER DEFAULT 699,
+    plan TEXT DEFAULT 'starter',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'rejected')),
+    admin_note TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    reviewed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_signups_status ON pending_signups(status, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_signups_email_pending
+    ON pending_signups(email) WHERE status = 'pending';
