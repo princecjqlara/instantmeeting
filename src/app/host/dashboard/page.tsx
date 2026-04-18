@@ -696,7 +696,7 @@ export default function Dashboard() {
             <AvailabilitySettings />
 
             {/* InstantHomes Connection */}
-            <InstantHomesConnectionCard userId={session?.user?.id as string} />
+            <InstantHomesConnectionCard userId={(session?.user as { id?: string } | undefined)?.id as string} />
 
             {/* Universal Link */}
             {username && (
