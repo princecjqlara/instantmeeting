@@ -44,6 +44,7 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS join_token TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting' CHECK (status IN ('waiting', 'admitted', 'left'));
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[];
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 

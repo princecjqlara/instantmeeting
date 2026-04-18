@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
@@ -9,7 +9,8 @@ import { buildLeadSummaryRows } from '@/lib/lead-summary'
 import {
     FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
     FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
-    FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash
+    FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash,
+    FaTag, FaPlus, FaTimes, FaCheckSquare, FaSquare
 } from 'react-icons/fa'
 
 interface LeadAnswer {
@@ -34,6 +35,7 @@ interface Lead {
     qualification_verdict?: 'qualified' | 'unqualified' | 'review' | null
     qualification_reasoning?: string | null
     lead_answers?: LeadAnswer[] | null
+    tags?: string[] | null
     meetings: {
         id: string
         title: string
@@ -42,6 +44,17 @@ interface Lead {
     }
 }
 
+const pillBtn = (active: boolean): React.CSSProperties => ({
+    background: active ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
+    border: `1px solid ${active ? 'rgba(99,102,241,0.55)' : 'rgba(255,255,255,0.12)'}`,
+    color: active ? '#c7d2fe' : '#e5e7eb',
+    padding: '6px 12px',
+    borderRadius: 999,
+    fontSize: 12,
+    cursor: 'pointer',
+    fontWeight: 600,
+})
+
 export default function LeadsPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
@@ -49,9 +62,15 @@ export default function LeadsPage() {
     const [filteredLeads, setFilteredLeads] = useState<Lead[]>([])
     const [loading, setLoading] = useState(true)
     const [statusFilter, setStatusFilter] = useState<'all' | 'waiting' | 'admitted' | 'left'>('all')
+    const [dataFilter, setDataFilter] = useState<'all' | 'with_data' | 'no_data'>('all')
+    const [tagFilter, setTagFilter] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
     const [deletingLeadId, setDeletingLeadId] = useState<string | null>(null)
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+    const [tagInput, setTagInput] = useState('')
+    const [bulkTagInput, setBulkTagInput] = useState('')
+    const [bulkBusy, setBulkBusy] = useState(false)
     const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Pagination state
@@ -85,6 +104,13 @@ export default function LeadsPage() {
         }
     }, [session])
 
+    const hasData = (lead: Lead): boolean => {
+        const hasAnswers = Array.isArray(lead.lead_answers) && lead.lead_answers.length > 0
+        const hasCustom = Array.isArray(lead.custom_fields) && lead.custom_fields.length > 0
+        const hasContact = Boolean(lead.guest_email || lead.guest_phone || lead.note)
+        return hasAnswers || hasCustom || hasContact
+    }
+
     useEffect(() => {
         let filtered = leads
 
@@ -92,17 +118,50 @@ export default function LeadsPage() {
             filtered = filtered.filter(lead => lead.status === statusFilter)
         }
 
+        if (dataFilter === 'with_data') {
+            filtered = filtered.filter(hasData)
+        } else if (dataFilter === 'no_data') {
+            filtered = filtered.filter((l) => !hasData(l))
+        }
+
+        if (tagFilter) {
+            filtered = filtered.filter((l) => Array.isArray(l.tags) && l.tags.includes(tagFilter))
+        }
+
         if (searchQuery) {
-            filtered = filtered.filter(lead =>
-                lead.guest_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                lead.meetings?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                lead.guest_email?.toLowerCase().includes(searchQuery.toLowerCase())
-            )
+            const q = searchQuery.toLowerCase()
+            filtered = filtered.filter((lead) => {
+                if (lead.guest_name?.toLowerCase().includes(q)) return true
+                if (lead.meetings?.title?.toLowerCase().includes(q)) return true
+                if (lead.guest_email?.toLowerCase().includes(q)) return true
+                if (lead.guest_phone?.toLowerCase().includes(q)) return true
+                if (lead.note?.toLowerCase().includes(q)) return true
+                if ((lead.tags || []).some((t) => t.toLowerCase().includes(q))) return true
+                if (
+                    (lead.lead_answers || []).some((a) => {
+                        const v = Array.isArray(a.answer) ? a.answer.join(' ') : String(a.answer || '')
+                        return (
+                            v.toLowerCase().includes(q) ||
+                            (a.question_text || '').toLowerCase().includes(q)
+                        )
+                    })
+                )
+                    return true
+                if (
+                    (lead.custom_fields || []).some(
+                        (f) =>
+                            (f.label || '').toLowerCase().includes(q) ||
+                            (f.value || '').toLowerCase().includes(q)
+                    )
+                )
+                    return true
+                return false
+            })
         }
 
         setFilteredLeads(filtered)
         setCurrentPage(1) // Reset to first page when filters change
-    }, [statusFilter, searchQuery, leads])
+    }, [statusFilter, dataFilter, tagFilter, searchQuery, leads])
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -185,6 +244,128 @@ export default function LeadsPage() {
             return best
         }, joinInsights.weekdays[0])
     }, [joinInsights.weekdays])
+
+    const allTags = useMemo(() => {
+        const s = new Set<string>()
+        for (const l of leads) {
+            for (const t of l.tags || []) if (t) s.add(t)
+        }
+        return Array.from(s).sort((a, b) => a.localeCompare(b))
+    }, [leads])
+
+    const toggleSelected = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
+
+    const selectAllVisible = () => {
+        setSelectedIds((prev) => {
+            const visible = filteredLeads.map((l) => l.id)
+            const allSelected = visible.every((id) => prev.has(id))
+            if (allSelected) {
+                const next = new Set(prev)
+                visible.forEach((id) => next.delete(id))
+                return next
+            }
+            const next = new Set(prev)
+            visible.forEach((id) => next.add(id))
+            return next
+        })
+    }
+
+    const clearSelection = () => setSelectedIds(new Set())
+
+    const bulkDelete = async () => {
+        if (selectedIds.size === 0) return
+        const confirmed = window.confirm(
+            `Delete ${selectedIds.size} selected lead${selectedIds.size === 1 ? '' : 's'}? This cannot be undone.`
+        )
+        if (!confirmed) return
+        setBulkBusy(true)
+        try {
+            const ids = Array.from(selectedIds)
+            const res = await fetch(`/api/leads?ids=${encodeURIComponent(ids.join(','))}`, {
+                method: 'DELETE',
+            })
+            if (!res.ok) {
+                const err = await res.json().catch(() => null)
+                alert(err?.error || 'Bulk delete failed')
+                return
+            }
+            setLeads((prev) => prev.filter((l) => !selectedIds.has(l.id)))
+            setSelectedLead((prev) => (prev && selectedIds.has(prev.id) ? null : prev))
+            clearSelection()
+        } finally {
+            setBulkBusy(false)
+        }
+    }
+
+    const applyTagsToLeads = async (
+        ids: string[],
+        tags: string[],
+        mode: 'set' | 'add' | 'remove'
+    ) => {
+        if (ids.length === 0 || tags.length === 0) return
+        const res = await fetch('/api/leads', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids, tags, mode }),
+        })
+        if (!res.ok) {
+            const err = await res.json().catch(() => null)
+            alert(err?.error || 'Tag update failed')
+            return
+        }
+        setLeads((prev) =>
+            prev.map((l) => {
+                if (!ids.includes(l.id)) return l
+                const current = Array.isArray(l.tags) ? l.tags : []
+                let next: string[]
+                if (mode === 'set') next = Array.from(new Set(tags))
+                else if (mode === 'add') next = Array.from(new Set([...current, ...tags]))
+                else next = current.filter((t) => !tags.includes(t))
+                return { ...l, tags: next }
+            })
+        )
+        setSelectedLead((prev) => {
+            if (!prev || !ids.includes(prev.id)) return prev
+            const current = Array.isArray(prev.tags) ? prev.tags : []
+            let next: string[]
+            if (mode === 'set') next = Array.from(new Set(tags))
+            else if (mode === 'add') next = Array.from(new Set([...current, ...tags]))
+            else next = current.filter((t) => !tags.includes(t))
+            return { ...prev, tags: next }
+        })
+    }
+
+    const bulkAddTags = async () => {
+        const parsed = bulkTagInput
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        if (parsed.length === 0 || selectedIds.size === 0) return
+        setBulkBusy(true)
+        try {
+            await applyTagsToLeads(Array.from(selectedIds), parsed, 'add')
+            setBulkTagInput('')
+        } finally {
+            setBulkBusy(false)
+        }
+    }
+
+    const addTagToLead = async (lead: Lead, tag: string) => {
+        const t = tag.trim()
+        if (!t) return
+        await applyTagsToLeads([lead.id], [t], 'add')
+    }
+
+    const removeTagFromLead = async (lead: Lead, tag: string) => {
+        await applyTagsToLeads([lead.id], [tag], 'remove')
+    }
 
     const deleteLead = async (lead: Lead) => {
         const confirmed = window.confirm(`Delete lead "${lead.guest_name}"? This cannot be undone.`)
@@ -367,7 +548,137 @@ export default function LeadsPage() {
                         </button>
                     ))}
                 </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginTop: 12 }}>
+                    <span style={{ fontSize: 12, opacity: 0.6 }}>Show:</span>
+                    {(
+                        [
+                            { v: 'all' as const, label: 'All' },
+                            { v: 'with_data' as const, label: 'With data' },
+                            { v: 'no_data' as const, label: 'No data' },
+                        ]
+                    ).map((opt) => (
+                        <button
+                            key={opt.v}
+                            type="button"
+                            onClick={() => setDataFilter(opt.v)}
+                            style={pillBtn(dataFilter === opt.v)}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                    {allTags.length > 0 && (
+                        <>
+                            <span style={{ fontSize: 12, opacity: 0.6, marginLeft: 8 }}>Tag:</span>
+                            <button
+                                type="button"
+                                onClick={() => setTagFilter(null)}
+                                style={pillBtn(tagFilter === null)}
+                            >
+                                Any
+                            </button>
+                            {allTags.map((t) => (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                                    style={pillBtn(tagFilter === t)}
+                                >
+                                    <FaTag style={{ fontSize: 10, marginRight: 4, verticalAlign: 'middle' }} />
+                                    {t}
+                                </button>
+                            ))}
+                        </>
+                    )}
+                </div>
             </section>
+
+            {selectedIds.size > 0 && (
+                <section
+                    style={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 5,
+                        margin: '0 0 16px',
+                        padding: '12px 16px',
+                        background: 'rgba(15, 18, 32, 0.95)',
+                        backdropFilter: 'blur(6px)',
+                        border: '1px solid rgba(99,102,241,0.45)',
+                        borderRadius: 12,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 10,
+                        alignItems: 'center',
+                        color: '#fff',
+                    }}
+                >
+                    <strong style={{ fontSize: 13 }}>
+                        {selectedIds.size} selected
+                    </strong>
+                    <button
+                        type="button"
+                        onClick={selectAllVisible}
+                        style={pillBtn(false)}
+                        disabled={bulkBusy}
+                    >
+                        {filteredLeads.every((l) => selectedIds.has(l.id)) && filteredLeads.length > 0
+                            ? 'Deselect visible'
+                            : 'Select all visible'}
+                    </button>
+                    <button type="button" onClick={clearSelection} style={pillBtn(false)} disabled={bulkBusy}>
+                        Clear
+                    </button>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input
+                            type="text"
+                            placeholder="Tag(s), comma-separated"
+                            value={bulkTagInput}
+                            onChange={(e) => setBulkTagInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    bulkAddTags()
+                                }
+                            }}
+                            style={{
+                                background: 'rgba(0,0,0,0.35)',
+                                border: '1px solid rgba(255,255,255,0.14)',
+                                color: '#fff',
+                                padding: '6px 10px',
+                                borderRadius: 8,
+                                fontSize: 12.5,
+                                minWidth: 200,
+                            }}
+                            disabled={bulkBusy}
+                        />
+                        <button
+                            type="button"
+                            onClick={bulkAddTags}
+                            disabled={bulkBusy || !bulkTagInput.trim()}
+                            style={{
+                                ...pillBtn(true),
+                                background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                border: 'none',
+                            }}
+                        >
+                            <FaTag style={{ fontSize: 10, marginRight: 4 }} /> Add tags
+                        </button>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={bulkDelete}
+                        disabled={bulkBusy}
+                        style={{
+                            ...pillBtn(false),
+                            border: '1px solid rgba(239,68,68,0.45)',
+                            color: '#fca5a5',
+                            background: 'rgba(239,68,68,0.12)',
+                        }}
+                    >
+                        <FaTrash style={{ fontSize: 11, marginRight: 4 }} /> Delete selected
+                    </button>
+                </section>
+            )}
 
             <section className={styles.summarySection}>
                 <div className={styles.summaryHeader}>
@@ -547,13 +858,39 @@ export default function LeadsPage() {
                         <span>Showing {Math.min((currentPage - 1) * leadsPerPage + 1, filteredLeads.length)}-{Math.min(currentPage * leadsPerPage, filteredLeads.length)} of {filteredLeads.length} leads</span>
                     </div>
                     <div className={styles.leadsGrid}>
-                        {currentLeads.map((lead) => (
-                            <div 
-                                key={lead.id} 
+                        {currentLeads.map((lead) => {
+                            const isSelected = selectedIds.has(lead.id)
+                            return (
+                            <div
+                                key={lead.id}
                                 className={styles.leadCard}
                                 onClick={() => setSelectedLead(lead)}
+                                style={
+                                    isSelected
+                                        ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.7) inset' }
+                                        : undefined
+                                }
                             >
                                 <div className={styles.leadHeader}>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            toggleSelected(lead.id)
+                                        }}
+                                        title={isSelected ? 'Deselect' : 'Select'}
+                                        aria-label={isSelected ? 'Deselect' : 'Select'}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            color: isSelected ? '#a5b4fc' : 'rgba(255,255,255,0.45)',
+                                            cursor: 'pointer',
+                                            padding: 4,
+                                            marginRight: 4,
+                                        }}
+                                    >
+                                        {isSelected ? <FaCheckSquare /> : <FaSquare />}
+                                    </button>
                                     <div className={styles.leadAvatar}>
                                         {lead.guest_name.charAt(0).toUpperCase()}
                                     </div>
@@ -631,8 +968,39 @@ export default function LeadsPage() {
                                         <span>{lead.guest_email}</span>
                                     </div>
                                 )}
+
+                                {Array.isArray(lead.tags) && lead.tags.length > 0 && (
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            flexWrap: 'wrap',
+                                            gap: 4,
+                                            marginTop: 8,
+                                        }}
+                                    >
+                                        {lead.tags.map((t) => (
+                                            <span
+                                                key={t}
+                                                style={{
+                                                    fontSize: 10.5,
+                                                    padding: '2px 8px',
+                                                    borderRadius: 999,
+                                                    background: 'rgba(99,102,241,0.15)',
+                                                    color: '#c7d2fe',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 4,
+                                                }}
+                                            >
+                                                <FaTag style={{ fontSize: 8 }} />
+                                                {t}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                        ))}
+                            )
+                        })}
                     </div>
                     
                     {/* Pagination Controls */}
@@ -813,6 +1181,94 @@ export default function LeadsPage() {
                                     )}
                                 </div>
                             )}
+
+                            <div className={styles.detailSection}>
+                                <h4>Tags</h4>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                                    {(selectedLead.tags || []).length === 0 && (
+                                        <span style={{ fontSize: 12, opacity: 0.6 }}>No tags yet.</span>
+                                    )}
+                                    {(selectedLead.tags || []).map((t) => (
+                                        <span
+                                            key={t}
+                                            style={{
+                                                fontSize: 12,
+                                                padding: '4px 10px',
+                                                borderRadius: 999,
+                                                background: 'rgba(99,102,241,0.15)',
+                                                color: '#c7d2fe',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                            }}
+                                        >
+                                            <FaTag style={{ fontSize: 10 }} />
+                                            {t}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTagFromLead(selectedLead, t)}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: 'inherit',
+                                                    cursor: 'pointer',
+                                                    padding: 0,
+                                                    display: 'inline-flex',
+                                                }}
+                                                title="Remove tag"
+                                                aria-label={`Remove tag ${t}`}
+                                            >
+                                                <FaTimes style={{ fontSize: 10 }} />
+                                            </button>
+                                        </span>
+                                    ))}
+                                </div>
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault()
+                                        const t = tagInput.trim()
+                                        if (!t) return
+                                        addTagToLead(selectedLead, t)
+                                        setTagInput('')
+                                    }}
+                                    style={{ display: 'flex', gap: 6 }}
+                                >
+                                    <input
+                                        type="text"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        placeholder="Add a tag and press Enter"
+                                        style={{
+                                            flex: 1,
+                                            background: 'rgba(0,0,0,0.35)',
+                                            border: '1px solid rgba(255,255,255,0.14)',
+                                            color: '#fff',
+                                            padding: '8px 12px',
+                                            borderRadius: 8,
+                                            fontSize: 13,
+                                        }}
+                                    />
+                                    <button
+                                        type="submit"
+                                        style={{
+                                            background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                            border: 'none',
+                                            color: '#fff',
+                                            padding: '8px 14px',
+                                            borderRadius: 8,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                        }}
+                                        disabled={!tagInput.trim()}
+                                    >
+                                        <FaPlus style={{ fontSize: 10 }} /> Add
+                                    </button>
+                                </form>
+                            </div>
 
                             {selectedLead.lead_answers && selectedLead.lead_answers.length > 0 && (
                                 <div className={styles.detailSection}>
