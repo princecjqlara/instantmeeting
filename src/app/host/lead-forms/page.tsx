@@ -91,6 +91,296 @@ function newRule(): ScoringRule {
     return { id: crypto.randomUUID(), keywords: '', points: 0 }
 }
 
+function AiGenerateModal({
+    prompt,
+    setPrompt,
+    loading,
+    error,
+    draft,
+    onRun,
+    onApply,
+    onClose,
+    onDiscard,
+}: {
+    prompt: string
+    setPrompt: (v: string) => void
+    loading: boolean
+    error: string | null
+    draft: null | {
+        title: string
+        description: string
+        ai_criteria: string
+        unqualified_message: string
+        auto_admit_threshold: number
+        questions: Question[]
+    }
+    onRun: () => void
+    onApply: () => void
+    onClose: () => void
+    onDiscard: () => void
+}) {
+    const samples = [
+        'I sell SEO services to dentists in the US and want enterprise-size clinics (3+ locations).',
+        'I run a solo real estate agency and want qualified buyers for homes $500k+ in Austin.',
+        'I offer executive coaching to VPs of Engineering at Series B+ startups hiring fast.',
+    ]
+
+    return (
+        <div
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(5, 7, 15, 0.72)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 50,
+                padding: 20,
+            }}
+            onClick={onClose}
+        >
+            <div
+                style={{
+                    background: '#0f1220',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 16,
+                    maxWidth: 720,
+                    width: '100%',
+                    maxHeight: '90vh',
+                    overflow: 'auto',
+                    padding: 24,
+                    color: '#f5f5f7',
+                }}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <FaMagic style={{ color: '#a855f7' }} />
+                    <h2 style={{ margin: 0, fontSize: 20 }}>AI Form Builder</h2>
+                </div>
+
+                {!draft ? (
+                    <>
+                        <p style={{ opacity: 0.7, marginTop: 0, fontSize: 14, lineHeight: 1.5 }}>
+                            Describe your business and who you want to qualify. The AI will draft
+                            the full form — questions, choices, scoring, and qualification criteria
+                            — for your review before saving.
+                        </p>
+                        <textarea
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            rows={5}
+                            placeholder="e.g. I sell a B2B payroll product to HR leaders at 50-500 person companies. Qualified leads are decision-makers actively evaluating a switch this quarter."
+                            style={{
+                                width: '100%',
+                                background: 'rgba(0,0,0,0.3)',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                color: '#fff',
+                                borderRadius: 10,
+                                padding: '12px 14px',
+                                fontSize: 14,
+                                lineHeight: 1.5,
+                                fontFamily: 'inherit',
+                                outline: 'none',
+                                resize: 'vertical',
+                            }}
+                            disabled={loading}
+                        />
+
+                        <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 12, opacity: 0.55, marginBottom: 6 }}>
+                                Try an example:
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {samples.map((s) => (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => setPrompt(s)}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            color: '#e5e7eb',
+                                            padding: '6px 10px',
+                                            borderRadius: 999,
+                                            fontSize: 12,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        {s.length > 64 ? s.slice(0, 61) + '…' : s}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div
+                                style={{
+                                    marginTop: 12,
+                                    padding: '10px 12px',
+                                    background: 'rgba(239,68,68,0.12)',
+                                    border: '1px solid rgba(239,68,68,0.3)',
+                                    color: '#fecaca',
+                                    borderRadius: 10,
+                                    fontSize: 13,
+                                }}
+                            >
+                                {error}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                disabled={loading}
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    color: '#fff',
+                                    padding: '10px 16px',
+                                    borderRadius: 10,
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onRun}
+                                disabled={loading || prompt.trim().length < 6}
+                                style={{
+                                    background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                                    border: 'none',
+                                    color: '#fff',
+                                    padding: '10px 18px',
+                                    borderRadius: 10,
+                                    cursor: loading ? 'not-allowed' : 'pointer',
+                                    fontWeight: 700,
+                                    opacity: loading || prompt.trim().length < 6 ? 0.6 : 1,
+                                }}
+                            >
+                                {loading ? 'Thinking…' : 'Generate draft'}
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <p style={{ opacity: 0.7, marginTop: 0, fontSize: 14, lineHeight: 1.5 }}>
+                            Review the AI&apos;s proposal below. Apply to load it into the editor
+                            (you can still tweak anything before saving), or discard and try again.
+                        </p>
+                        <div
+                            style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 12,
+                                padding: 16,
+                                marginBottom: 12,
+                            }}
+                        >
+                            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                                {draft.title}
+                            </div>
+                            {draft.description && (
+                                <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 10 }}>
+                                    {draft.description}
+                                </div>
+                            )}
+                            <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>
+                                Auto-admit threshold: <strong>{draft.auto_admit_threshold}</strong> ·{' '}
+                                {draft.questions.length} questions
+                            </div>
+                            {draft.ai_criteria && (
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        opacity: 0.7,
+                                        marginTop: 6,
+                                        fontStyle: 'italic',
+                                    }}
+                                >
+                                    Qualified lead: {draft.ai_criteria}
+                                </div>
+                            )}
+                        </div>
+
+                        <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {draft.questions.map((q, i) => (
+                                <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>
+                                    <div style={{ fontWeight: 600 }}>
+                                        {q.question_text}{' '}
+                                        <span style={{ opacity: 0.5, fontWeight: 400 }}>
+                                            ({q.type}
+                                            {q.required ? ', required' : ''})
+                                        </span>
+                                    </div>
+                                    {q.help_text && (
+                                        <div style={{ opacity: 0.65 }}>{q.help_text}</div>
+                                    )}
+                                    {q.options && q.options.length > 0 && (
+                                        <ul style={{ margin: '4px 0 0 16px', opacity: 0.85 }}>
+                                            {q.options.map((o) => (
+                                                <li key={o.id}>
+                                                    {o.label}{' '}
+                                                    <span style={{ opacity: 0.5 }}>
+                                                        ({o.points ?? 0} pts)
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </li>
+                            ))}
+                        </ol>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                gap: 10,
+                                marginTop: 16,
+                            }}
+                        >
+                            <button
+                                type="button"
+                                onClick={onDiscard}
+                                style={{
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    color: '#fff',
+                                    padding: '10px 14px',
+                                    borderRadius: 10,
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                }}
+                            >
+                                Discard &amp; try again
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onApply}
+                                style={{
+                                    background: 'linear-gradient(135deg,#22c55e,#10b981)',
+                                    border: 'none',
+                                    color: '#fff',
+                                    padding: '10px 18px',
+                                    borderRadius: 10,
+                                    cursor: 'pointer',
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Apply to form
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    )
+}
+
 export default function LeadFormsPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
@@ -100,6 +390,18 @@ export default function LeadFormsPage() {
     const [editing, setEditing] = useState<FullForm | null>(null)
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState<string | null>(null)
+    const [aiOpen, setAiOpen] = useState(false)
+    const [aiPrompt, setAiPrompt] = useState('')
+    const [aiLoading, setAiLoading] = useState(false)
+    const [aiError, setAiError] = useState<string | null>(null)
+    const [aiDraft, setAiDraft] = useState<null | {
+        title: string
+        description: string
+        ai_criteria: string
+        unqualified_message: string
+        auto_admit_threshold: number
+        questions: Question[]
+    }>(null)
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/')
@@ -186,6 +488,86 @@ export default function LeadFormsPage() {
         setEditing({ ...editing, questions: [...editing.questions, newQuestion()] })
     }
 
+    const runAiGenerate = async () => {
+        const prompt = aiPrompt.trim()
+        if (prompt.length < 6) {
+            setAiError('Tell the AI a sentence or two about your business and ideal lead.')
+            return
+        }
+        setAiLoading(true)
+        setAiError(null)
+        try {
+            const res = await fetch('/api/host/lead-forms/ai-generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setAiError(data.error || 'AI generation failed.')
+                return
+            }
+            setAiDraft({
+                title: data.title || 'Lead Qualification Form',
+                description: data.description || '',
+                ai_criteria: data.ai_criteria || '',
+                unqualified_message:
+                    data.unqualified_message || "Thanks for your response. We'll be in touch.",
+                auto_admit_threshold:
+                    typeof data.auto_admit_threshold === 'number'
+                        ? data.auto_admit_threshold
+                        : 70,
+                questions: Array.isArray(data.questions) ? data.questions : [],
+            })
+        } catch (err) {
+            setAiError(err instanceof Error ? err.message : 'AI request failed.')
+        } finally {
+            setAiLoading(false)
+        }
+    }
+
+    const applyAiDraft = () => {
+        if (!aiDraft) return
+        setEditing((prev) => {
+            const base: FullForm = prev || {
+                id: '',
+                slug: '',
+                title: '',
+                is_active: true,
+                auto_admit_threshold: 70,
+                created_at: '',
+                description: '',
+                ai_criteria: '',
+                unqualified_message: '',
+                fallback_to_waiting: true,
+                questions: [],
+            }
+            return {
+                ...base,
+                title: aiDraft.title || base.title,
+                description: aiDraft.description || base.description,
+                ai_criteria: aiDraft.ai_criteria || base.ai_criteria,
+                unqualified_message:
+                    aiDraft.unqualified_message || base.unqualified_message,
+                auto_admit_threshold: aiDraft.auto_admit_threshold,
+                questions: aiDraft.questions.length
+                    ? aiDraft.questions
+                    : base.questions.length
+                      ? base.questions
+                      : [newQuestion()],
+            }
+        })
+        setAiDraft(null)
+        setAiOpen(false)
+        setAiPrompt('')
+    }
+
+    const closeAiModal = () => {
+        setAiOpen(false)
+        setAiDraft(null)
+        setAiError(null)
+    }
+
     const save = async () => {
         if (!editing) return
         if (!editing.title.trim()) return alert('Title required')
@@ -237,9 +619,18 @@ export default function LeadFormsPage() {
                         <FaArrowLeft /> Back
                     </button>
                     <h1>{editing.id ? 'Edit form' : 'New Instant Leads form'}</h1>
-                    <button className={styles.primaryBtn} onClick={save} disabled={saving}>
-                        <FaSave /> {saving ? 'Saving...' : 'Save'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                            type="button"
+                            className={styles.secondaryBtn}
+                            onClick={() => setAiOpen(true)}
+                        >
+                            <FaMagic /> Generate with AI
+                        </button>
+                        <button className={styles.primaryBtn} onClick={save} disabled={saving}>
+                            <FaSave /> {saving ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className={styles.editorGrid}>
@@ -555,6 +946,20 @@ export default function LeadFormsPage() {
                         ))}
                     </section>
                 </div>
+
+                {aiOpen && (
+                    <AiGenerateModal
+                        prompt={aiPrompt}
+                        setPrompt={setAiPrompt}
+                        loading={aiLoading}
+                        error={aiError}
+                        draft={aiDraft}
+                        onRun={runAiGenerate}
+                        onApply={applyAiDraft}
+                        onClose={closeAiModal}
+                        onDiscard={() => setAiDraft(null)}
+                    />
+                )}
             </div>
         )
     }
@@ -566,9 +971,21 @@ export default function LeadFormsPage() {
                     <FaArrowLeft /> Dashboard
                 </button>
                 <h1>Instant Leads</h1>
-                <button className={styles.primaryBtn} onClick={() => openEditor()}>
-                    <FaPlus /> New form
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                        type="button"
+                        className={styles.secondaryBtn}
+                        onClick={() => {
+                            openEditor()
+                            setAiOpen(true)
+                        }}
+                    >
+                        <FaMagic /> Generate with AI
+                    </button>
+                    <button className={styles.primaryBtn} onClick={() => openEditor()}>
+                        <FaPlus /> New form
+                    </button>
+                </div>
             </div>
 
             <p className={styles.intro}>
