@@ -147,6 +147,14 @@ export default function RoomPage({ params }: RoomPageProps) {
         }
     }, [hasJoined, session, roomId])
 
+    const handleStopWelcomeAudio = useCallback(() => {
+        if (welcomeAudioRef.current) {
+            welcomeAudioRef.current.pause()
+            welcomeAudioRef.current.src = ''
+            welcomeAudioRef.current = null
+        }
+    }, [])
+
     // Meeting ended externally (host ended from dashboard)
     if (meetingEndedExternally) {
         return (
@@ -164,14 +172,6 @@ export default function RoomPage({ params }: RoomPageProps) {
             </div>
         )
     }
-
-    const handleStopWelcomeAudio = useCallback(() => {
-        if (welcomeAudioRef.current) {
-            welcomeAudioRef.current.pause()
-            welcomeAudioRef.current.src = ''
-            welcomeAudioRef.current = null
-        }
-    }, [])
 
     // If we have a name and have joined, show the video chat
     if (hasJoined && displayName) {
