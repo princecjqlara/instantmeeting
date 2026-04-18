@@ -61,10 +61,13 @@ export default function LeadFormPage({ params }: Props) {
     const answersRef = useRef<Record<string, string | string[]>>({})
     answersRef.current = answers
     const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const submittedRef = useRef(false)
 
     useEffect(() => {
         return () => {
             if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+            if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
         }
     }, [])
 
@@ -208,7 +211,53 @@ export default function LeadFormPage({ params }: Props) {
             }
             return next
         })
+        // Debounced server-side autosave so partial answers survive a bounce.
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = setTimeout(() => {
+            autosaveTimerRef.current = null
+            autosave()
+        }, 800)
     }
+
+    // Best-effort flush when the tab is closed/navigated so abandoned
+    // forms still get captured on the server.
+    useEffect(() => {
+        if (!bundle) return
+        const handler = () => {
+            if (submittedRef.current) return
+            const latest = answersRef.current
+            const hasAny = Object.values(latest).some((v) =>
+                Array.isArray(v) ? v.length > 0 : typeof v === 'string' && v.trim().length > 0
+            )
+            if (!hasAny) return
+            const payload = {
+                sessionToken: sessionRef.current,
+                formSlug: bundle.form.slug,
+                answers: questions
+                    .filter((q) => latest[q.id] !== undefined)
+                    .map((q) => ({
+                        question_id: q.id,
+                        question_text: q.question_text,
+                        type: q.type,
+                        answer: latest[q.id],
+                    })),
+            }
+            try {
+                const blob = new Blob([JSON.stringify(payload)], {
+                    type: 'application/json',
+                })
+                navigator.sendBeacon('/api/leads/answer', blob)
+            } catch {
+                /* ignore */
+            }
+        }
+        window.addEventListener('pagehide', handler)
+        window.addEventListener('beforeunload', handler)
+        return () => {
+            window.removeEventListener('pagehide', handler)
+            window.removeEventListener('beforeunload', handler)
+        }
+    }, [bundle, questions])
 
     const autosave = async () => {
         if (!bundle) return
@@ -336,9 +385,33 @@ export default function LeadFormPage({ params }: Props) {
                 return
             }
 
+            submittedRef.current = true
+            if (autosaveTimerRef.current) {
+                clearTimeout(autosaveTimerRef.current)
+                autosaveTimerRef.current = null
+            }
             if (typeof window !== 'undefined' && slug) {
                 localStorage.removeItem(`lead-draft-${slug}`)
                 localStorage.removeItem(`lead-session-${slug}`)
+            }
+
+            // Carry the lead's name into the meeting room so it doesn't
+            // prompt for it again after auto-admit.
+            if (typeof window !== 'undefined' && data.meeting_id) {
+                const nameAnswer = questions
+                    .filter((q) => q.type === 'short_answer' && /name/i.test(q.question_text))
+                    .map((q) => answers[q.id])
+                    .find((v): v is string => typeof v === 'string' && v.trim().length > 0)
+                if (nameAnswer) {
+                    try {
+                        localStorage.setItem(
+                            `guestName:${data.meeting_id}`,
+                            nameAnswer.trim().slice(0, 80)
+                        )
+                    } catch {
+                        /* ignore */
+                    }
+                }
             }
 
             if (data.verdict === 'qualified' && data.join_url) {
