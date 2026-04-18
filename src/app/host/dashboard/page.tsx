@@ -125,6 +125,11 @@ export default function Dashboard() {
 
                 if (profileRes.ok) {
                     const profileData = await profileRes.json()
+                    // First-run users: push to onboarding instead of the dashboard.
+                    if (!profileData.onboarding_completed && !profileData.username) {
+                        router.replace('/onboarding')
+                        return
+                    }
                     if (profileData.username) {
                         setUsername(profileData.username)
                     }

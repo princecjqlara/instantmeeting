@@ -15,6 +15,7 @@ export interface ProfileSettingsRecord {
     followers: number | null
     following: number | null
     welcome_audio_url: string | null
+    onboarding_completed: boolean | null
 }
 
 export interface ProfileSettingsResponse {
@@ -32,6 +33,7 @@ export interface ProfileSettingsResponse {
     followers: number
     following: number
     welcome_audio_url: string | null
+    onboarding_completed: boolean
 }
 
 export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
@@ -49,6 +51,7 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
     followers: 0,
     following: 0,
     welcome_audio_url: null,
+    onboarding_completed: false,
 }
 
 interface NormalizeOptions {
@@ -86,5 +89,6 @@ export function normalizeProfileSettings(
         followers: user.followers ?? DEFAULT_PROFILE_SETTINGS.followers,
         following: user.following ?? DEFAULT_PROFILE_SETTINGS.following,
         welcome_audio_url: user.welcome_audio_url ?? DEFAULT_PROFILE_SETTINGS.welcome_audio_url,
+        onboarding_completed: user.onboarding_completed ?? DEFAULT_PROFILE_SETTINGS.onboarding_completed,
     }
 }

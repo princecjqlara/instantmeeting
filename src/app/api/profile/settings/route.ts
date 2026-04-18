@@ -15,6 +15,7 @@ function getSupabaseClient() {
 }
 
 const AUTO_ADMIT_COLUMN = 'auto_admit'
+const ONBOARDING_COLUMN = 'onboarding_completed'
 
 const PROFILE_SETTINGS_COLUMNS = [
     'username',
@@ -31,6 +32,7 @@ const PROFILE_SETTINGS_COLUMNS = [
     'followers',
     'following',
     'welcome_audio_url',
+    'onboarding_completed',
 ]
 
 interface ProfileSettingsQueryResult {
@@ -38,30 +40,30 @@ interface ProfileSettingsQueryResult {
     error: { message: string } | null
 }
 
-function profileSettingsSelect(includeAutoAdmit: boolean) {
-    const columns = includeAutoAdmit
-        ? PROFILE_SETTINGS_COLUMNS
-        : PROFILE_SETTINGS_COLUMNS.filter(column => column !== AUTO_ADMIT_COLUMN)
-
+function profileSettingsSelect(skip: Set<string>) {
+    const columns = PROFILE_SETTINGS_COLUMNS.filter((column) => !skip.has(column))
     return columns.join(', ')
 }
 
 async function fetchProfileSettingsByEmail(
     supabase: ReturnType<typeof getSupabaseClient>,
     email: string,
-    includeAutoAdmit = true
+    skip: Set<string> = new Set()
 ): Promise<ProfileSettingsQueryResult> {
     const queryResult = await supabase
         .from('users')
-        .select(profileSettingsSelect(includeAutoAdmit))
+        .select(profileSettingsSelect(skip))
         .eq('email', email)
         .maybeSingle()
 
-    if (
-        includeAutoAdmit &&
-        isMissingUsersColumnError(queryResult.error, AUTO_ADMIT_COLUMN)
-    ) {
-        return fetchProfileSettingsByEmail(supabase, email, false)
+    if (queryResult.error) {
+        for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+            if (!skip.has(col) && isMissingUsersColumnError(queryResult.error, col)) {
+                const next = new Set(skip)
+                next.add(col)
+                return fetchProfileSettingsByEmail(supabase, email, next)
+            }
+        }
     }
 
     return {
@@ -80,21 +82,17 @@ async function insertProfileSettings(
         ...updateData,
     }
 
-    let result = await supabase
-        .from('users')
-        .insert(payload)
+    let result = await supabase.from('users').insert(payload)
 
-    if (
-        result.error &&
-        AUTO_ADMIT_COLUMN in payload &&
-        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
-    ) {
-        const fallbackPayload = { ...payload }
-        delete fallbackPayload[AUTO_ADMIT_COLUMN]
-
-        result = await supabase
-            .from('users')
-            .insert(fallbackPayload)
+    for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+        if (
+            result.error &&
+            col in payload &&
+            isMissingUsersColumnError(result.error, col)
+        ) {
+            delete (payload as Record<string, unknown>)[col]
+            result = await supabase.from('users').insert(payload)
+        }
     }
 
     return result
@@ -107,22 +105,17 @@ async function updateProfileSettings(
 ) {
     const payload = { ...updateData }
 
-    let result = await supabase
-        .from('users')
-        .update(payload)
-        .eq('email', email)
+    let result = await supabase.from('users').update(payload).eq('email', email)
 
-    if (
-        result.error &&
-        AUTO_ADMIT_COLUMN in payload &&
-        isMissingUsersColumnError(result.error, AUTO_ADMIT_COLUMN)
-    ) {
-        delete payload[AUTO_ADMIT_COLUMN]
-
-        result = await supabase
-            .from('users')
-            .update(payload)
-            .eq('email', email)
+    for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+        if (
+            result.error &&
+            col in payload &&
+            isMissingUsersColumnError(result.error, col)
+        ) {
+            delete payload[col]
+            result = await supabase.from('users').update(payload).eq('email', email)
+        }
     }
 
     return result
@@ -162,7 +155,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { username, name, bio, followers, following, auto_admit } = body
+    const { username, name, bio, followers, following, auto_admit, onboarding_completed } = body
 
     // Validate username only if it's a non-empty string
     if (username && username.length > 0) {
@@ -197,6 +190,7 @@ export async function PATCH(req: NextRequest) {
     if (followers !== undefined) updateData.followers = followers
     if (following !== undefined) updateData.following = following
     if (auto_admit !== undefined) updateData.auto_admit = auto_admit
+    if (onboarding_completed !== undefined) updateData.onboarding_completed = !!onboarding_completed
 
     // First check if user exists
     const { data: existingUser, error: existingUserError } = await supabase

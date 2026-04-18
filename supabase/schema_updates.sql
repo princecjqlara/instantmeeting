@@ -46,6 +46,9 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[];
 
+-- First-run onboarding flag for new hosts
+ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 
 -- Create content_engagement table if it doesn't exist
