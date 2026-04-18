@@ -17,6 +17,7 @@ import { useState, use, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
+import GuestInfoPanel from '@/components/GuestInfoPanel'
 import { FaVideo, FaArrowRight, FaDoorOpen } from 'react-icons/fa'
 import InAppBrowserGate from '@/components/InAppBrowserGate'
 import styles from './page.module.css'
@@ -176,13 +177,16 @@ export default function RoomPage({ params }: RoomPageProps) {
     // If we have a name and have joined, show the video chat
     if (hasJoined && displayName) {
         return (
-            <VideoChat
-                roomId={roomId}
-                displayName={displayName}
-                onLeave={handleLeave}
-                isHost={!!session?.user}
-                onStopWelcomeAudio={handleStopWelcomeAudio}
-            />
+            <>
+                <VideoChat
+                    roomId={roomId}
+                    displayName={displayName}
+                    onLeave={handleLeave}
+                    isHost={!!session?.user}
+                    onStopWelcomeAudio={handleStopWelcomeAudio}
+                />
+                {session?.user && <GuestInfoPanel roomId={roomId} />}
+            </>
         )
     }
 

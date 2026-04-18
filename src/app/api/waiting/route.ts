@@ -72,10 +72,13 @@ export async function GET(req: NextRequest) {
         // Host info - we'll execute it if meeting exists
         Promise.resolve(null),
 
-        // Admitted guest check
+        // Admitted guest check — include lead form data so the host
+        // can see the guest's qualification details mid-call.
         supabase
             .from('waiting_guests')
-            .select('id, guest_name')
+            .select(
+                'id, guest_name, guest_email, guest_phone, note, tags, lead_answers, custom_fields, qualification_verdict, qualification_score, qualification_reasoning, submitted_at'
+            )
             .eq('meeting_id', meetingId)
             .eq('status', 'admitted')
             .single()

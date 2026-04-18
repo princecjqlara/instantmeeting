@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { qualifyLead } from '@/lib/lead-qualifier'
-import { admitGuestLogic } from '@/lib/admit-logic'
+import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 
 export const dynamic = 'force-dynamic'
@@ -205,10 +205,16 @@ export async function POST(req: NextRequest) {
         })
     }
 
-    // Qualified → auto-admit straight into the room
+    // Qualified → auto-admit straight into the room, but only if a team
+    // member is actually available to take the call. Solo hosts (no team)
+    // still pass through; if a team exists but nobody is clocked in or
+    // free, fall back to a thank-you so the lead isn't dropped into an
+    // empty room.
     if (qualification.verdict === 'qualified') {
         try {
-            const result = await admitGuestLogic(meeting.id, guest.id)
+            const result = await admitGuestLogic(meeting.id, guest.id, {
+                requireAvailableAssignee: true,
+            })
             return NextResponse.json({
                 verdict: 'qualified',
                 score: qualification.score,
@@ -219,6 +225,16 @@ export async function POST(req: NextRequest) {
                 meet_link: result.meet_link,
             })
         } catch (err) {
+            if (isNoAvailableTeamMemberError(err)) {
+                return NextResponse.json({
+                    verdict: 'thanks',
+                    score: qualification.score,
+                    reasoning: qualification.reasoning,
+                    message:
+                        form.unqualified_message ||
+                        "Thanks! Nobody is available to take your call right now — we'll follow up shortly.",
+                })
+            }
             console.error('Auto-admit failed, falling back to waiting room:', err)
         }
     }
