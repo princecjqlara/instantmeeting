@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
@@ -91,40 +91,215 @@ function newRule(): ScoringRule {
     return { id: crypto.randomUUID(), keywords: '', points: 0 }
 }
 
+type ChatMsg = { role: 'user' | 'assistant'; content: string }
+type AiDraft = {
+    title: string
+    description: string
+    ai_criteria: string
+    unqualified_message: string
+    auto_admit_threshold: number
+    questions: Question[]
+    qualification_summary?: string[]
+}
+
+function FormPreview({ draft }: { draft: AiDraft }) {
+    const maxPts = draft.questions.reduce((total, q) => {
+        if (q.type === 'single_choice' || q.type === 'multi_choice') {
+            const opts = q.options || []
+            if (!opts.length) return total
+            if (q.type === 'single_choice') {
+                return total + Math.max(0, ...opts.map((o) => Number(o.points) || 0))
+            }
+            return total + opts.reduce((s, o) => s + Math.max(0, Number(o.points) || 0), 0)
+        }
+        const rulePts = (q.scoring_rules || []).reduce(
+            (s, r) => s + Math.max(0, Number(r.points) || 0),
+            0
+        )
+        const idealPts = q.ideal_answer ? 10 : 0
+        return total + rulePts + idealPts
+    }, 0)
+
+    return (
+        <div
+            style={{
+                background: '#0b0f1e',
+                borderRadius: 12,
+                padding: 20,
+                border: '1px solid rgba(255,255,255,0.08)',
+            }}
+        >
+            <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 6, letterSpacing: 0.6, textTransform: 'uppercase' }}>
+                Lead-facing preview
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
+                {draft.title || 'Untitled form'}
+            </div>
+            {draft.description && (
+                <div style={{ fontSize: 13, color: '#cbd5e1', opacity: 0.8, marginBottom: 14 }}>
+                    {draft.description}
+                </div>
+            )}
+            <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 14 }}>
+                Auto-admit ≥ {draft.auto_admit_threshold}/100 · {draft.questions.length} questions
+                {maxPts > 0 ? ` · up to ${maxPts} pts` : ''}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {draft.questions.map((q, i) => (
+                    <div key={i} style={{ borderTop: i ? '1px solid rgba(255,255,255,0.06)' : 'none', paddingTop: i ? 14 : 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#f5f5f7', marginBottom: 4 }}>
+                            {i + 1}. {q.question_text}
+                            {q.required && <span style={{ color: '#f87171', marginLeft: 4 }}>*</span>}
+                        </div>
+                        {q.help_text && (
+                            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>{q.help_text}</div>
+                        )}
+                        {q.type === 'short_answer' && (
+                            <div style={previewInput}>Short text answer…</div>
+                        )}
+                        {q.type === 'long_answer' && (
+                            <div style={{ ...previewInput, minHeight: 60 }}>Long answer…</div>
+                        )}
+                        {q.type === 'email' && <div style={previewInput}>name@example.com</div>}
+                        {q.type === 'phone' && <div style={previewInput}>+1 555 000 0000</div>}
+                        {q.type === 'date' && <div style={previewInput}>YYYY-MM-DD</div>}
+                        {(q.type === 'single_choice' || q.type === 'multi_choice') && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                                {q.options.map((o) => {
+                                    const pts = Number(o.points) || 0
+                                    const isDq = pts === 0
+                                    return (
+                                        <div
+                                            key={o.id}
+                                            style={{
+                                                padding: '8px 10px',
+                                                borderRadius: 8,
+                                                background: 'rgba(255,255,255,0.04)',
+                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                fontSize: 12.5,
+                                                color: '#e2e8f0',
+                                            }}
+                                        >
+                                            <span>
+                                                <span style={{ opacity: 0.5, marginRight: 8 }}>
+                                                    {q.type === 'multi_choice' ? '☐' : '○'}
+                                                </span>
+                                                {o.label || '—'}
+                                            </span>
+                                            <span
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: isDq ? '#fca5a5' : '#86efac',
+                                                    opacity: 0.9,
+                                                }}
+                                            >
+                                                {isDq ? 'disqualify' : `+${pts} pts`}
+                                            </span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                        {(q.scoring_rules || []).length > 0 && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+                                Keyword scoring:{' '}
+                                {(q.scoring_rules || [])
+                                    .map((r) => `"${r.keywords}" → +${r.points}`)
+                                    .join(' · ')}
+                            </div>
+                        )}
+                        {q.ideal_answer && (
+                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, fontStyle: 'italic' }}>
+                                AI rubric: compares to ideal answer (up to +10 pts)
+                            </div>
+                        )}
+                        {q.disqualify_on && (
+                            <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 6 }}>
+                                Hard disqualify on: {q.disqualify_on}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+            {draft.ai_criteria && (
+                <div
+                    style={{
+                        marginTop: 14,
+                        padding: 10,
+                        background: 'rgba(99,102,241,0.08)',
+                        border: '1px solid rgba(99,102,241,0.25)',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        color: '#c7d2fe',
+                    }}
+                >
+                    <strong style={{ opacity: 0.85 }}>Qualified lead:</strong> {draft.ai_criteria}
+                </div>
+            )}
+            {draft.unqualified_message && (
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+                    Unqualified reply: &ldquo;{draft.unqualified_message}&rdquo;
+                </div>
+            )}
+        </div>
+    )
+}
+
+const previewInput: React.CSSProperties = {
+    padding: '8px 10px',
+    borderRadius: 8,
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    fontSize: 12.5,
+    color: '#64748b',
+}
+
 function AiGenerateModal({
-    prompt,
-    setPrompt,
+    messages,
+    input,
+    setInput,
     loading,
     error,
     draft,
-    onRun,
+    onSend,
     onApply,
     onClose,
-    onDiscard,
+    onReset,
 }: {
-    prompt: string
-    setPrompt: (v: string) => void
+    messages: ChatMsg[]
+    input: string
+    setInput: (v: string) => void
     loading: boolean
     error: string | null
-    draft: null | {
-        title: string
-        description: string
-        ai_criteria: string
-        unqualified_message: string
-        auto_admit_threshold: number
-        questions: Question[]
-        qualification_summary?: string[]
-    }
-    onRun: () => void
+    draft: AiDraft | null
+    onSend: (text?: string) => void
     onApply: () => void
     onClose: () => void
-    onDiscard: () => void
+    onReset: () => void
 }) {
+    const scrollRef = useRef<HTMLDivElement | null>(null)
+    useEffect(() => {
+        const el = scrollRef.current
+        if (el) el.scrollTop = el.scrollHeight
+    }, [messages, loading])
     const samples = [
         'I sell SEO services to dentists in the US and want enterprise-size clinics (3+ locations).',
         'I run a solo real estate agency and want qualified buyers for homes $500k+ in Austin.',
         'I offer executive coaching to VPs of Engineering at Series B+ startups hiring fast.',
     ]
+    const tweakSamples = [
+        'Add a question about timeline to buy.',
+        'Raise the auto-admit threshold to 75.',
+        'Make the budget question harsher — disqualify under $5k.',
+    ]
+    const isEmpty = messages.length === 0
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        if (loading || !input.trim()) return
+        onSend()
+    }
 
     return (
         <div
@@ -146,262 +321,345 @@ function AiGenerateModal({
                     background: '#0f1220',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: 16,
-                    maxWidth: 720,
                     width: '100%',
-                    maxHeight: '90vh',
-                    overflow: 'auto',
-                    padding: 24,
+                    maxWidth: draft ? 1100 : 720,
+                    maxHeight: '92vh',
+                    display: 'flex',
+                    flexDirection: 'column',
                     color: '#f5f5f7',
+                    overflow: 'hidden',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <FaMagic style={{ color: '#a855f7' }} />
-                    <h2 style={{ margin: 0, fontSize: 20 }}>AI Form Builder</h2>
+                <div
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        padding: '16px 20px',
+                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <FaMagic style={{ color: '#a855f7' }} />
+                        <h2 style={{ margin: 0, fontSize: 18 }}>AI Form Builder</h2>
+                        {draft && (
+                            <span style={{ fontSize: 11, opacity: 0.55, marginLeft: 6 }}>
+                                · iterate in chat, preview updates on the right
+                            </span>
+                        )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        {messages.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={onReset}
+                                disabled={loading}
+                                style={ghostBtn}
+                            >
+                                Start over
+                            </button>
+                        )}
+                        <button type="button" onClick={onClose} style={ghostBtn}>
+                            Close
+                        </button>
+                    </div>
                 </div>
 
-                {!draft ? (
-                    <>
-                        <p style={{ opacity: 0.7, marginTop: 0, fontSize: 14, lineHeight: 1.5 }}>
-                            Describe your business and who you want to qualify. The AI will draft
-                            the full form — questions, choices, scoring, and qualification criteria
-                            — for your review before saving.
-                        </p>
-                        <textarea
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            rows={5}
-                            placeholder="e.g. I sell a B2B payroll product to HR leaders at 50-500 person companies. Qualified leads are decision-makers actively evaluating a switch this quarter."
-                            style={{
-                                width: '100%',
-                                background: 'rgba(0,0,0,0.3)',
-                                border: '1px solid rgba(255,255,255,0.12)',
-                                color: '#fff',
-                                borderRadius: 10,
-                                padding: '12px 14px',
-                                fontSize: 14,
-                                lineHeight: 1.5,
-                                fontFamily: 'inherit',
-                                outline: 'none',
-                                resize: 'vertical',
-                            }}
-                            disabled={loading}
-                        />
+                <div
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: draft ? 'minmax(320px, 1fr) minmax(340px, 1.1fr)' : '1fr',
+                        flex: 1,
+                        minHeight: 0,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0,
+                            borderRight: draft ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                        }}
+                    >
+                        <div ref={scrollRef} style={{ flex: 1, overflow: 'auto', padding: 20 }}>
+                            {isEmpty ? (
+                                <>
+                                    <p style={{ opacity: 0.75, marginTop: 0, fontSize: 14, lineHeight: 1.55 }}>
+                                        Describe your business and who you want to qualify. I&apos;ll ask
+                                        clarifying questions, suggest ideas, and draft a full form you can
+                                        keep refining with me.
+                                    </p>
+                                    <div style={{ marginTop: 8 }}>
+                                        <div style={{ fontSize: 12, opacity: 0.55, marginBottom: 6 }}>
+                                            Try an example:
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                            {samples.map((s) => (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => onSend(s)}
+                                                    disabled={loading}
+                                                    style={chipBtn}
+                                                >
+                                                    {s.length > 72 ? s.slice(0, 69) + '…' : s}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                    {messages.map((m, i) => (
+                                        <div
+                                            key={i}
+                                            style={{
+                                                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                                                maxWidth: '88%',
+                                                background:
+                                                    m.role === 'user'
+                                                        ? 'linear-gradient(135deg,#6366f1,#a855f7)'
+                                                        : 'rgba(255,255,255,0.05)',
+                                                border:
+                                                    m.role === 'user'
+                                                        ? 'none'
+                                                        : '1px solid rgba(255,255,255,0.08)',
+                                                color: '#fff',
+                                                padding: '10px 13px',
+                                                borderRadius: 12,
+                                                fontSize: 13.5,
+                                                lineHeight: 1.5,
+                                                whiteSpace: 'pre-wrap',
+                                            }}
+                                        >
+                                            {m.content}
+                                        </div>
+                                    ))}
+                                    {loading && (
+                                        <div
+                                            style={{
+                                                alignSelf: 'flex-start',
+                                                padding: '10px 13px',
+                                                borderRadius: 12,
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                fontSize: 13,
+                                                opacity: 0.75,
+                                            }}
+                                        >
+                                            Thinking…
+                                        </div>
+                                    )}
+                                    {draft && !loading && (
+                                        <div style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                                            <div style={{ fontSize: 11, opacity: 0.55, marginBottom: 6 }}>
+                                                Try a quick tweak:
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {tweakSamples.map((s) => (
+                                                    <button
+                                                        key={s}
+                                                        type="button"
+                                                        onClick={() => onSend(s)}
+                                                        disabled={loading}
+                                                        style={chipBtn}
+                                                    >
+                                                        {s}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                        <div style={{ marginTop: 10 }}>
-                            <div style={{ fontSize: 12, opacity: 0.55, marginBottom: 6 }}>
-                                Try an example:
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                {samples.map((s) => (
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => setPrompt(s)}
-                                        style={{
-                                            background: 'rgba(255,255,255,0.05)',
-                                            border: '1px solid rgba(255,255,255,0.1)',
-                                            color: '#e5e7eb',
-                                            padding: '6px 10px',
-                                            borderRadius: 999,
-                                            fontSize: 12,
-                                            cursor: 'pointer',
-                                        }}
-                                    >
-                                        {s.length > 64 ? s.slice(0, 61) + '…' : s}
-                                    </button>
-                                ))}
-                            </div>
+                            {error && (
+                                <div
+                                    style={{
+                                        marginTop: 12,
+                                        padding: '10px 12px',
+                                        background: 'rgba(239,68,68,0.12)',
+                                        border: '1px solid rgba(239,68,68,0.3)',
+                                        color: '#fecaca',
+                                        borderRadius: 10,
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    {error}
+                                </div>
+                            )}
                         </div>
 
-                        {error && (
-                            <div
-                                style={{
-                                    marginTop: 12,
-                                    padding: '10px 12px',
-                                    background: 'rgba(239,68,68,0.12)',
-                                    border: '1px solid rgba(239,68,68,0.3)',
-                                    color: '#fecaca',
-                                    borderRadius: 10,
-                                    fontSize: 13,
+                        <form
+                            onSubmit={handleSubmit}
+                            style={{
+                                padding: 14,
+                                borderTop: '1px solid rgba(255,255,255,0.08)',
+                                display: 'flex',
+                                gap: 8,
+                                alignItems: 'flex-end',
+                            }}
+                        >
+                            <textarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault()
+                                        if (!loading && input.trim()) onSend()
+                                    }
                                 }}
-                            >
-                                {error}
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                disabled={loading}
+                                rows={isEmpty ? 4 : 2}
+                                placeholder={
+                                    isEmpty
+                                        ? 'e.g. I sell a B2B payroll product to HR leaders at 50-500 person companies...'
+                                        : draft
+                                          ? 'Ask for a tweak — "add a timeline question" or "make the budget gate stricter"…'
+                                          : 'Answer the AI or add more detail…'
+                                }
                                 style={{
-                                    background: 'transparent',
-                                    border: '1px solid rgba(255,255,255,0.15)',
+                                    flex: 1,
+                                    background: 'rgba(0,0,0,0.3)',
+                                    border: '1px solid rgba(255,255,255,0.12)',
                                     color: '#fff',
-                                    padding: '10px 16px',
                                     borderRadius: 10,
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
+                                    padding: '10px 12px',
+                                    fontSize: 14,
+                                    lineHeight: 1.5,
+                                    fontFamily: 'inherit',
+                                    outline: 'none',
+                                    resize: 'none',
                                 }}
-                            >
-                                Cancel
-                            </button>
+                                disabled={loading}
+                            />
                             <button
-                                type="button"
-                                onClick={onRun}
-                                disabled={loading || prompt.trim().length < 6}
+                                type="submit"
+                                disabled={loading || input.trim().length < 2}
                                 style={{
                                     background: 'linear-gradient(135deg,#6366f1,#a855f7)',
                                     border: 'none',
                                     color: '#fff',
-                                    padding: '10px 18px',
+                                    padding: '10px 16px',
                                     borderRadius: 10,
                                     cursor: loading ? 'not-allowed' : 'pointer',
                                     fontWeight: 700,
-                                    opacity: loading || prompt.trim().length < 6 ? 0.6 : 1,
+                                    opacity: loading || input.trim().length < 2 ? 0.6 : 1,
                                 }}
                             >
-                                {loading ? 'Thinking…' : 'Generate draft'}
+                                Send
                             </button>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <p style={{ opacity: 0.7, marginTop: 0, fontSize: 14, lineHeight: 1.5 }}>
-                            Review the AI&apos;s proposal below. Apply to load it into the editor
-                            (you can still tweak anything before saving), or discard and try again.
-                        </p>
-                        <div
-                            style={{
-                                background: 'rgba(255,255,255,0.04)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 12,
-                                padding: 16,
-                                marginBottom: 12,
-                            }}
-                        >
-                            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-                                {draft.title}
-                            </div>
-                            {draft.description && (
-                                <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 10 }}>
-                                    {draft.description}
-                                </div>
-                            )}
-                            <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 4 }}>
-                                Auto-admit threshold: <strong>{draft.auto_admit_threshold}</strong> ·{' '}
-                                {draft.questions.length} questions
-                            </div>
-                            {draft.ai_criteria && (
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        opacity: 0.7,
-                                        marginTop: 6,
-                                        fontStyle: 'italic',
-                                    }}
-                                >
-                                    Qualified lead: {draft.ai_criteria}
-                                </div>
-                            )}
-                        </div>
+                        </form>
+                    </div>
 
-                        {draft.qualification_summary && draft.qualification_summary.length > 0 && (
-                            <div
-                                style={{
-                                    background: 'rgba(34,197,94,0.08)',
-                                    border: '1px solid rgba(34,197,94,0.25)',
-                                    borderRadius: 12,
-                                    padding: 14,
-                                    marginBottom: 14,
-                                }}
-                            >
-                                <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: '#86efac', marginBottom: 8 }}>
-                                    How this form decides qualified vs. unqualified
-                                </div>
-                                <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, lineHeight: 1.55, color: '#d1fae5' }}>
-                                    {draft.qualification_summary.map((line, i) => (
-                                        <li key={i}>{line}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-
-                        <ol style={{ paddingLeft: 18, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {draft.questions.map((q, i) => (
-                                <li key={i} style={{ fontSize: 13, lineHeight: 1.5 }}>
-                                    <div style={{ fontWeight: 600 }}>
-                                        {q.question_text}{' '}
-                                        <span style={{ opacity: 0.5, fontWeight: 400 }}>
-                                            ({q.type}
-                                            {q.required ? ', required' : ''})
-                                        </span>
-                                    </div>
-                                    {q.help_text && (
-                                        <div style={{ opacity: 0.65 }}>{q.help_text}</div>
-                                    )}
-                                    {q.options && q.options.length > 0 && (
-                                        <ul style={{ margin: '4px 0 0 16px', opacity: 0.85 }}>
-                                            {q.options.map((o) => (
-                                                <li key={o.id}>
-                                                    {o.label}{' '}
-                                                    <span style={{ opacity: 0.5 }}>
-                                                        ({o.points ?? 0} pts)
-                                                    </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </li>
-                            ))}
-                        </ol>
-
+                    {draft && (
                         <div
                             style={{
                                 display: 'flex',
-                                justifyContent: 'flex-end',
-                                gap: 10,
-                                marginTop: 16,
+                                flexDirection: 'column',
+                                minHeight: 0,
+                                background: 'rgba(0,0,0,0.25)',
                             }}
                         >
-                            <button
-                                type="button"
-                                onClick={onDiscard}
+                            <div style={{ flex: 1, overflow: 'auto', padding: 20 }}>
+                                <FormPreview draft={draft} />
+                                {draft.qualification_summary && draft.qualification_summary.length > 0 && (
+                                    <div
+                                        style={{
+                                            marginTop: 14,
+                                            background: 'rgba(34,197,94,0.08)',
+                                            border: '1px solid rgba(34,197,94,0.25)',
+                                            borderRadius: 12,
+                                            padding: 14,
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: 0.6,
+                                                color: '#86efac',
+                                                marginBottom: 8,
+                                            }}
+                                        >
+                                            How this form decides qualified vs. unqualified
+                                        </div>
+                                        <ul
+                                            style={{
+                                                margin: 0,
+                                                paddingLeft: 18,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 4,
+                                                fontSize: 12.5,
+                                                lineHeight: 1.55,
+                                                color: '#d1fae5',
+                                            }}
+                                        >
+                                            {draft.qualification_summary.map((line, i) => (
+                                                <li key={i}>{line}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                            <div
                                 style={{
-                                    background: 'transparent',
-                                    border: '1px solid rgba(255,255,255,0.15)',
-                                    color: '#fff',
-                                    padding: '10px 14px',
-                                    borderRadius: 10,
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
+                                    padding: 14,
+                                    borderTop: '1px solid rgba(255,255,255,0.08)',
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    gap: 10,
                                 }}
                             >
-                                Discard &amp; try again
-                            </button>
-                            <button
-                                type="button"
-                                onClick={onApply}
-                                style={{
-                                    background: 'linear-gradient(135deg,#22c55e,#10b981)',
-                                    border: 'none',
-                                    color: '#fff',
-                                    padding: '10px 18px',
-                                    borderRadius: 10,
-                                    cursor: 'pointer',
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Apply to form
-                            </button>
+                                <button
+                                    type="button"
+                                    onClick={onApply}
+                                    style={{
+                                        background: 'linear-gradient(135deg,#22c55e,#10b981)',
+                                        border: 'none',
+                                        color: '#fff',
+                                        padding: '10px 18px',
+                                        borderRadius: 10,
+                                        cursor: 'pointer',
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    Apply to form
+                                </button>
+                            </div>
                         </div>
-                    </>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     )
 }
+
+const ghostBtn: React.CSSProperties = {
+    background: 'transparent',
+    border: '1px solid rgba(255,255,255,0.15)',
+    color: '#fff',
+    padding: '6px 12px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    fontSize: 12.5,
+    fontWeight: 600,
+}
+
+const chipBtn: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#e5e7eb',
+    padding: '6px 10px',
+    borderRadius: 999,
+    fontSize: 12,
+    cursor: 'pointer',
+    textAlign: 'left',
+}
+
 
 export default function LeadFormsPage() {
     const { data: session, status } = useSession()
@@ -413,18 +671,11 @@ export default function LeadFormsPage() {
     const [saving, setSaving] = useState(false)
     const [copied, setCopied] = useState<string | null>(null)
     const [aiOpen, setAiOpen] = useState(false)
-    const [aiPrompt, setAiPrompt] = useState('')
+    const [aiInput, setAiInput] = useState('')
+    const [aiMessages, setAiMessages] = useState<ChatMsg[]>([])
     const [aiLoading, setAiLoading] = useState(false)
     const [aiError, setAiError] = useState<string | null>(null)
-    const [aiDraft, setAiDraft] = useState<null | {
-        title: string
-        description: string
-        ai_criteria: string
-        unqualified_message: string
-        auto_admit_threshold: number
-        questions: Question[]
-        qualification_summary?: string[]
-    }>(null)
+    const [aiDraft, setAiDraft] = useState<AiDraft | null>(null)
 
     useEffect(() => {
         if (status === 'unauthenticated') router.push('/')
@@ -511,45 +762,66 @@ export default function LeadFormsPage() {
         setEditing({ ...editing, questions: [...editing.questions, newQuestion()] })
     }
 
-    const runAiGenerate = async () => {
-        const prompt = aiPrompt.trim()
-        if (prompt.length < 6) {
+    const sendAiMessage = async (override?: string) => {
+        const text = (override ?? aiInput).trim()
+        if (text.length < 2) {
+            setAiError('Type a message for the AI.')
+            return
+        }
+        if (aiMessages.length === 0 && text.length < 6) {
             setAiError('Tell the AI a sentence or two about your business and ideal lead.')
             return
         }
+        const nextMessages: ChatMsg[] = [...aiMessages, { role: 'user', content: text }]
+        setAiMessages(nextMessages)
+        setAiInput('')
         setAiLoading(true)
         setAiError(null)
         try {
             const res = await fetch('/api/host/lead-forms/ai-generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt }),
+                body: JSON.stringify({ messages: nextMessages }),
             })
             const data = await res.json()
             if (!res.ok) {
                 setAiError(data.error || 'AI generation failed.')
                 return
             }
-            setAiDraft({
-                title: data.title || 'Lead Qualification Form',
-                description: data.description || '',
-                ai_criteria: data.ai_criteria || '',
-                unqualified_message:
-                    data.unqualified_message || "Thanks for your response. We'll be in touch.",
-                auto_admit_threshold:
-                    typeof data.auto_admit_threshold === 'number'
-                        ? data.auto_admit_threshold
-                        : 70,
-                questions: Array.isArray(data.questions) ? data.questions : [],
-                qualification_summary: Array.isArray(data.qualification_summary)
-                    ? data.qualification_summary
-                    : undefined,
-            })
+            const reply = typeof data.reply === 'string' && data.reply.trim()
+                ? data.reply.trim()
+                : data.draft
+                  ? 'Here is an updated draft — take a look on the right.'
+                  : 'Could you share a bit more detail?'
+            setAiMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+            if (data.draft) {
+                const d = data.draft
+                setAiDraft({
+                    title: d.title || 'Lead Qualification Form',
+                    description: d.description || '',
+                    ai_criteria: d.ai_criteria || '',
+                    unqualified_message:
+                        d.unqualified_message || "Thanks for your response. We'll be in touch.",
+                    auto_admit_threshold:
+                        typeof d.auto_admit_threshold === 'number' ? d.auto_admit_threshold : 70,
+                    questions: Array.isArray(d.questions) ? d.questions : [],
+                    qualification_summary: Array.isArray(d.qualification_summary)
+                        ? d.qualification_summary
+                        : undefined,
+                })
+            }
         } catch (err) {
             setAiError(err instanceof Error ? err.message : 'AI request failed.')
         } finally {
             setAiLoading(false)
         }
+    }
+
+    const resetAiChat = () => {
+        setAiMessages([])
+        setAiDraft(null)
+        setAiInput('')
+        setAiError(null)
     }
 
     const applyAiDraft = () => {
@@ -583,14 +855,12 @@ export default function LeadFormsPage() {
                       : [newQuestion()],
             }
         })
-        setAiDraft(null)
         setAiOpen(false)
-        setAiPrompt('')
+        resetAiChat()
     }
 
     const closeAiModal = () => {
         setAiOpen(false)
-        setAiDraft(null)
         setAiError(null)
     }
 
@@ -975,15 +1245,16 @@ export default function LeadFormsPage() {
 
                 {aiOpen && (
                     <AiGenerateModal
-                        prompt={aiPrompt}
-                        setPrompt={setAiPrompt}
+                        messages={aiMessages}
+                        input={aiInput}
+                        setInput={setAiInput}
                         loading={aiLoading}
                         error={aiError}
                         draft={aiDraft}
-                        onRun={runAiGenerate}
+                        onSend={sendAiMessage}
                         onApply={applyAiDraft}
                         onClose={closeAiModal}
-                        onDiscard={() => setAiDraft(null)}
+                        onReset={resetAiChat}
                     />
                 )}
             </div>

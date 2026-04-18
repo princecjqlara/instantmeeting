@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { chatCompletion } from '@/lib/nvidia-ai'
+import { chatCompletion, ChatMessage } from '@/lib/nvidia-ai'
 
 export const dynamic = 'force-dynamic'
 
-const SYSTEM = `You design lead qualification forms that determine if a
-visitor should be auto-admitted into a live meeting. The form's scoring
-drives the decision, so the scoring MUST be explicit.
+const SYSTEM = `You are a collaborative AI form builder. You work with the host
+in a back-and-forth conversation to design a lead qualification form that
+decides if a visitor should be auto-admitted into a live meeting.
 
 HOW QUALIFICATION WORKS (you must design for this):
 - Each single_choice/multi_choice option has a "points" value. At submit
@@ -20,34 +20,51 @@ HOW QUALIFICATION WORKS (you must design for this):
   and an ideal_answer (the system asks an LLM to rate 0-10 how close the
   answer is to the ideal).
 - ai_criteria is a natural-language fallback used only when no points are
-  set anywhere. Always write it anyway so it appears in the host's UI.
+  set anywhere. Always write it so it appears in the host's UI.
 
-Return ONLY valid JSON, no prose. Schema:
+CONVERSATIONAL STYLE:
+- If the host's request is vague or missing key info (industry, deal size,
+  buying signals, geography, budget, disqualifiers), ASK 1-3 focused
+  clarifying questions before producing a draft. Keep questions short.
+- Volunteer ideas: suggest qualification angles, disqualifier patterns,
+  or scoring gradients the host may not have considered, and ask them to
+  confirm.
+- Once you have enough signal, return a complete draft. On later turns,
+  the host may ask to tweak the draft (add a question, raise a threshold,
+  soften wording, etc.) — modify the draft and return the updated version.
+- Address the host directly in "reply". Be concise, warm, and concrete.
+  No markdown headers, no code fences.
+
+OUTPUT FORMAT (STRICT):
+Return ONLY a single valid JSON object, no prose, no code fences.
 {
-  "title": string,
-  "description": string,
-  "auto_admit_threshold": number,     // integer 55-80
-  "ai_criteria": string,              // 1-3 sentences, the qualified-lead profile
-  "unqualified_message": string,
-  "questions": [
-    {
-      "question_text": string,
-      "help_text": string | null,
-      "type": "short_answer" | "long_answer" | "email" | "phone" | "single_choice" | "multi_choice" | "date",
-      "required": boolean,
-      "options": [                    // required for single_choice / multi_choice
-        { "label": string, "points": number }
-      ],
-      "scoring_rules": [              // optional for text-like questions
-        { "keywords": string, "points": number }
-      ] | null,
-      "ideal_answer": string | null,  // optional for text-like questions
-      "disqualify_on": string | null  // optional hard-rule keywords
-    }
-  ]
+  "reply": string,              // your conversational message to the host
+  "draft": null | {             // null while still clarifying; object when you have a full form
+    "title": string,
+    "description": string,
+    "auto_admit_threshold": number,     // integer 55-80
+    "ai_criteria": string,              // 1-3 sentences, the qualified-lead profile
+    "unqualified_message": string,
+    "questions": [
+      {
+        "question_text": string,
+        "help_text": string | null,
+        "type": "short_answer" | "long_answer" | "email" | "phone" | "single_choice" | "multi_choice" | "date",
+        "required": boolean,
+        "options": [                    // required for single_choice / multi_choice
+          { "label": string, "points": number }
+        ],
+        "scoring_rules": [              // optional for text-like questions
+          { "keywords": string, "points": number }
+        ] | null,
+        "ideal_answer": string | null,
+        "disqualify_on": string | null
+      }
+    ]
+  }
 }
 
-HARD RULES (you will be rejected if these are missing):
+WHEN YOU RETURN A DRAFT, IT MUST SATISFY:
 - Exactly 4-6 questions total. No fluff.
 - First question: full name (short_answer, required).
 - Include exactly one email question (type=email, required).
@@ -55,21 +72,34 @@ HARD RULES (you will be rejected if these are missing):
   Each gate must have 3-5 options with a CLEAR points gradient:
     * 1 option with points=0 (the disqualifier / "not a fit")
     * 1 option with the max points (the ideal fit)
-    * intermediate options with values in between
+    * intermediate options in between
 - Max points per single_choice option should be 10.
 - ai_criteria is mandatory and must describe the ideal lead concretely.
 - auto_admit_threshold between 55 and 80. Set higher (70-80) when any
   question includes a 0-point disqualifier.
-- Optional: add disqualify_on keywords on any long_answer where specific
-  words indicate a bad fit (e.g. "just browsing, student, curious").
-- Optional: add ideal_answer on a long_answer where tone/detail matters.
 
 STYLE:
-- Questions are specific, not generic. Prefer "What's your team size?" with
-  ranges over "Tell us about yourself".
+- Questions are specific, not generic. Prefer ranges and concrete options.
 - Keep help_text empty (null) unless the question really needs a hint.
 - Never ask for SSN, card numbers, passwords, or protected attributes.
 - unqualified_message should be warm and brief (<160 chars).`
+
+type ClientMessage = { role: 'user' | 'assistant'; content: string }
+
+function sanitizeHistory(raw: unknown): ClientMessage[] {
+    if (!Array.isArray(raw)) return []
+    const out: ClientMessage[] = []
+    for (const m of raw) {
+        if (!m || typeof m !== 'object') continue
+        const role = (m as AnyObj).role
+        const content = (m as AnyObj).content
+        if ((role === 'user' || role === 'assistant') && typeof content === 'string') {
+            out.push({ role, content: content.slice(0, 4000) })
+        }
+    }
+    // cap conversation length to keep tokens reasonable
+    return out.slice(-20)
+}
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions)
@@ -78,8 +108,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const prompt = typeof body?.prompt === 'string' ? body.prompt.trim() : ''
-    if (!prompt || prompt.length < 6) {
+    const history = sanitizeHistory(body?.messages)
+    // Back-compat: allow a single `prompt` field for the first turn.
+    if (history.length === 0 && typeof body?.prompt === 'string' && body.prompt.trim()) {
+        history.push({ role: 'user', content: body.prompt.trim() })
+    }
+    if (history.length === 0 || history[history.length - 1].role !== 'user') {
+        return NextResponse.json(
+            { error: 'Send a message describing what you want to change or build.' },
+            { status: 400 }
+        )
+    }
+    if (history[0].content.length < 4) {
         return NextResponse.json(
             { error: 'Describe your business and ideal lead in a sentence or two.' },
             { status: 400 }
@@ -87,36 +127,47 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const raw = await chatCompletion(
-            [
-                { role: 'system', content: SYSTEM },
-                {
-                    role: 'user',
-                    content: `Business & ideal customer:\n${prompt}\n\nReturn the JSON now.`,
-                },
-            ],
-            { temperature: 0.4, maxTokens: 1400 }
-        )
+        const messages: ChatMessage[] = [
+            { role: 'system', content: SYSTEM },
+            ...history,
+        ]
+
+        const raw = await chatCompletion(messages, { temperature: 0.4, maxTokens: 1600 })
 
         const match = raw.match(/\{[\s\S]*\}/)
         if (!match) {
-            return NextResponse.json({ error: 'AI returned invalid response.' }, { status: 502 })
+            return NextResponse.json(
+                { error: 'AI returned an invalid response. Try again.' },
+                { status: 502 }
+            )
         }
 
-        let parsed: unknown
+        let parsed: AnyObj
         try {
-            parsed = JSON.parse(match[0])
+            parsed = JSON.parse(match[0]) as AnyObj
         } catch {
-            return NextResponse.json({ error: 'AI response was not valid JSON.' }, { status: 502 })
+            return NextResponse.json(
+                { error: 'AI response was not valid JSON. Try again.' },
+                { status: 502 }
+            )
         }
 
-        const normalized = normalizeForm(parsed)
+        const reply = asStr(parsed.reply).trim() || 'Here is an updated draft for your review.'
+        const rawDraft = parsed.draft && typeof parsed.draft === 'object' ? parsed.draft : null
+
+        if (!rawDraft) {
+            return NextResponse.json({ reply, draft: null })
+        }
+
+        const normalized = normalizeForm(rawDraft)
         if (!normalized.questions.length) {
-            return NextResponse.json({ error: 'AI produced no questions.' }, { status: 502 })
+            // treat as clarifying-only turn
+            return NextResponse.json({ reply, draft: null })
         }
 
-        const enforced = enforceQualificationSignal(normalized, prompt)
-        return NextResponse.json(enforced)
+        const lastUser = history.filter((m) => m.role === 'user').pop()?.content || ''
+        const enforced = enforceQualificationSignal(normalized, lastUser)
+        return NextResponse.json({ reply, draft: enforced })
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'AI generation failed.'
         return NextResponse.json({ error: message }, { status: 500 })
@@ -152,12 +203,10 @@ function enforceQualificationSignal(
     form: NormalizedForm,
     userPrompt: string
 ): NormalizedForm & { qualification_summary: string[] } {
-    // Ensure ai_criteria is always populated (fallback signal)
     if (!form.ai_criteria || form.ai_criteria.length < 10) {
         form.ai_criteria = `Qualified leads match this profile: ${userPrompt.slice(0, 600)}.`
     }
 
-    // Make sure at least one scoring signal exists across the form.
     const hasChoiceScoring = form.questions.some(
         (q) =>
             (q.type === 'single_choice' || q.type === 'multi_choice') &&
@@ -169,8 +218,6 @@ function enforceQualificationSignal(
             (q.ideal_answer && q.ideal_answer.length > 0)
     )
 
-    // If nothing has scoring, attach an ideal_answer to the first long/short
-    // answer question so the AI rubric kicks in at submit.
     if (!hasChoiceScoring && !hasTextScoring) {
         const target = form.questions.find(
             (q) => q.type === 'long_answer' || q.type === 'short_answer'
@@ -180,8 +227,6 @@ function enforceQualificationSignal(
         }
     }
 
-    // For single_choice questions that look like qualification gates but
-    // have all options = 0 pts, spread a gradient so scoring actually works.
     for (const q of form.questions) {
         if (q.type !== 'single_choice') continue
         if (!q.options || q.options.length < 2) continue
@@ -194,11 +239,9 @@ function enforceQualificationSignal(
         }))
     }
 
-    // Keep threshold sensible
     if (form.auto_admit_threshold < 30) form.auto_admit_threshold = 60
     if (form.auto_admit_threshold > 95) form.auto_admit_threshold = 80
 
-    // Human-readable summary explaining how this form will qualify leads.
     const summary: string[] = []
     summary.push(
         `Auto-admit when score reaches ${form.auto_admit_threshold}/100 based on the scoring below.`
