@@ -142,12 +142,12 @@ export default function Home() {
                 </div>
 
                 <h1 className={styles.heroTitle}>
-                    Turn website visitors into
-                    <span className={styles.heroGradient}> booked calls.</span>
+                    Meet leads the moment
+                    <span className={styles.heroGradient}> they find you.</span>
                 </h1>
                 <p className={styles.heroSubtitle}>
-                    Qualify leads with AI forms, auto-admit the right ones, and let the
-                    rest book a time — all from one link you paste anywhere.
+                    One link. Leads fill a short form, the good ones land straight in
+                    your room, the rest book a time.
                 </p>
 
                 <div className={styles.heroPriceRow}>
@@ -181,30 +181,30 @@ export default function Home() {
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)' }}>
                         <FaMagic />
                     </div>
-                    <h3>AI lead qualifier</h3>
+                    <h3>Qualifying form</h3>
                     <p>
-                        Describe your business once — AI builds a form that scores every
-                        lead and hands you the good ones instantly.
+                        A short form scores every lead and tells you who&apos;s worth
+                        your time.
                     </p>
                 </div>
                 <div className={styles.featureCard}>
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#22c55e,#10b981)' }}>
                         <FaBolt />
                     </div>
-                    <h3>Auto-admit qualified leads</h3>
+                    <h3>Instant meet or book</h3>
                     <p>
-                        Qualified? They walk straight into your meeting room. Not a fit?
-                        They book a time that suits you both.
+                        Qualified leads go straight to your room. Everyone else picks a
+                        slot on your calendar.
                     </p>
                 </div>
                 <div className={styles.featureCard}>
                     <div className={styles.featureIcon} style={{ background: 'linear-gradient(135deg,#ec4899,#f43f5e)' }}>
                         <FaUsers />
                     </div>
-                    <h3>One link. Everywhere.</h3>
+                    <h3>One link, anywhere</h3>
                     <p>
-                        Drop the website widget or share the link from your bio — guests
-                        see your content while they wait so nobody drops off.
+                        Drop the widget on your site or share the link in your bio.
+                        Same flow everywhere.
                     </p>
                 </div>
             </section>
@@ -212,12 +212,9 @@ export default function Home() {
             {/* Pricing */}
             <section id="pricing" className={styles.pricing}>
                 <div className={styles.pricingHeader}>
-                    <span className={styles.eyebrow}>Simple pricing</span>
-                    <h2>One plan. Everything you need.</h2>
-                    <p>
-                        Limited launch price. Pay once, use it forever — no monthly
-                        surprises.
-                    </p>
+                    <span className={styles.eyebrow}>Pricing</span>
+                    <h2>One plan. Pay once.</h2>
+                    <p>Launch price. No monthly fees.</p>
                 </div>
                 <div className={styles.pricingCard}>
                     <div className={styles.pricingRibbon}>
@@ -229,7 +226,7 @@ export default function Home() {
                             {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
                         </strong>
                     </div>
-                    <div className={styles.pricingName}>Starter Pro</div>
+                    <div className={styles.pricingName}>Full access</div>
                     <div className={styles.pricingPriceRow}>
                         <span className={styles.pricingOld}>₱1,499</span>
                         <span className={styles.pricingNew}>₱699</span>
@@ -239,20 +236,20 @@ export default function Home() {
                     <div className={styles.pricingBonus}>
                         <FaFacebook />
                         <div>
-                            <strong>Free Facebook ads setup</strong>
-                            <span>For your first month — we set up and launch your first ad.</span>
+                            <strong>First month of Facebook ads, on us</strong>
+                            <span>We set up and launch your first ad for free.</span>
                         </div>
                     </div>
 
                     <ul className={styles.pricingFeatures}>
-                        <li><FaCheck /> AI-generated lead qualification forms</li>
-                        <li><FaCheck /> Auto-admit qualified leads instantly</li>
-                        <li><FaCheck /> Booking calendar for non-qualified / after-hours</li>
-                        <li><FaCheck /> Live video room with waiting-room content reels</li>
+                        <li><FaCheck /> Lead qualification forms</li>
+                        <li><FaCheck /> Instant admit for qualified leads</li>
+                        <li><FaCheck /> Booking calendar for everyone else</li>
+                        <li><FaCheck /> Live video room with content reels</li>
                         <li><FaCheck /> Website embed widget</li>
-                        <li><FaCheck /> Team clock-in &amp; round-robin assignment</li>
-                        <li><FaCheck /> Lead CRM: tags, bulk actions, export</li>
-                        <li><FaCheck /> 1 month free Facebook ads setup</li>
+                        <li><FaCheck /> Team clock-in &amp; round-robin</li>
+                        <li><FaCheck /> Leads table with tags and bulk actions</li>
+                        <li><FaCheck /> 1 month Facebook ads setup</li>
                     </ul>
 
                     <button
@@ -263,7 +260,7 @@ export default function Home() {
                         Join now — pay ₱699 <FaArrowRight />
                     </button>
                     <div className={styles.pricingSmall}>
-                        Pay via GCash or scan our QR — admin verifies within 24 hours.
+                        Pay via GCash. We verify within 24 hours.
                     </div>
                 </div>
             </section>
@@ -419,7 +416,7 @@ function SignupModal({
 
     const gcashNumber = process.env.NEXT_PUBLIC_GCASH_NUMBER || '0992 703 1276'
     const gcashName = process.env.NEXT_PUBLIC_GCASH_NAME || 'PR***E C* L.'
-    const qrImage = process.env.NEXT_PUBLIC_GCASH_QR_URL || '/gcash-qr.jpg'
+    const qrImage = process.env.NEXT_PUBLIC_GCASH_QR_URL || '/gcash-qr-crop.jpg'
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -520,7 +517,7 @@ function SignupModal({
                                 <div>
                                     <strong>Fill your details and upload the receipt</strong>
                                     <div className={styles.payMeta}>
-                                        Admin verifies within 24 hours and emails you the go-ahead.
+                                        We check the receipt within 24 hours, then your account goes live.
                                     </div>
                                 </div>
                             </div>
