@@ -66,7 +66,7 @@ function scoreChoiceQuestion(q: LeadFormQuestion, a: LeadAnswer | undefined) {
 
     if (q.type === 'single_choice') {
         const value = asText(a)
-        const opt = options.find((o) => o.value === value || o.label === value)
+        const opt = options.find((o) => o.id === value || o.value === value || o.label === value)
         const earned = opt ? Math.max(0, Number(opt.points) || 0) : 0
         const max = Math.max(0, ...options.map((o) => Number(o.points) || 0))
         return {
@@ -81,7 +81,7 @@ function scoreChoiceQuestion(q: LeadFormQuestion, a: LeadAnswer | undefined) {
     let earned = 0
     const labels: string[] = []
     for (const v of values) {
-        const opt = options.find((o) => o.value === v || o.label === v)
+        const opt = options.find((o) => o.id === v || o.value === v || o.label === v)
         if (opt) {
             earned += Math.max(0, Number(opt.points) || 0)
             labels.push(`${opt.label} (+${Number(opt.points) || 0})`)

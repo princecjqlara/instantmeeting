@@ -5,6 +5,7 @@ export type LeadQuestionType =
     | 'phone'
     | 'single_choice'
     | 'multi_choice'
+    | 'date'
 
 export interface LeadQuestionOption {
     id: string

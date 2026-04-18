@@ -10,7 +10,14 @@ interface PublicQuestion {
     order_index: number
     question_text: string
     help_text?: string | null
-    type: 'short_answer' | 'long_answer' | 'email' | 'phone' | 'single_choice' | 'multi_choice'
+    type:
+        | 'short_answer'
+        | 'long_answer'
+        | 'email'
+        | 'phone'
+        | 'single_choice'
+        | 'multi_choice'
+        | 'date'
     options: Array<{ id: string; label: string; value: string }>
     required: boolean
 }
@@ -286,49 +293,60 @@ export default function LeadFormPage({ params }: Props) {
                         />
                     ) : current.type === 'single_choice' ? (
                         <div className={styles.options}>
-                            {current.options.map((opt) => (
-                                <label
-                                    key={opt.id}
-                                    className={`${styles.option} ${
-                                        answerFor(current) === opt.value ? styles.optionActive : ''
-                                    }`}
-                                >
-                                    <input
-                                        type="radio"
-                                        name={current.id}
-                                        value={opt.value}
-                                        checked={answerFor(current) === opt.value}
-                                        onChange={() => updateAnswer(current, opt.value)}
-                                    />
-                                    <span>{opt.label}</span>
-                                </label>
-                            ))}
+                            {current.options.map((opt) => {
+                                const optKey = opt.id || opt.value
+                                const selected = answerFor(current) === optKey
+                                return (
+                                    <button
+                                        type="button"
+                                        key={optKey}
+                                        className={`${styles.option} ${selected ? styles.optionActive : ''}`}
+                                        onClick={() => updateAnswer(current, optKey)}
+                                        aria-pressed={selected}
+                                    >
+                                        <span className={styles.radio} aria-hidden>
+                                            {selected && <span className={styles.radioDot} />}
+                                        </span>
+                                        <span>{opt.label || 'Option'}</span>
+                                    </button>
+                                )
+                            })}
                         </div>
                     ) : current.type === 'multi_choice' ? (
                         <div className={styles.options}>
                             {current.options.map((opt) => {
+                                const optKey = opt.id || opt.value
                                 const arr = (answerFor(current) as string[]) || []
-                                const checked = arr.includes(opt.value)
+                                const checked = arr.includes(optKey)
                                 return (
-                                    <label
-                                        key={opt.id}
+                                    <button
+                                        type="button"
+                                        key={optKey}
                                         className={`${styles.option} ${checked ? styles.optionActive : ''}`}
+                                        onClick={() => {
+                                            const next = checked
+                                                ? arr.filter((v) => v !== optKey)
+                                                : [...arr, optKey]
+                                            updateAnswer(current, next)
+                                        }}
+                                        aria-pressed={checked}
                                     >
-                                        <input
-                                            type="checkbox"
-                                            checked={checked}
-                                            onChange={() => {
-                                                const next = checked
-                                                    ? arr.filter((v) => v !== opt.value)
-                                                    : [...arr, opt.value]
-                                                updateAnswer(current, next)
-                                            }}
-                                        />
-                                        <span>{opt.label}</span>
-                                    </label>
+                                        <span className={styles.checkbox} aria-hidden>
+                                            {checked && <span className={styles.checkmark}>✓</span>}
+                                        </span>
+                                        <span>{opt.label || 'Option'}</span>
+                                    </button>
                                 )
                             })}
                         </div>
+                    ) : current.type === 'date' ? (
+                        <input
+                            className={styles.input}
+                            type="date"
+                            value={(answerFor(current) as string) || ''}
+                            onChange={(e) => updateAnswer(current, e.target.value)}
+                            autoFocus
+                        />
                     ) : (
                         <input
                             className={styles.input}

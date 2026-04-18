@@ -17,7 +17,14 @@ import {
     FaMagic,
 } from 'react-icons/fa'
 
-type QType = 'short_answer' | 'long_answer' | 'email' | 'phone' | 'single_choice' | 'multi_choice'
+type QType =
+    | 'short_answer'
+    | 'long_answer'
+    | 'email'
+    | 'phone'
+    | 'single_choice'
+    | 'multi_choice'
+    | 'date'
 
 interface ScoringRule {
     id: string
@@ -66,7 +73,18 @@ function newQuestion(): Question {
 }
 
 function newOption() {
-    return { id: crypto.randomUUID(), label: '', value: '', points: 0 }
+    const id = crypto.randomUUID()
+    return { id, label: '', value: id, points: 0 }
+}
+
+function normalizeOption(opt: { id?: string; label?: string; value?: string; points?: number }) {
+    const id = opt.id || crypto.randomUUID()
+    return {
+        id,
+        label: opt.label ?? '',
+        value: opt.value || id,
+        points: opt.points ?? 0,
+    }
 }
 
 function newRule(): ScoringRule {
@@ -121,9 +139,22 @@ export default function LeadFormsPage() {
         const res = await fetch(`/api/host/lead-forms?id=${id}`)
         if (res.ok) {
             const data = await res.json()
+            const rawQs = (data.questions || []) as Question[]
+            const normalized: Question[] = rawQs.map((q) => {
+                const seen = new Set<string>()
+                const opts = (q.options || []).map((o) => {
+                    let n = normalizeOption(o)
+                    while (seen.has(n.value)) {
+                        n = { ...n, id: crypto.randomUUID(), value: crypto.randomUUID() }
+                    }
+                    seen.add(n.value)
+                    return n
+                })
+                return { ...q, options: opts }
+            })
             setEditing({
                 ...data,
-                questions: (data.questions || []).length ? data.questions : [newQuestion()],
+                questions: normalized.length ? normalized : [newQuestion()],
             })
         }
     }
@@ -352,6 +383,7 @@ export default function LeadFormsPage() {
                                         <option value="phone">Phone</option>
                                         <option value="single_choice">Single choice</option>
                                         <option value="multi_choice">Multiple choice</option>
+                                        <option value="date">Date</option>
                                     </select>
                                     <label className={styles.checkbox}>
                                         <input
@@ -393,7 +425,6 @@ export default function LeadFormsPage() {
                                                         opts[oi] = {
                                                             ...opt,
                                                             label: e.target.value,
-                                                            value: e.target.value,
                                                         }
                                                         updateQ(i, { options: opts })
                                                     }}
@@ -439,7 +470,8 @@ export default function LeadFormsPage() {
                                 {(q.type === 'short_answer' ||
                                     q.type === 'long_answer' ||
                                     q.type === 'email' ||
-                                    q.type === 'phone') && (
+                                    q.type === 'phone' ||
+                                    q.type === 'date') && (
                                     <div className={styles.optionsEditor}>
                                         <div className={styles.smallLabel}>
                                             Scoring rules: award points when answer contains any keyword

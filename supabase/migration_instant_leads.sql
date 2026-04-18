@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS lead_form_questions (
     question_text TEXT NOT NULL,
     help_text TEXT,
     type TEXT NOT NULL DEFAULT 'short_answer'
-        CHECK (type IN ('short_answer','long_answer','email','phone','single_choice','multi_choice')),
+        CHECK (type IN ('short_answer','long_answer','email','phone','single_choice','multi_choice','date')),
     options JSONB DEFAULT '[]'::jsonb,
     required BOOLEAN DEFAULT true,
     ai_weight NUMERIC(3,2) DEFAULT 1.0 CHECK (ai_weight BETWEEN 0 AND 1),
@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS lead_form_questions (
 );
 
 -- For upgrades from earlier version of this migration
+-- Allow 'date' type on existing installs
+ALTER TABLE lead_form_questions DROP CONSTRAINT IF EXISTS lead_form_questions_type_check;
+ALTER TABLE lead_form_questions ADD CONSTRAINT lead_form_questions_type_check
+    CHECK (type IN ('short_answer','long_answer','email','phone','single_choice','multi_choice','date'));
+
 ALTER TABLE lead_form_questions ADD COLUMN IF NOT EXISTS scoring_rules JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE lead_form_questions ADD COLUMN IF NOT EXISTS ideal_answer TEXT;
 ALTER TABLE lead_form_questions ADD COLUMN IF NOT EXISTS max_points INTEGER DEFAULT 0;
