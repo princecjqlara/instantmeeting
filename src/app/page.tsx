@@ -21,6 +21,7 @@ import {
 } from 'react-icons/fa'
 import { useRef, useState, useEffect, useMemo } from 'react'
 import styles from './page.module.css'
+import HeroFlow from '@/components/HeroFlow'
 
 export default function Home() {
     const { data: session, status } = useSession()
@@ -172,6 +173,8 @@ export default function Home() {
                     <span><FaCheck /> Lifetime access</span>
                     <span><FaCheck /> One-time payment via GCash</span>
                 </div>
+
+                <HeroFlow />
             </section>
 
             {/* Features */}

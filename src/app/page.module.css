@@ -27,6 +27,35 @@
     padding: 0 24px 120px;
     position: relative;
     overflow-x: hidden;
+    isolation: isolate;
+}
+
+.main::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+        radial-gradient(1px 1px at 8% 12%, rgba(214, 235, 253, 0.35), transparent 55%),
+        radial-gradient(1px 1px at 24% 68%, rgba(214, 235, 253, 0.28), transparent 55%),
+        radial-gradient(1px 1px at 52% 22%, rgba(214, 235, 253, 0.3), transparent 55%),
+        radial-gradient(1px 1px at 78% 82%, rgba(214, 235, 253, 0.32), transparent 55%),
+        radial-gradient(1px 1px at 90% 38%, rgba(214, 235, 253, 0.25), transparent 55%),
+        radial-gradient(1px 1px at 40% 92%, rgba(214, 235, 253, 0.3), transparent 55%),
+        radial-gradient(1.2px 1.2px at 15% 45%, rgba(214, 235, 253, 0.22), transparent 55%),
+        radial-gradient(1.2px 1.2px at 65% 55%, rgba(214, 235, 253, 0.2), transparent 55%);
+    animation: pageStars 14s ease-in-out infinite;
+    opacity: 0.55;
+}
+
+@keyframes pageStars {
+    0%, 100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.75;
+    }
 }
 
 /* Nav */
@@ -349,6 +378,41 @@
     margin-bottom: 20px;
     border: 1px solid var(--border);
     background: transparent;
+    position: relative;
+    transition: border-color 0.3s, color 0.3s;
+}
+
+.featureIcon::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 235, 253, 0.14);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: opacity 0.35s, transform 0.35s;
+}
+
+.featureCard:hover .featureIcon {
+    border-color: rgba(214, 235, 253, 0.45);
+    color: var(--fg-strong);
+}
+
+.featureCard:hover .featureIcon::before {
+    opacity: 1;
+    transform: scale(1);
+    animation: featureRing 2s ease-in-out infinite 0.4s;
+}
+
+@keyframes featureRing {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 0.35;
+    }
 }
 
 .featureCard h3 {
