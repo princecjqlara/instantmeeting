@@ -33,10 +33,20 @@ function deriveName(answers: LeadAnswer[], fallback: string): string {
 
 export async function POST(req: NextRequest) {
     const body = await req.json()
-    const { formSlug, sessionToken, answers, guestName, guestEmail, guestPhone } = body || {}
+    const { formSlug, sessionToken, answers, guestName, guestEmail, guestPhone, hp } = body || {}
 
     if (!formSlug || !Array.isArray(answers)) {
         return NextResponse.json({ error: 'formSlug and answers required' }, { status: 400 })
+    }
+
+    // Honeypot: if filled, pretend success so bots don't retry
+    if (typeof hp === 'string' && hp.trim().length > 0) {
+        return NextResponse.json({
+            verdict: 'unqualified',
+            score: 0,
+            reasoning: 'Filtered',
+            message: 'Thanks for your response.',
+        })
     }
 
     const supabase = getSupabaseClient()

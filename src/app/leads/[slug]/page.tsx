@@ -48,6 +48,7 @@ export default function LeadFormPage({ params }: Props) {
     const [step, setStep] = useState(0)
     const [answers, setAnswers] = useState<Record<string, string | string[]>>({})
     const [submitting, setSubmitting] = useState(false)
+    const [hasDraft, setHasDraft] = useState(false)
     const [result, setResult] = useState<{
         verdict: 'qualified' | 'unqualified' | 'review'
         message?: string
@@ -55,6 +56,8 @@ export default function LeadFormPage({ params }: Props) {
         waiting_url?: string
     } | null>(null)
     const sessionRef = useRef<string | null>(null)
+    const honeypotRef = useRef<string>('')
+    const prefillAppliedRef = useRef(false)
 
     useEffect(() => {
         params.then((p) => setSlug(p.slug))
@@ -101,12 +104,71 @@ export default function LeadFormPage({ params }: Props) {
         const draft = localStorage.getItem(draftKey)
         if (draft) {
             try {
-                setAnswers(JSON.parse(draft))
+                const parsed = JSON.parse(draft)
+                if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                    setAnswers(parsed)
+                    setHasDraft(true)
+                }
             } catch {
                 /* ignore */
             }
         }
     }, [slug])
+
+    // Prefill from URL params (?name=&email=&phone=) + localStorage across forms
+    useEffect(() => {
+        if (!bundle || prefillAppliedRef.current) return
+        if (typeof window === 'undefined') return
+        prefillAppliedRef.current = true
+
+        const params = new URLSearchParams(window.location.search)
+        const pickParam = (...keys: string[]) => {
+            for (const k of keys) {
+                const v = params.get(k)
+                if (v && v.trim()) return v.trim()
+            }
+            return null
+        }
+        const profileRaw = localStorage.getItem('lead-profile')
+        let profile: { name?: string; email?: string; phone?: string } = {}
+        try {
+            if (profileRaw) profile = JSON.parse(profileRaw)
+        } catch {
+            /* ignore */
+        }
+
+        const candidates = {
+            email: pickParam('email', 'e') || profile.email || null,
+            phone: pickParam('phone', 'tel', 'p') || profile.phone || null,
+            name: pickParam('name', 'n') || profile.name || null,
+        }
+
+        setAnswers((prev) => {
+            const next = { ...prev }
+            let changed = false
+            for (const q of bundle.questions) {
+                if (next[q.id]) continue
+                if (q.type === 'email' && candidates.email) {
+                    next[q.id] = candidates.email
+                    changed = true
+                } else if (q.type === 'phone' && candidates.phone) {
+                    next[q.id] = candidates.phone
+                    changed = true
+                } else if (
+                    q.type === 'short_answer' &&
+                    candidates.name &&
+                    /name/i.test(q.question_text)
+                ) {
+                    next[q.id] = candidates.name
+                    changed = true
+                }
+            }
+            if (changed && slug) {
+                localStorage.setItem(`lead-draft-${slug}`, JSON.stringify(next))
+            }
+            return next
+        })
+    }, [bundle, slug])
 
     const questions = bundle?.questions || []
     const total = questions.length
@@ -178,12 +240,62 @@ export default function LeadFormPage({ params }: Props) {
         if (step > 0) setStep(step - 1)
     }
 
+    const handleSingleChoicePick = (q: PublicQuestion, value: string) => {
+        updateAnswer(q, value)
+        // Auto-advance for single-choice: no extra click needed
+        const isLastStep = step === total - 1
+        if (!isLastStep) {
+            setTimeout(() => {
+                autosave()
+                setStep((s) => (s < total - 1 ? s + 1 : s))
+            }, 220)
+        }
+    }
+
+    const resetForm = () => {
+        setAnswers({})
+        setStep(0)
+        setHasDraft(false)
+        if (typeof window !== 'undefined' && slug) {
+            localStorage.removeItem(`lead-draft-${slug}`)
+            localStorage.removeItem(`lead-session-${slug}`)
+        }
+        sessionRef.current = null
+    }
+
     const submit = async () => {
         if (!bundle || submitting) return
         setSubmitting(true)
+
+        // Persist identity fields for future forms (best effort)
+        if (typeof window !== 'undefined') {
+            const profile: { name?: string; email?: string; phone?: string } = {}
+            for (const q of questions) {
+                const v = answers[q.id]
+                if (typeof v !== 'string' || !v.trim()) continue
+                if (q.type === 'email' && !profile.email) profile.email = v.trim()
+                else if (q.type === 'phone' && !profile.phone) profile.phone = v.trim()
+                else if (
+                    q.type === 'short_answer' &&
+                    /name/i.test(q.question_text) &&
+                    !profile.name
+                ) {
+                    profile.name = v.trim()
+                }
+            }
+            if (Object.keys(profile).length) {
+                try {
+                    localStorage.setItem('lead-profile', JSON.stringify(profile))
+                } catch {
+                    /* ignore */
+                }
+            }
+        }
+
         const payload = {
             formSlug: bundle.form.slug,
             sessionToken: sessionRef.current,
+            hp: honeypotRef.current, // honeypot: must be empty
             answers: questions.map((q) => ({
                 question_id: q.id,
                 question_text: q.question_text,
@@ -274,6 +386,25 @@ export default function LeadFormPage({ params }: Props) {
 
     return (
         <div className={styles.page}>
+            {/* Honeypot: real users won't see or fill this */}
+            <input
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className={styles.honeypot}
+                onChange={(e) => {
+                    honeypotRef.current = e.target.value
+                }}
+            />
+            {hasDraft && step === 0 && (
+                <div className={styles.resumeBanner}>
+                    <span>Welcome back — we saved your progress.</span>
+                    <button type="button" onClick={resetForm} className={styles.resumeReset}>
+                        Start over
+                    </button>
+                </div>
+            )}
             <div className={styles.header}>
                 <div className={styles.hostInfo}>
                     {bundle.host?.avatar_url && (
@@ -315,7 +446,7 @@ export default function LeadFormPage({ params }: Props) {
                                         type="button"
                                         key={opt.id}
                                         className={`${styles.option} ${selected ? styles.optionActive : ''}`}
-                                        onClick={() => updateAnswer(current, opt.value)}
+                                        onClick={() => handleSingleChoicePick(current, opt.value)}
                                         role="radio"
                                         aria-checked={selected}
                                     >
