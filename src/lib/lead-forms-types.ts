@@ -68,5 +68,6 @@ export interface LeadQualificationResult {
     score: number
     verdict: LeadVerdict
     reasoning: string
+    hard?: boolean
     per_question_notes?: Array<{ question_id: string; note: string }>
 }

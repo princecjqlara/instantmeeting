@@ -153,8 +153,11 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Unqualified → stay out unless host allows fallback
-    if (qualification.verdict === 'unqualified' && !form.fallback_to_waiting) {
+    // Unqualified → stay out on hard disqualify or when host disables fallback
+    if (
+        qualification.verdict === 'unqualified' &&
+        (qualification.hard || !form.fallback_to_waiting)
+    ) {
         return NextResponse.json({
             verdict: 'unqualified',
             score: qualification.score,

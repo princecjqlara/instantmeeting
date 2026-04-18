@@ -182,12 +182,72 @@ async function runAiRubric(input: QualifierInput): Promise<{ score: number; reas
     }
 }
 
+function checkZeroPointChoice(
+    questions: LeadFormQuestion[],
+    answers: LeadAnswer[]
+): string | null {
+    for (const q of questions) {
+        if (q.type !== 'single_choice' && q.type !== 'multi_choice') continue
+        const options = (q.options || []) as LeadQuestionOption[]
+        if (!options.length) continue
+        const maxAvailable = options.reduce(
+            (m, o) => Math.max(m, Number(o.points) || 0),
+            0
+        )
+        if (maxAvailable <= 0) continue // question has no scoring set up
+
+        const a = answers.find((x) => x.question_id === q.id)
+        if (!a) continue
+
+        if (q.type === 'single_choice') {
+            const value = asText(a)
+            if (!value) continue
+            const opt = options.find(
+                (o) => o.id === value || o.value === value || o.label === value
+            )
+            if (!opt) continue
+            if ((Number(opt.points) || 0) <= 0) {
+                return `Selected "${opt.label}" on "${q.question_text}" (worth 0 pts)`
+            }
+        } else {
+            // multi_choice
+            const values = asArray(a)
+            if (!values.length) continue
+            let earned = 0
+            const picked: string[] = []
+            for (const v of values) {
+                const opt = options.find(
+                    (o) => o.id === v || o.value === v || o.label === v
+                )
+                if (opt) {
+                    earned += Number(opt.points) || 0
+                    picked.push(opt.label)
+                }
+            }
+            if (earned <= 0 && picked.length > 0) {
+                return `Selected only 0-pt options on "${q.question_text}": ${picked.join(', ')}`
+            }
+        }
+    }
+    return null
+}
+
 export async function qualifyLead(input: QualifierInput): Promise<LeadQualificationResult> {
     const threshold = Math.max(0, Math.min(100, input.threshold || 70))
 
     const hard = checkHardDisqualify(input.questions, input.answers)
     if (hard) {
-        return { score: 0, verdict: 'unqualified', reasoning: `Hard rule: ${hard}` }
+        return { score: 0, verdict: 'unqualified', reasoning: `Hard rule: ${hard}`, hard: true }
+    }
+
+    const zero = checkZeroPointChoice(input.questions, input.answers)
+    if (zero) {
+        return {
+            score: 0,
+            verdict: 'unqualified',
+            reasoning: `Disqualifying answer: ${zero}`,
+            hard: true,
+        }
     }
 
     let totalEarned = 0
