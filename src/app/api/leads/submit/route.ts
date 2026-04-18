@@ -111,11 +111,28 @@ export async function POST(req: NextRequest) {
 
     const { data: host } = await supabase
         .from('users')
-        .select('availability_mode, available_from, available_to, timezone')
+        .select(
+            'id, name, availability_mode, available_from, available_to, timezone, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields'
+        )
         .eq('id', form.user_id)
         .maybeSingle()
 
     const hostActive = isHostActive(host || {})
+    const bookingHost = host
+        ? {
+              id: host.id,
+              name: host.name,
+              available_from: host.available_from,
+              available_to: host.available_to,
+              timezone: host.timezone,
+              meeting_duration: host.meeting_duration,
+              booking_title: host.booking_title,
+              booking_description: host.booking_description,
+              booking_note_placeholder: host.booking_note_placeholder,
+              booking_form_fields: host.booking_form_fields,
+              availability_mode: host.availability_mode,
+          }
+        : null
 
     // Validate required fields present
     for (const q of qs) {
@@ -192,24 +209,27 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Host offline / outside availability window → show thank-you
-    // regardless of qualification. The lead is still saved above.
+    // Host offline / outside availability window → show a booking
+    // calendar instead of stranding the lead. The lead is still saved.
     if (!hostActive) {
         return NextResponse.json({
-            verdict: 'thanks',
+            verdict: 'needs_booking',
             score: qualification.score,
             reasoning: qualification.reasoning,
+            meeting_id: meeting.id,
+            guest_id: guest.id,
+            host: bookingHost,
             message:
                 form.unqualified_message ||
-                "Thanks! The host isn't available right now — we'll follow up.",
+                "The host isn't available right now — pick a time that works for you.",
         })
     }
 
     // Qualified → auto-admit straight into the room, but only if a team
     // member is actually available to take the call. Solo hosts (no team)
     // still pass through; if a team exists but nobody is clocked in or
-    // free, fall back to a thank-you so the lead isn't dropped into an
-    // empty room.
+    // free, fall back to a booking calendar so the lead isn't dropped
+    // into an empty room.
     if (qualification.verdict === 'qualified') {
         try {
             const result = await admitGuestLogic(meeting.id, guest.id, {
@@ -227,12 +247,15 @@ export async function POST(req: NextRequest) {
         } catch (err) {
             if (isNoAvailableTeamMemberError(err)) {
                 return NextResponse.json({
-                    verdict: 'thanks',
+                    verdict: 'needs_booking',
                     score: qualification.score,
                     reasoning: qualification.reasoning,
+                    meeting_id: meeting.id,
+                    guest_id: guest.id,
+                    host: bookingHost,
                     message:
                         form.unqualified_message ||
-                        "Thanks! Nobody is available to take your call right now — we'll follow up shortly.",
+                        "Nobody is available to take your call right now — pick a time that works for you.",
                 })
             }
             console.error('Auto-admit failed, falling back to waiting room:', err)

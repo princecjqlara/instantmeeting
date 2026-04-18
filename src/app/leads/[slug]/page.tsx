@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 import { FaArrowRight, FaArrowLeft, FaCheckCircle, FaSpinner } from 'react-icons/fa'
+import BookingModal, { BookingHost } from '@/components/BookingModal'
 
 interface PublicQuestion {
     id: string
@@ -50,11 +51,19 @@ export default function LeadFormPage({ params }: Props) {
     const [submitting, setSubmitting] = useState(false)
     const [hasDraft, setHasDraft] = useState(false)
     const [result, setResult] = useState<{
-        verdict: 'qualified' | 'unqualified' | 'review'
+        verdict: 'qualified' | 'unqualified' | 'review' | 'thanks' | 'needs_booking'
         message?: string
         join_url?: string
         waiting_url?: string
     } | null>(null)
+    const [bookingInfo, setBookingInfo] = useState<{
+        host: BookingHost
+        meetingId?: string
+        guestId?: string
+        message?: string
+        prefill?: { name?: string; email?: string; phone?: string }
+    } | null>(null)
+    const autoSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const sessionRef = useRef<string | null>(null)
     const honeypotRef = useRef<string>('')
     const prefillAppliedRef = useRef(false)
@@ -68,6 +77,7 @@ export default function LeadFormPage({ params }: Props) {
         return () => {
             if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
             if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+            if (autoSubmitTimerRef.current) clearTimeout(autoSubmitTimerRef.current)
         }
     }, [])
 
@@ -294,6 +304,33 @@ export default function LeadFormPage({ params }: Props) {
         }
     }
 
+    // Auto-submit when the last answer is valid. For single_choice we fire
+    // immediately; for text-like answers we wait ~1.4s after the last
+    // keystroke so the user can finish typing.
+    useEffect(() => {
+        if (autoSubmitTimerRef.current) {
+            clearTimeout(autoSubmitTimerRef.current)
+            autoSubmitTimerRef.current = null
+        }
+        if (!current || !isLast) return
+        if (submitting || submittedRef.current || result) return
+        if (!currentIsValid) return
+        const delay = current.type === 'single_choice' ? 260 : 1400
+        autoSubmitTimerRef.current = setTimeout(() => {
+            autoSubmitTimerRef.current = null
+            // Guard: user may have navigated away between schedule and fire.
+            if (submittedRef.current || submitting) return
+            submit()
+        }, delay)
+        return () => {
+            if (autoSubmitTimerRef.current) {
+                clearTimeout(autoSubmitTimerRef.current)
+                autoSubmitTimerRef.current = null
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [current, isLast, currentIsValid, submitting, result, answers])
+
     const goNext = async () => {
         if (!currentIsValid) return
         await autosave()
@@ -418,6 +455,42 @@ export default function LeadFormPage({ params }: Props) {
                 window.location.href = data.join_url
                 return
             }
+            if (data.verdict === 'needs_booking' && data.host) {
+                // Pick prefill from the guest's own answers so they don't
+                // retype name/email/phone in the booking modal.
+                const pickAnswer = (typeGuess: string, nameGuess?: RegExp) => {
+                    for (const q of questions) {
+                        if (q.type === typeGuess) {
+                            const v = answers[q.id]
+                            if (typeof v === 'string' && v.trim()) return v.trim()
+                        }
+                    }
+                    if (nameGuess) {
+                        for (const q of questions) {
+                            if (
+                                q.type === 'short_answer' &&
+                                nameGuess.test(q.question_text)
+                            ) {
+                                const v = answers[q.id]
+                                if (typeof v === 'string' && v.trim()) return v.trim()
+                            }
+                        }
+                    }
+                    return undefined
+                }
+                const prefillName = pickAnswer('short_answer', /name/i)
+                const prefillEmail = pickAnswer('email')
+                const prefillPhone = pickAnswer('phone')
+                setBookingInfo({
+                    host: data.host as BookingHost,
+                    meetingId: data.meeting_id,
+                    guestId: data.guest_id,
+                    message: data.message,
+                    prefill: { name: prefillName, email: prefillEmail, phone: prefillPhone },
+                })
+                setResult({ verdict: 'needs_booking', message: data.message })
+                return
+            }
             if (data.waiting_url) {
                 router.push(data.waiting_url.replace(window.location.origin, ''))
                 return
@@ -450,6 +523,36 @@ export default function LeadFormPage({ params }: Props) {
                 <div className={styles.loading}>
                     <FaSpinner className={styles.spin} /> Loading...
                 </div>
+            </div>
+        )
+    }
+
+    if (result?.verdict === 'needs_booking' && bookingInfo) {
+        return (
+            <div className={styles.page}>
+                <div className={styles.card}>
+                    <FaCheckCircle className={styles.done} />
+                    <h1>Pick a time</h1>
+                    <p>{bookingInfo.message || 'The host is not available right now — pick a time that works for you.'}</p>
+                </div>
+                <BookingModal
+                    host={bookingInfo.host}
+                    meetingId={bookingInfo.meetingId}
+                    guestId={bookingInfo.guestId}
+                    mode="new"
+                    initialGuest={bookingInfo.prefill}
+                    onClose={() => {
+                        // Keep the thank-you card; user can re-open from reload.
+                        setBookingInfo((prev) => (prev ? { ...prev } : prev))
+                    }}
+                    onSuccess={() => {
+                        setResult({
+                            verdict: 'thanks',
+                            message: 'Booked! Check your email for the confirmation.',
+                        })
+                        setBookingInfo(null)
+                    }}
+                />
             </div>
         )
     }
