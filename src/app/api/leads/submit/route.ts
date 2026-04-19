@@ -231,9 +231,9 @@ export async function POST(req: NextRequest) {
     // free, fall back to a booking calendar so the lead isn't dropped
     // into an empty room.
     if (qualification.verdict === 'qualified') {
-        try {
+        const admitAndRespond = async (requireAvailableAssignee: boolean) => {
             const result = await admitGuestLogic(meeting.id, guest.id, {
-                requireAvailableAssignee: true,
+                requireAvailableAssignee,
             })
             return NextResponse.json({
                 verdict: 'qualified',
@@ -244,8 +244,22 @@ export async function POST(req: NextRequest) {
                 join_url: `${req.nextUrl.origin}/api/join/${result.join_token}`,
                 meet_link: result.meet_link,
             })
+        }
+
+        try {
+            return await admitAndRespond(true)
         } catch (err) {
             if (isNoAvailableTeamMemberError(err)) {
+                // Host is active but the team clock isn't in use right now
+                // (no teammates clocked in). The host handles the call
+                // themselves instead of stranding the lead in a booking flow.
+                if (err.availabilityReason === 'no_clocked_in') {
+                    try {
+                        return await admitAndRespond(false)
+                    } catch (retryErr) {
+                        console.error('Auto-admit retry without assignee failed:', retryErr)
+                    }
+                }
                 return NextResponse.json({
                     verdict: 'needs_booking',
                     score: qualification.score,

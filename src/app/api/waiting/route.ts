@@ -220,11 +220,10 @@ export async function POST(req: NextRequest) {
         .single()
 
     if (host?.auto_admit) {
-        try {
+        const runAdmit = async (requireAvailableAssignee: boolean) => {
             const result = await admitGuestLogic(meetingId, guest.id, {
-                requireAvailableAssignee: true,
+                requireAvailableAssignee,
             })
-
             return NextResponse.json({
                 ...guest,
                 status: 'admitted',
@@ -236,8 +235,21 @@ export async function POST(req: NextRequest) {
                 autoScheduleRequired: false,
                 autoScheduleReason: null,
             })
+        }
+
+        try {
+            return await runAdmit(true)
         } catch (admitError) {
             if (isNoAvailableTeamMemberError(admitError)) {
+                // Nobody clocked in just means the team clock feature isn't
+                // being used — the active host takes the call themselves.
+                if (admitError.availabilityReason === 'no_clocked_in') {
+                    try {
+                        return await runAdmit(false)
+                    } catch (retryError) {
+                        console.error('Auto-admit retry without assignee failed:', retryError)
+                    }
+                }
                 return NextResponse.json({
                     ...guest,
                     autoScheduleRequired: true,
