@@ -296,5 +296,35 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // If the waiting room is now empty (no one waiting, admitted, or in the
+    // meeting), mark the meeting completed so the assigned member is freed
+    // up for the next lead instead of sitting on a ghost meeting.
+    if (data?.meeting_id) {
+        const { count } = await supabase
+            .from('waiting_guests')
+            .select('id', { count: 'exact', head: true })
+            .eq('meeting_id', data.meeting_id)
+            .in('status', ['waiting', 'admitted', 'in_meeting'])
+
+        if ((count ?? 0) === 0) {
+            await supabase
+                .from('meetings')
+                .update({ status: 'completed', ended_at: new Date().toISOString() })
+                .eq('id', data.meeting_id)
+                .neq('status', 'completed')
+
+            try {
+                const channel = supabase.channel(`room:${data.meeting_id}`)
+                await channel.send({
+                    type: 'broadcast',
+                    event: 'signal',
+                    payload: { type: 'end-meeting', from: 'system' },
+                })
+            } catch {
+                /* best-effort */
+            }
+        }
+    }
+
     return NextResponse.json(data)
 }
