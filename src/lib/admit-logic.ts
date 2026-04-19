@@ -233,7 +233,7 @@ async function getTeamAvailability(
 
     let busyMeetingsQuery = supabase
         .from('meetings')
-        .select('assigned_member_id')
+        .select('id, assigned_member_id')
         .eq('user_id', hostUserId)
         .in('status', ['pending', 'active'])
         .not('assigned_member_id', 'is', null)
@@ -249,8 +249,36 @@ async function getTeamAvailability(
         return { reason: 'lookup_failed', team, nextMember: null }
     }
 
+    // Only treat a meeting as "busy" if a guest is actually in it. Stale
+    // meetings whose guests never joined (or already left) shouldn't keep
+    // clocked-in teammates permanently flagged as unavailable.
+    const candidateMeetingIds = (busyMeetings || [])
+        .map(m => m.id as string | null)
+        .filter((id): id is string => Boolean(id))
+
+    let activeMeetingIds = new Set<string>()
+    if (candidateMeetingIds.length > 0) {
+        const { data: activeGuests, error: activeGuestsError } = await supabase
+            .from('waiting_guests')
+            .select('meeting_id')
+            .in('meeting_id', candidateMeetingIds)
+            .in('status', ['admitted', 'in_meeting'])
+
+        if (activeGuestsError) {
+            console.error('Active guest lookup error:', activeGuestsError)
+            return { reason: 'lookup_failed', team, nextMember: null }
+        }
+
+        activeMeetingIds = new Set(
+            (activeGuests || [])
+                .map(g => g.meeting_id as string | null)
+                .filter((id): id is string => Boolean(id))
+        )
+    }
+
     const busyMemberIds = new Set(
         (busyMeetings || [])
+            .filter(meeting => meeting.id && activeMeetingIds.has(meeting.id as string))
             .map(meeting => meeting.assigned_member_id as string | null)
             .filter((memberId): memberId is string => Boolean(memberId))
     )
