@@ -101,21 +101,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Form not found' }, { status: 404 })
     }
 
-    const { data: questions } = await supabase
-        .from('lead_form_questions')
-        .select('*')
-        .eq('form_id', form.id)
-        .order('order_index', { ascending: true })
+    const [{ data: questions }, { data: host }] = await Promise.all([
+        supabase
+            .from('lead_form_questions')
+            .select('*')
+            .eq('form_id', form.id)
+            .order('order_index', { ascending: true }),
+        supabase
+            .from('users')
+            .select(
+                'id, name, availability_mode, available_from, available_to, timezone, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields'
+            )
+            .eq('id', form.user_id)
+            .maybeSingle(),
+    ])
 
     const qs = (questions || []) as LeadFormQuestion[]
-
-    const { data: host } = await supabase
-        .from('users')
-        .select(
-            'id, name, availability_mode, available_from, available_to, timezone, meeting_duration, booking_title, booking_description, booking_note_placeholder, booking_form_fields'
-        )
-        .eq('id', form.user_id)
-        .maybeSingle()
 
     const hostActive = isHostActive(host || {})
     const bookingHost = host
@@ -147,28 +148,32 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // AI qualification
-    const qualification = await qualifyLead({
-        criteria: form.ai_criteria || '',
-        threshold: form.auto_admit_threshold || 70,
-        questions: qs,
-        answers: answers as LeadAnswer[],
-    })
-
     const resolvedEmail = guestEmail || pickFromAnswers(answers, 'email')
     const resolvedPhone = guestPhone || pickFromAnswers(answers, 'phone')
     const resolvedName = guestName || deriveName(answers, 'Lead')
 
-    // Create a meeting row to host this conversation (reuses existing flow)
-    const { data: meeting, error: meetingErr } = await supabase
-        .from('meetings')
-        .insert({
-            user_id: form.user_id,
-            title: `Lead: ${resolvedName}`,
-            status: 'active',
-        })
-        .select('id')
-        .single()
+    // Run AI qualification in parallel with creating the meeting row — the
+    // meeting insert doesn't depend on the qualification verdict, so this
+    // halves perceived submit latency when the AI call is the long pole.
+    const [qualification, meetingResult] = await Promise.all([
+        qualifyLead({
+            criteria: form.ai_criteria || '',
+            threshold: form.auto_admit_threshold || 70,
+            questions: qs,
+            answers: answers as LeadAnswer[],
+        }),
+        supabase
+            .from('meetings')
+            .insert({
+                user_id: form.user_id,
+                title: `Lead: ${resolvedName}`,
+                status: 'active',
+            })
+            .select('id')
+            .single(),
+    ])
+
+    const { data: meeting, error: meetingErr } = meetingResult
 
     if (meetingErr || !meeting) {
         console.error('Meeting create failed:', meetingErr)

@@ -113,9 +113,10 @@ export default function GuestInfoPanel({ roomId }: { roomId: string }) {
                         bottom: 16,
                         width: 'min(380px, calc(100vw - 32px))',
                         zIndex: 1150,
-                        background: 'rgba(15, 18, 32, 0.96)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(15, 18, 32, 0.55)',
+                        backdropFilter: 'blur(18px) saturate(140%)',
+                        WebkitBackdropFilter: 'blur(18px) saturate(140%)',
+                        border: '1px solid rgba(255,255,255,0.12)',
                         borderRadius: 16,
                         color: '#f5f5f7',
                         overflow: 'auto',
@@ -255,7 +256,7 @@ export default function GuestInfoPanel({ roomId }: { roomId: string }) {
                                     marginBottom: 8,
                                 }}
                             >
-                                Form answers
+                                Answer summary
                             </div>
                             <ul
                                 style={{

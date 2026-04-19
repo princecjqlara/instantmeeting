@@ -254,6 +254,13 @@ export async function qualifyLead(input: QualifierInput): Promise<LeadQualificat
     let totalMax = 0
     const notes: Array<{ question_id: string; note: string }> = []
 
+    // Gather synchronous results first, and fire AI ideal-answer checks in
+    // parallel so they don't serialize network latency on submit.
+    const idealTasks: Array<{
+        q: LeadFormQuestion
+        promise: Promise<{ earned: number; max: number; note: string }>
+    }> = []
+
     for (const q of input.questions) {
         const a = input.answers.find((x) => x.question_id === q.id)
 
@@ -265,16 +272,23 @@ export async function qualifyLead(input: QualifierInput): Promise<LeadQualificat
             continue
         }
 
-        // Text-like
         const rule = scoreTextRules(q, a)
         totalEarned += rule.earned
         totalMax += rule.max
         if (rule.note) notes.push({ question_id: q.id, note: rule.note })
 
-        const ideal = await scoreIdealAnswer(q, a)
-        totalEarned += ideal.earned
-        totalMax += ideal.max
-        if (ideal.note) notes.push({ question_id: q.id, note: ideal.note })
+        if ((q.ideal_answer || '').trim()) {
+            idealTasks.push({ q, promise: scoreIdealAnswer(q, a) })
+        }
+    }
+
+    if (idealTasks.length) {
+        const results = await Promise.all(idealTasks.map((t) => t.promise))
+        results.forEach((ideal, i) => {
+            totalEarned += ideal.earned
+            totalMax += ideal.max
+            if (ideal.note) notes.push({ question_id: idealTasks[i].q.id, note: ideal.note })
+        })
     }
 
     let reasoning = ''

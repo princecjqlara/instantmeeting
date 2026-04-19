@@ -315,7 +315,7 @@ export default function LeadFormPage({ params }: Props) {
         if (!current || !isLast) return
         if (submitting || submittedRef.current || result) return
         if (!currentIsValid) return
-        const delay = current.type === 'single_choice' ? 260 : 1400
+        const delay = current.type === 'single_choice' ? 200 : 650
         autoSubmitTimerRef.current = setTimeout(() => {
             autoSubmitTimerRef.current = null
             // Guard: user may have navigated away between schedule and fire.
@@ -373,6 +373,18 @@ export default function LeadFormPage({ params }: Props) {
         if (!bundle || submitting) return
         setSubmitting(true)
 
+        // Pre-open a blank tab synchronously so the browser treats the eventual
+        // navigation as a user-initiated popup (avoids popup blockers) and the
+        // meeting opens in an external tab instead of replacing the form page.
+        let meetingWindow: Window | null = null
+        if (typeof window !== 'undefined') {
+            try {
+                meetingWindow = window.open('about:blank', '_blank', 'noopener')
+            } catch {
+                meetingWindow = null
+            }
+        }
+
         // Persist identity fields for future forms (best effort)
         if (typeof window !== 'undefined') {
             const profile: { name?: string; email?: string; phone?: string } = {}
@@ -419,6 +431,7 @@ export default function LeadFormPage({ params }: Props) {
             if (!res.ok) {
                 setLoadError(data.error || 'Submission failed.')
                 setSubmitting(false)
+                if (meetingWindow && !meetingWindow.closed) meetingWindow.close()
                 return
             }
 
@@ -452,7 +465,18 @@ export default function LeadFormPage({ params }: Props) {
             }
 
             if (data.verdict === 'qualified' && data.join_url) {
-                window.location.href = data.join_url
+                if (meetingWindow && !meetingWindow.closed) {
+                    meetingWindow.location.href = data.join_url
+                } else {
+                    // Popup was blocked — fall back to same-tab navigation.
+                    window.location.href = data.join_url
+                    return
+                }
+                setResult({
+                    verdict: 'qualified',
+                    message: 'Your meeting has opened in a new tab.',
+                    join_url: data.join_url,
+                })
                 return
             }
             if (data.verdict === 'needs_booking' && data.host) {
@@ -481,6 +505,7 @@ export default function LeadFormPage({ params }: Props) {
                 const prefillName = pickAnswer('short_answer', /name/i)
                 const prefillEmail = pickAnswer('email')
                 const prefillPhone = pickAnswer('phone')
+                if (meetingWindow && !meetingWindow.closed) meetingWindow.close()
                 setBookingInfo({
                     host: data.host as BookingHost,
                     meetingId: data.meeting_id,
@@ -492,14 +517,17 @@ export default function LeadFormPage({ params }: Props) {
                 return
             }
             if (data.waiting_url) {
+                if (meetingWindow && !meetingWindow.closed) meetingWindow.close()
                 router.push(data.waiting_url.replace(window.location.origin, ''))
                 return
             }
+            if (meetingWindow && !meetingWindow.closed) meetingWindow.close()
             setResult({
                 verdict: data.verdict,
                 message: data.message || bundle.form.unqualified_message || 'Thanks for your response.',
             })
         } catch {
+            if (meetingWindow && !meetingWindow.closed) meetingWindow.close()
             setLoadError('Network error. Please try again.')
         } finally {
             setSubmitting(false)
