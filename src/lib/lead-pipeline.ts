@@ -59,8 +59,9 @@ export function deriveLeadPipelineStage(input: DeriveLeadPipelineStageInput): st
         case 'unqualified':
             return 'unqualified'
         case 'review':
-        default:
             return 'prospect'
+        default:
+            return ''
     }
 }
 

@@ -53,6 +53,18 @@ interface Lead {
     }
 }
 
+function resolveLeadStage(lead: Pick<Lead, 'pipeline_stage' | 'status' | 'joined_at' | 'qualification_verdict' | 'is_draft'>): string {
+    return (
+        lead.pipeline_stage ||
+        deriveLeadPipelineStage({
+            submittedAt: lead.status === 'draft' ? null : lead.joined_at,
+            qualificationVerdict: lead.qualification_verdict || null,
+            currentStage: lead.pipeline_stage,
+            isDraft: lead.is_draft,
+        })
+    )
+}
+
 const pillBtn = (active: boolean): React.CSSProperties => ({
     background: active ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.05)',
     border: `1px solid ${active ? 'rgba(99,102,241,0.55)' : 'rgba(255,255,255,0.12)'}`,
@@ -301,16 +313,7 @@ export default function LeadsPage() {
     const groupedPipelineLeads = useMemo(() => {
         return pipelineStages.map((stage) => ({
             stage,
-            leads: filteredLeads.filter(
-                (lead) =>
-                    (lead.pipeline_stage ||
-                        deriveLeadPipelineStage({
-                            submittedAt: lead.status === 'draft' ? null : lead.joined_at,
-                            qualificationVerdict: lead.qualification_verdict || null,
-                            currentStage: lead.pipeline_stage,
-                            isDraft: lead.is_draft,
-                        })) === stage
-            ),
+            leads: filteredLeads.filter((lead) => resolveLeadStage(lead) === stage),
         }))
     }, [filteredLeads, pipelineStages])
 
@@ -1262,7 +1265,7 @@ export default function LeadsPage() {
                                 <div className={styles.leadInfo}>
                                     <h3 className={styles.leadName}>{lead.guest_name}</h3>
                                     <div className={styles.stageBadgeRow}>
-                                        <span className={styles.stageBadge}>{lead.pipeline_stage || 'prospect'}</span>
+                                        <span className={styles.stageBadge}>{resolveLeadStage(lead) || '—'}</span>
                                         {lead.is_draft && <span className={styles.draftBadge}>unfinished</span>}
                                     </div>
                                     <p className={styles.leadMeeting}>

@@ -33,6 +33,13 @@ test('deriveLeadPipelineStage maps review leads to prospect', () => {
     )
 })
 
+test('deriveLeadPipelineStage does not auto-place submitted leads without a verdict into prospect', () => {
+    assert.equal(
+        deriveLeadPipelineStage({ submittedAt: '2026-04-20T10:00:00.000Z', qualificationVerdict: null }),
+        ''
+    )
+})
+
 test('deriveLeadPipelineStage maps unqualified leads to unqualified', () => {
     assert.equal(
         deriveLeadPipelineStage({ submittedAt: '2026-04-20T10:00:00.000Z', qualificationVerdict: 'unqualified' }),
