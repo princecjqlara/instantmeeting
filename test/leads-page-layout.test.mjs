@@ -18,4 +18,5 @@ test('host leads page places filters before the pipeline and keeps lead summary 
     assert.ok(filtersIndex < pipelineIndex, 'filters should render before the pipeline section')
     assert.ok(pipelineIndex < summaryIndex, 'lead summary should render after the pipeline starts')
     assert.ok(summaryIndex < submissionsIndex, 'lead summary should render before lead form submissions')
+    assert.ok(source.includes('Meta test event code'), 'host leads settings should expose the Meta test event code field')
 })

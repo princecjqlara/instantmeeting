@@ -20,6 +20,7 @@ const ONBOARDING_COLUMN = 'onboarding_completed'
 const LEADS_PIPELINE_STAGES_COLUMN = 'leads_pipeline_stages'
 const META_CAPI_ACCESS_TOKEN_COLUMN = 'meta_capi_access_token'
 const META_CAPI_DATASET_ID_COLUMN = 'meta_capi_dataset_id'
+const META_CAPI_TEST_EVENT_CODE_COLUMN = 'meta_capi_test_event_code'
 
 const PROFILE_SETTINGS_COLUMNS = [
     'username',
@@ -40,6 +41,7 @@ const PROFILE_SETTINGS_COLUMNS = [
     LEADS_PIPELINE_STAGES_COLUMN,
     META_CAPI_ACCESS_TOKEN_COLUMN,
     META_CAPI_DATASET_ID_COLUMN,
+    META_CAPI_TEST_EVENT_CODE_COLUMN,
 ]
 
 interface ProfileSettingsQueryResult {
@@ -70,6 +72,7 @@ async function fetchProfileSettingsByEmail(
             LEADS_PIPELINE_STAGES_COLUMN,
             META_CAPI_ACCESS_TOKEN_COLUMN,
             META_CAPI_DATASET_ID_COLUMN,
+            META_CAPI_TEST_EVENT_CODE_COLUMN,
         ]) {
             if (!skip.has(col) && isMissingUsersColumnError(queryResult.error, col)) {
                 const next = new Set(skip)
@@ -103,6 +106,7 @@ async function insertProfileSettings(
         LEADS_PIPELINE_STAGES_COLUMN,
         META_CAPI_ACCESS_TOKEN_COLUMN,
         META_CAPI_DATASET_ID_COLUMN,
+        META_CAPI_TEST_EVENT_CODE_COLUMN,
     ]) {
         if (
             result.error &&
@@ -132,6 +136,7 @@ async function updateProfileSettings(
         LEADS_PIPELINE_STAGES_COLUMN,
         META_CAPI_ACCESS_TOKEN_COLUMN,
         META_CAPI_DATASET_ID_COLUMN,
+        META_CAPI_TEST_EVENT_CODE_COLUMN,
     ]) {
         if (
             result.error &&
@@ -191,6 +196,7 @@ export async function PATCH(req: NextRequest) {
         leads_pipeline_stages,
         meta_capi_access_token,
         meta_capi_dataset_id,
+        meta_capi_test_event_code,
     } = body
 
     // Validate username only if it's a non-empty string
@@ -232,6 +238,7 @@ export async function PATCH(req: NextRequest) {
     }
     if (meta_capi_access_token !== undefined) updateData.meta_capi_access_token = meta_capi_access_token || null
     if (meta_capi_dataset_id !== undefined) updateData.meta_capi_dataset_id = meta_capi_dataset_id || null
+    if (meta_capi_test_event_code !== undefined) updateData.meta_capi_test_event_code = meta_capi_test_event_code || null
 
     // First check if user exists
     const { data: existingUser, error: existingUserError } = await supabase

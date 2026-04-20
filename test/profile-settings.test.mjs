@@ -12,6 +12,7 @@ test('DEFAULT_PROFILE_SETTINGS includes lead pipeline and Meta CAPI defaults', (
     ])
     assert.equal(DEFAULT_PROFILE_SETTINGS.meta_capi_access_token, '')
     assert.equal(DEFAULT_PROFILE_SETTINGS.meta_capi_dataset_id, '')
+    assert.equal(DEFAULT_PROFILE_SETTINGS.meta_capi_test_event_code, '')
 })
 
 test('normalizeProfileSettings fills in missing lead pipeline and Meta CAPI fields', () => {
@@ -20,6 +21,7 @@ test('normalizeProfileSettings fills in missing lead pipeline and Meta CAPI fiel
     assert.deepEqual(settings.leads_pipeline_stages, ['prospect', 'qualified', 'unqualified', 'sold'])
     assert.equal(settings.meta_capi_access_token, '')
     assert.equal(settings.meta_capi_dataset_id, '')
+    assert.equal(settings.meta_capi_test_event_code, '')
 })
 
 test('normalizeProfileSettings normalizes custom pipeline stages and trims Meta CAPI fields', () => {
@@ -28,9 +30,11 @@ test('normalizeProfileSettings normalizes custom pipeline stages and trims Meta 
         leads_pipeline_stages: [' Prospect ', 'qualified', '', 'sold', 'Qualified'],
         meta_capi_access_token: '  token-123  ',
         meta_capi_dataset_id: '  dataset-456  ',
+        meta_capi_test_event_code: '  TEST123  ',
     })
 
     assert.deepEqual(settings.leads_pipeline_stages, ['prospect', 'qualified', 'sold'])
     assert.equal(settings.meta_capi_access_token, 'token-123')
     assert.equal(settings.meta_capi_dataset_id, 'dataset-456')
+    assert.equal(settings.meta_capi_test_event_code, 'TEST123')
 })

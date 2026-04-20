@@ -4,35 +4,20 @@ import {
     buildInstantMeetingMetaEvent,
     type BuildInstantMeetingMetaEventInput,
 } from '@/lib/instantmeeting-payment-capi'
-
-interface MetaCapiConfigRow {
-    meta_capi_access_token?: string | null
-    meta_capi_dataset_id?: string | null
-}
-
-interface InstantMeetingMetaCapiConfig {
-    accessToken: string
-    datasetId: string
-}
-
-function normalizeMetaConfig(row: MetaCapiConfigRow | null | undefined): InstantMeetingMetaCapiConfig | null {
-    const accessToken = row?.meta_capi_access_token?.trim()
-    const datasetId = row?.meta_capi_dataset_id?.trim()
-
-    if (!accessToken || !datasetId) {
-        return null
-    }
-
-    return { accessToken, datasetId }
-}
+import {
+    normalizeMetaCapiConfig,
+    selectMetaCapiConfig,
+    type MetaCapiConfig,
+} from '@/lib/meta-capi-config'
+import { buildMetaCapiRequestBody } from '@/lib/meta-capi-request'
 
 export async function fetchOrganizerMetaCapiConfig(
     supabase: SupabaseClient,
     organizerId: string
-): Promise<InstantMeetingMetaCapiConfig | null> {
+): Promise<MetaCapiConfig | null> {
     const { data, error } = await supabase
         .from('users')
-        .select('meta_capi_access_token, meta_capi_dataset_id')
+        .select('meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code')
         .eq('id', organizerId)
         .maybeSingle()
 
@@ -41,26 +26,25 @@ export async function fetchOrganizerMetaCapiConfig(
         return null
     }
 
-    return normalizeMetaConfig(data)
+    return normalizeMetaCapiConfig(data)
 }
 
 export async function fetchInstantMeetingMetaCapiConfig(
     supabase: SupabaseClient
-): Promise<InstantMeetingMetaCapiConfig | null> {
+): Promise<MetaCapiConfig | null> {
     const { data, error } = await supabase
         .from('users')
-        .select('meta_capi_access_token, meta_capi_dataset_id, created_at')
-        .eq('role', 'organizer')
+        .select('role, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, created_at')
+        .not('meta_capi_access_token', 'is', null)
+        .not('meta_capi_dataset_id', 'is', null)
         .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle()
 
     if (error) {
         console.error('Failed to load InstantMeeting Meta CAPI config:', error)
         return null
     }
 
-    return normalizeMetaConfig(data)
+    return selectMetaCapiConfig(data)
 }
 
 export async function sendInstantMeetingMetaCapiEvent(
@@ -85,7 +69,11 @@ export async function sendInstantMeetingMetaCapiEvent(
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: [event] }),
+                body: JSON.stringify(
+                    buildMetaCapiRequestBody(event, {
+                        testEventCode: config.testEventCode,
+                    })
+                ),
                 cache: 'no-store',
             }
         )

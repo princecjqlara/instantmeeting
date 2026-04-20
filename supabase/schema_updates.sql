@@ -53,6 +53,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_pipeline_stages JSONB DEFAULT '["prospect","qualified","unqualified","sold"]'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 

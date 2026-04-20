@@ -124,6 +124,7 @@ export default function LeadsPage() {
     const [pipelineStagesInput, setPipelineStagesInput] = useState(DEFAULT_LEADS_PIPELINE_STAGES.join(', '))
     const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
     const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
+    const [metaCapiTestEventCode, setMetaCapiTestEventCode] = useState('')
     const [savingSettings, setSavingSettings] = useState(false)
     const [savingLead, setSavingLead] = useState(false)
     const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null)
@@ -163,6 +164,7 @@ export default function LeadsPage() {
                     setPipelineStagesInput(nextStages.join(', '))
                     setMetaCapiAccessToken(settings.meta_capi_access_token || '')
                     setMetaCapiDatasetId(settings.meta_capi_dataset_id || '')
+                    setMetaCapiTestEventCode(settings.meta_capi_test_event_code || '')
                 }
             } catch (error) {
                 console.error('Error fetching leads:', error)
@@ -363,6 +365,7 @@ export default function LeadsPage() {
                     leads_pipeline_stages: normalizedStages,
                     meta_capi_access_token: metaCapiAccessToken,
                     meta_capi_dataset_id: metaCapiDatasetId,
+                    meta_capi_test_event_code: metaCapiTestEventCode,
                 }),
             })
 
@@ -378,6 +381,7 @@ export default function LeadsPage() {
             setPipelineStagesInput(nextStages.join(', '))
             setMetaCapiAccessToken(data.meta_capi_access_token || '')
             setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
+            setMetaCapiTestEventCode(data.meta_capi_test_event_code || '')
         } finally {
             setSavingSettings(false)
         }
@@ -909,6 +913,15 @@ export default function LeadsPage() {
                                 value={metaCapiDatasetId}
                                 onChange={(e) => setMetaCapiDatasetId(e.target.value)}
                                 placeholder="Enter dataset id"
+                            />
+                        </label>
+                        <label className={styles.fieldGroup}>
+                            <span>Meta test event code</span>
+                            <input
+                                className={styles.settingsInput}
+                                value={metaCapiTestEventCode}
+                                onChange={(e) => setMetaCapiTestEventCode(e.target.value)}
+                                placeholder="Optional test event code"
                             />
                         </label>
                     </div>

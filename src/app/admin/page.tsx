@@ -47,6 +47,7 @@ export default function AdminPage() {
     const [reviewingId, setReviewingId] = useState<string | null>(null)
     const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
     const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
+    const [metaCapiTestEventCode, setMetaCapiTestEventCode] = useState('')
     const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
     const [paymentSettingsMsg, setPaymentSettingsMsg] = useState('')
     const [paymentSettingsError, setPaymentSettingsError] = useState('')
@@ -96,6 +97,7 @@ export default function AdminPage() {
             const data = await res.json()
             setMetaCapiAccessToken(data.meta_capi_access_token || '')
             setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
+            setMetaCapiTestEventCode(data.meta_capi_test_event_code || '')
         } catch (err) {
             console.error('Error fetching payment settings:', err)
         }
@@ -121,6 +123,7 @@ export default function AdminPage() {
                 body: JSON.stringify({
                     meta_capi_access_token: metaCapiAccessToken,
                     meta_capi_dataset_id: metaCapiDatasetId,
+                    meta_capi_test_event_code: metaCapiTestEventCode,
                     leads_pipeline_stages: [...INSTANTMEETING_PAYMENT_PIPELINE_STAGES],
                 }),
             })
@@ -133,6 +136,7 @@ export default function AdminPage() {
 
             setMetaCapiAccessToken(data?.meta_capi_access_token || '')
             setMetaCapiDatasetId(data?.meta_capi_dataset_id || '')
+            setMetaCapiTestEventCode(data?.meta_capi_test_event_code || '')
             setPaymentSettingsMsg('Payment funnel settings saved.')
         } catch {
             setPaymentSettingsError('Network error while saving payment funnel settings')
@@ -270,6 +274,16 @@ export default function AdminPage() {
                                 value={metaCapiDatasetId}
                                 onChange={(e) => setMetaCapiDatasetId(e.target.value)}
                                 placeholder="Enter the dataset id"
+                            />
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label>Meta test event code</label>
+                            <input
+                                type="text"
+                                value={metaCapiTestEventCode}
+                                onChange={(e) => setMetaCapiTestEventCode(e.target.value)}
+                                placeholder="Optional: paste your Meta test event code"
                             />
                         </div>
                     </div>

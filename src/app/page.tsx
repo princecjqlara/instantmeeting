@@ -90,21 +90,30 @@ export default function Home() {
             return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
         }
 
-        window.sessionStorage.setItem(sessionKey, '1')
+        const sendLandingCapiVisit = async () => {
+            try {
+                const url = new URL(window.location.href)
+                const response = await fetch('/api/capi/instantmeeting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        page_url: url.toString(),
+                        fbclid: url.searchParams.get('fbclid'),
+                        fbp: readCookie('_fbp'),
+                        fbc: readCookie('_fbc'),
+                    }),
+                })
+                const payload = await response.json().catch(() => null)
 
-        const url = new URL(window.location.href)
-        void fetch('/api/capi/instantmeeting', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                page_url: url.toString(),
-                fbclid: url.searchParams.get('fbclid'),
-                fbp: readCookie('_fbp'),
-                fbc: readCookie('_fbc'),
-            }),
-        }).catch(() => {
-            window.sessionStorage.removeItem(sessionKey)
-        })
+                if (payload?.sent) {
+                    window.sessionStorage.setItem(sessionKey, '1')
+                }
+            } catch {
+                // Let the next page load retry the landing-page CAPI event.
+            }
+        }
+
+        void sendLandingCapiVisit()
     }, [status])
 
     if (status === 'authenticated') return null

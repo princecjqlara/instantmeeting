@@ -115,6 +115,7 @@ ALTER TABLE lead_drafts ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'pr
 ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_pipeline_stages JSONB DEFAULT '["prospect","qualified","unqualified","sold"]'::jsonb;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_lead_drafts_form_slug ON lead_drafts(form_slug);
 

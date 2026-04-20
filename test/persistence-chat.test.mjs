@@ -26,6 +26,7 @@ test('normalizeProfileSettings returns safe defaults when no user exists', () =>
         leads_pipeline_stages: ['prospect', 'qualified', 'unqualified', 'sold'],
         meta_capi_access_token: '',
         meta_capi_dataset_id: '',
+        meta_capi_test_event_code: '',
     })
 })
 
@@ -49,6 +50,7 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
         leads_pipeline_stages: ['prospect', 'qualified', 'sold'],
         meta_capi_access_token: 'token-abc',
         meta_capi_dataset_id: 'dataset-xyz',
+        meta_capi_test_event_code: 'TEST456',
     })
 
     assert.equal(settings.username, 'builder')
@@ -61,6 +63,7 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
     assert.deepEqual(settings.leads_pipeline_stages, ['prospect', 'qualified', 'sold'])
     assert.equal(settings.meta_capi_access_token, 'token-abc')
     assert.equal(settings.meta_capi_dataset_id, 'dataset-xyz')
+    assert.equal(settings.meta_capi_test_event_code, 'TEST456')
 })
 
 test('createChatMessage trims input and rejects blank messages', () => {

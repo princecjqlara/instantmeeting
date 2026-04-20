@@ -21,6 +21,7 @@ export interface ProfileSettingsRecord {
     leads_pipeline_stages?: string[] | null
     meta_capi_access_token?: string | null
     meta_capi_dataset_id?: string | null
+    meta_capi_test_event_code?: string | null
 }
 
 export interface ProfileSettingsResponse {
@@ -42,6 +43,7 @@ export interface ProfileSettingsResponse {
     leads_pipeline_stages: string[]
     meta_capi_access_token: string
     meta_capi_dataset_id: string
+    meta_capi_test_event_code: string
 }
 
 export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
@@ -63,6 +65,7 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
     leads_pipeline_stages: [...DEFAULT_LEADS_PIPELINE_STAGES],
     meta_capi_access_token: '',
     meta_capi_dataset_id: '',
+    meta_capi_test_event_code: '',
 }
 
 interface NormalizeOptions {
@@ -110,5 +113,9 @@ export function normalizeProfileSettings(
             typeof user.meta_capi_dataset_id === 'string'
                 ? user.meta_capi_dataset_id.trim()
                 : DEFAULT_PROFILE_SETTINGS.meta_capi_dataset_id,
+        meta_capi_test_event_code:
+            typeof user.meta_capi_test_event_code === 'string'
+                ? user.meta_capi_test_event_code.trim()
+                : DEFAULT_PROFILE_SETTINGS.meta_capi_test_event_code,
     }
 }
