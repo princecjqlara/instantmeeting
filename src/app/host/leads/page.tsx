@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 import { buildGuestJoinInsights } from '@/lib/guest-join-insights'
 import { buildLeadSummaryRows } from '@/lib/lead-summary'
+import { buildPaginationItems, paginateItems } from '@/lib/pagination'
 import {
     DEFAULT_LEADS_PIPELINE_STAGES,
     canManuallyMoveLeadToStage,
@@ -14,8 +15,8 @@ import {
 } from '@/lib/lead-pipeline'
 import {
     FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
-    FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
-    FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash,
+    FaEnvelope, FaCheckCircle, FaHourglassHalf,
+    FaTimesCircle, FaSearch, FaDownload, FaTrash,
     FaTag, FaPlus, FaTimes, FaCheckSquare, FaSquare, FaSave
 } from 'react-icons/fa'
 
@@ -90,7 +91,9 @@ export default function LeadsPage() {
 
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
+    const [summaryPage, setSummaryPage] = useState(1)
     const leadsPerPage = 12
+    const summaryRowsPerPage = 10
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -187,6 +190,7 @@ export default function LeadsPage() {
 
         setFilteredLeads(filtered)
         setCurrentPage(1) // Reset to first page when filters change
+        setSummaryPage(1)
     }, [statusFilter, dataFilter, tagFilter, searchQuery, leads])
 
     const formatDate = (dateString: string) => {
@@ -241,6 +245,16 @@ export default function LeadsPage() {
         [browserTimeZone, filteredLeads]
     )
 
+    const summaryPagination = useMemo(
+        () => paginateItems(summaryRows, summaryPage, summaryRowsPerPage),
+        [summaryPage, summaryRows]
+    )
+
+    const leadCardsPagination = useMemo(
+        () => paginateItems(filteredLeads, currentPage, leadsPerPage),
+        [currentPage, filteredLeads]
+    )
+
     const formSubmissions = useMemo(
         () =>
             filteredLeads.filter(
@@ -280,6 +294,9 @@ export default function LeadsPage() {
         }
         return Array.from(s).sort((a, b) => a.localeCompare(b))
     }, [leads])
+
+    const summaryPages = buildPaginationItems(summaryPagination.currentPage, summaryPagination.totalPages)
+    const leadPages = buildPaginationItems(leadCardsPagination.currentPage, leadCardsPagination.totalPages)
 
     const groupedPipelineLeads = useMemo(() => {
         return pipelineStages.map((stage) => ({
@@ -669,116 +686,6 @@ export default function LeadsPage() {
                 )}
             </section>
 
-            <section className={styles.pipelineSection}>
-                <div className={styles.pipelineSettingsCard}>
-                    <div className={styles.pipelineCardHeader}>
-                        <div>
-                            <h2 className={styles.pipelineTitle}>Lead pipeline</h2>
-                            <p className={styles.pipelineDescription}>
-                                New unfinished and review leads go to prospect, unqualified leads go to unqualified, qualified leads go to qualified, and qualified leads can be dragged to sold.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            className={styles.primaryBtn}
-                            onClick={savePipelineSettings}
-                            disabled={savingSettings}
-                        >
-                            <FaSave />
-                            {savingSettings ? 'Saving…' : 'Save settings'}
-                        </button>
-                    </div>
-
-                    <div className={styles.pipelineSettingsGrid}>
-                        <label className={styles.fieldGroup}>
-                            <span>Pipeline stages</span>
-                            <input
-                                className={styles.settingsInput}
-                                value={pipelineStagesInput}
-                                onChange={(e) => setPipelineStagesInput(e.target.value)}
-                                placeholder="prospect, qualified, unqualified, sold"
-                            />
-                        </label>
-                        <label className={styles.fieldGroup}>
-                            <span>Meta CAPI access token</span>
-                            <input
-                                className={styles.settingsInput}
-                                type="password"
-                                value={metaCapiAccessToken}
-                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
-                                placeholder="Paste your access token"
-                            />
-                        </label>
-                        <label className={styles.fieldGroup}>
-                            <span>Meta dataset id</span>
-                            <input
-                                className={styles.settingsInput}
-                                value={metaCapiDatasetId}
-                                onChange={(e) => setMetaCapiDatasetId(e.target.value)}
-                                placeholder="Enter dataset id"
-                            />
-                        </label>
-                    </div>
-                </div>
-
-                <div className={styles.pipelineBoard}>
-                    {groupedPipelineLeads.map(({ stage, leads: stageLeads }) => (
-                        <div
-                            key={stage}
-                            className={styles.pipelineColumn}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                                e.preventDefault()
-                                const leadId = e.dataTransfer.getData('text/plain')
-                                const lead = leads.find((item) => item.id === leadId)
-                                if (lead) moveLeadToStage(lead, stage)
-                                setDraggingLeadId(null)
-                            }}
-                        >
-                            <div className={styles.pipelineColumnHeader}>
-                                <strong>{stage}</strong>
-                                <span>{stageLeads.length}</span>
-                            </div>
-
-                            <div className={styles.pipelineColumnBody}>
-                                {stageLeads.map((lead) => (
-                                    <button
-                                        key={lead.id}
-                                        type="button"
-                                        draggable={!lead.is_draft}
-                                        onDragStart={(e) => {
-                                            setDraggingLeadId(lead.id)
-                                            e.dataTransfer.setData('text/plain', lead.id)
-                                        }}
-                                        onDragEnd={() => setDraggingLeadId(null)}
-                                        onClick={() =>
-                                            setSelectedLead({
-                                                ...lead,
-                                                custom_fields: [...(lead.custom_fields || [])],
-                                            })
-                                        }
-                                        className={`${styles.pipelineLeadCard} ${draggingLeadId === lead.id ? styles.pipelineLeadCardDragging : ''}`}
-                                    >
-                                        <div className={styles.pipelineLeadTop}>
-                                            <strong>{lead.guest_name}</strong>
-                                            <span className={styles.pipelineLeadStatus}>{lead.is_draft ? 'draft' : lead.status}</span>
-                                        </div>
-                                        <span className={styles.pipelineLeadMeta}>{lead.guest_email || lead.guest_phone || 'No contact yet'}</span>
-                                        <span className={styles.pipelineLeadMeta}>{lead.meetings?.title || 'Lead form'}</span>
-                                        {lead.qualification_verdict && (
-                                            <span className={styles.pipelineVerdict}>{lead.qualification_verdict}</span>
-                                        )}
-                                    </button>
-                                ))}
-                                {stageLeads.length === 0 && (
-                                    <div className={styles.pipelineEmpty}>No leads in this stage</div>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
             {/* Filters */}
             <section className={styles.filtersSection}>
                 <div className={styles.searchBox}>
@@ -938,60 +845,245 @@ export default function LeadsPage() {
                 </section>
             )}
 
-            <section className={styles.summarySection}>
-                <div className={styles.summaryHeader}>
-                    <div>
-                        <h2 className={styles.summaryTitle}>Lead Summary Table</h2>
-                        <p className={styles.summaryDescription}>
-                            Review every visible lead, their submitted form details, and the full meeting timeline in {browserTimeZone}.
-                        </p>
+            <section className={styles.pipelineSection}>
+                <div className={styles.pipelineSettingsCard}>
+                    <div className={styles.pipelineCardHeader}>
+                        <div>
+                            <h2 className={styles.pipelineTitle}>Lead pipeline</h2>
+                            <p className={styles.pipelineDescription}>
+                                New unfinished and review leads go to prospect, unqualified leads go to unqualified, qualified leads go to qualified, and qualified leads can be dragged to sold.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className={styles.primaryBtn}
+                            onClick={savePipelineSettings}
+                            disabled={savingSettings}
+                        >
+                            <FaSave />
+                            {savingSettings ? 'Saving…' : 'Save settings'}
+                        </button>
                     </div>
-                    <span className={styles.summaryBadge}>{summaryRows.length} visible leads</span>
+
+                    <div className={styles.pipelineSettingsGrid}>
+                        <label className={styles.fieldGroup}>
+                            <span>Pipeline stages</span>
+                            <input
+                                className={styles.settingsInput}
+                                value={pipelineStagesInput}
+                                onChange={(e) => setPipelineStagesInput(e.target.value)}
+                                placeholder="prospect, qualified, unqualified, sold"
+                            />
+                        </label>
+                        <label className={styles.fieldGroup}>
+                            <span>Meta CAPI access token</span>
+                            <input
+                                className={styles.settingsInput}
+                                type="password"
+                                value={metaCapiAccessToken}
+                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
+                                placeholder="Paste your access token"
+                            />
+                        </label>
+                        <label className={styles.fieldGroup}>
+                            <span>Meta dataset id</span>
+                            <input
+                                className={styles.settingsInput}
+                                value={metaCapiDatasetId}
+                                onChange={(e) => setMetaCapiDatasetId(e.target.value)}
+                                placeholder="Enter dataset id"
+                            />
+                        </label>
+                    </div>
                 </div>
 
-                {summaryRows.length === 0 ? (
-                    <div className={styles.summaryEmpty}>
-                        <p>No lead rows to show yet.</p>
-                        <span>New form submissions will appear here automatically.</span>
+                <div className={styles.pipelineBoardShell}>
+                    <div className={styles.pipelineBoardHeader}>
+                        <div>
+                            <h3 className={styles.pipelineBoardTitle}>Pipeline board</h3>
+                            <p className={styles.pipelineBoardDescription}>
+                                Review every active stage like a kanban board, then use the summary table below for the full timeline.
+                            </p>
+                        </div>
+                        <div className={styles.summaryHeaderBadges}>
+                            <span className={styles.summaryBadge}>{filteredLeads.length} visible leads</span>
+                            <span className={styles.pipelineMetaBadge}>{pipelineStages.length} stages</span>
+                        </div>
                     </div>
-                ) : (
-                    <div className={styles.summaryTableWrap}>
-                        <table className={styles.summaryTable}>
-                            <thead>
-                                <tr>
-                                    <th>Lead</th>
-                                    <th>Meeting</th>
-                                    <th>Status</th>
-                                    <th>Scheduled Start</th>
-                                    <th>Joined</th>
-                                    <th>Admitted</th>
-                                    <th>Wait Time</th>
-                                    <th>Email</th>
-                                    <th>Phone</th>
-                                    <th>Form Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {summaryRows.map((row) => (
-                                    <tr key={row.id}>
-                                        <td className={styles.summaryLeadCell}>{row.name}</td>
-                                        <td>{row.meetingTitle}</td>
-                                        <td>
-                                            <span className={styles.summaryStatus}>{row.status}</span>
-                                        </td>
-                                        <td className={styles.summaryTimeCell}>{row.scheduledAt}</td>
-                                        <td className={styles.summaryTimeCell}>{row.joinedAt}</td>
-                                        <td className={styles.summaryTimeCell}>{row.admittedAt}</td>
-                                        <td>{row.waitDuration}</td>
-                                        <td>{row.email}</td>
-                                        <td>{row.phone}</td>
-                                        <td className={styles.summaryDetailsCell}>{row.details}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+
+                    <div className={styles.pipelineBoard}>
+                        {groupedPipelineLeads.map(({ stage, leads: stageLeads }) => (
+                            <div
+                                key={stage}
+                                className={styles.pipelineColumn}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                    e.preventDefault()
+                                    const leadId = e.dataTransfer.getData('text/plain')
+                                    const lead = leads.find((item) => item.id === leadId)
+                                    if (lead) moveLeadToStage(lead, stage)
+                                    setDraggingLeadId(null)
+                                }}
+                            >
+                                <div className={styles.pipelineColumnHeader}>
+                                    <strong>{stage}</strong>
+                                    <span className={styles.pipelineColumnCount}>{stageLeads.length}</span>
+                                </div>
+
+                                <div className={styles.pipelineColumnBody}>
+                                    {stageLeads.map((lead) => (
+                                        <button
+                                            key={lead.id}
+                                            type="button"
+                                            draggable={!lead.is_draft}
+                                            onDragStart={(e) => {
+                                                setDraggingLeadId(lead.id)
+                                                e.dataTransfer.setData('text/plain', lead.id)
+                                            }}
+                                            onDragEnd={() => setDraggingLeadId(null)}
+                                            onClick={() =>
+                                                setSelectedLead({
+                                                    ...lead,
+                                                    custom_fields: [...(lead.custom_fields || [])],
+                                                })
+                                            }
+                                            className={`${styles.pipelineLeadCard} ${draggingLeadId === lead.id ? styles.pipelineLeadCardDragging : ''}`}
+                                        >
+                                            <div className={styles.pipelineLeadTop}>
+                                                <strong>{lead.guest_name}</strong>
+                                                <span className={styles.pipelineLeadStatus}>{lead.is_draft ? 'draft' : lead.status}</span>
+                                            </div>
+                                            <span className={styles.pipelineLeadMeta}>{lead.guest_email || lead.guest_phone || 'No contact yet'}</span>
+                                            <span className={styles.pipelineLeadMeta}>{lead.meetings?.title || 'Lead form'}</span>
+                                            {lead.qualification_verdict && (
+                                                <span className={styles.pipelineVerdict}>{lead.qualification_verdict}</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                    {stageLeads.length === 0 && (
+                                        <div className={styles.pipelineEmpty}>No leads in this stage</div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                )}
+                </div>
+
+                <div className={`${styles.summarySection} ${styles.pipelineSummarySection}`}>
+                    <div className={styles.summaryHeader}>
+                        <div>
+                            <h2 className={styles.summaryTitle}>Lead Summary Table</h2>
+                            <p className={styles.summaryDescription}>
+                                Review every visible lead, their submitted form details, and the full meeting timeline in {browserTimeZone}.
+                            </p>
+                        </div>
+                        <div className={styles.summaryHeaderBadges}>
+                            <span className={styles.summaryBadge}>{summaryRows.length} visible leads</span>
+                            {summaryPagination.totalPages > 1 && (
+                                <span className={styles.pipelineMetaBadge}>
+                                    Page {summaryPagination.currentPage} of {summaryPagination.totalPages}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {summaryRows.length === 0 ? (
+                        <div className={styles.summaryEmpty}>
+                            <p>No lead rows to show yet.</p>
+                            <span>New form submissions will appear here automatically.</span>
+                        </div>
+                    ) : (
+                        <>
+                            <div className={styles.paginationInfo}>
+                                <span>
+                                    Showing {summaryPagination.start}-{summaryPagination.end} of {summaryRows.length} leads
+                                </span>
+                            </div>
+                            <div className={styles.summaryTableWrap}>
+                                <table className={styles.summaryTable}>
+                                    <thead>
+                                        <tr>
+                                            <th>Lead</th>
+                                            <th>Meeting</th>
+                                            <th>Status</th>
+                                            <th>Scheduled Start</th>
+                                            <th>Joined</th>
+                                            <th>Admitted</th>
+                                            <th>Wait Time</th>
+                                            <th>Email</th>
+                                            <th>Phone</th>
+                                            <th>Form Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {summaryPagination.items.map((row) => (
+                                            <tr key={row.id}>
+                                                <td className={styles.summaryLeadCell}>{row.name}</td>
+                                                <td>{row.meetingTitle}</td>
+                                                <td>
+                                                    <span className={styles.summaryStatus}>{row.status}</span>
+                                                </td>
+                                                <td className={styles.summaryTimeCell}>{row.scheduledAt}</td>
+                                                <td className={styles.summaryTimeCell}>{row.joinedAt}</td>
+                                                <td className={styles.summaryTimeCell}>{row.admittedAt}</td>
+                                                <td>{row.waitDuration}</td>
+                                                <td>{row.email}</td>
+                                                <td>{row.phone}</td>
+                                                <td className={styles.summaryDetailsCell}>{row.details}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {summaryPagination.totalPages > 1 && (
+                                <div className={`${styles.pagination} ${styles.pipelineSummaryPagination}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSummaryPage((page) => Math.max(1, page - 1))}
+                                        disabled={summaryPagination.currentPage === 1}
+                                        className={styles.pageBtn}
+                                        aria-label="Previous summary page"
+                                    >
+                                        ← Prev
+                                    </button>
+
+                                    <div className={styles.pageNumbers}>
+                                        {summaryPages.map((page, index) =>
+                                            page === 'ellipsis' ? (
+                                                <span key={`summary-ellipsis-${index}`} className={styles.pageEllipsis}>
+                                                    …
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    key={`summary-page-${page}`}
+                                                    type="button"
+                                                    onClick={() => setSummaryPage(page)}
+                                                    className={`${styles.pageNumber} ${summaryPagination.currentPage === page ? styles.activePage : ''}`}
+                                                    aria-current={summaryPagination.currentPage === page ? 'page' : undefined}
+                                                >
+                                                    {page}
+                                                </button>
+                                            )
+                                        )}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setSummaryPage((page) => Math.min(summaryPagination.totalPages, page + 1))
+                                        }
+                                        disabled={summaryPagination.currentPage === summaryPagination.totalPages}
+                                        className={styles.pageBtn}
+                                        aria-label="Next summary page"
+                                    >
+                                        Next →
+                                    </button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </section>
 
             <section className={styles.summarySection}>
@@ -1094,14 +1186,6 @@ export default function LeadsPage() {
             </section>
 
             {/* Leads List */}
-            {(() => {
-                // Pagination calculations
-                const indexOfLastLead = currentPage * leadsPerPage
-                const indexOfFirstLead = indexOfLastLead - leadsPerPage
-                const currentLeads = filteredLeads.slice(indexOfFirstLead, indexOfLastLead)
-                const totalPages = Math.ceil(filteredLeads.length / leadsPerPage)
-                
-                return (
             <section className={styles.leadsSection}>
                 {filteredLeads.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -1113,10 +1197,12 @@ export default function LeadsPage() {
                     <>
                     {/* Pagination Info */}
                     <div className={styles.paginationInfo}>
-                        <span>Showing {Math.min((currentPage - 1) * leadsPerPage + 1, filteredLeads.length)}-{Math.min(currentPage * leadsPerPage, filteredLeads.length)} of {filteredLeads.length} leads</span>
+                        <span>
+                            Showing {leadCardsPagination.start}-{leadCardsPagination.end} of {filteredLeads.length} leads
+                        </span>
                     </div>
                     <div className={styles.leadsGrid}>
-                        {currentLeads.map((lead) => {
+                        {leadCardsPagination.items.map((lead) => {
                             const isSelected = selectedIds.has(lead.id)
                             return (
                             <div
@@ -1266,42 +1352,54 @@ export default function LeadsPage() {
                     </div>
                     
                     {/* Pagination Controls */}
-                    {totalPages > 1 && (
+                    {leadCardsPagination.totalPages > 1 && (
                         <div className={styles.pagination}>
                             <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
+                                type="button"
+                                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                                disabled={leadCardsPagination.currentPage === 1}
                                 className={styles.pageBtn}
+                                aria-label="Previous page"
                             >
-                                Previous
+                                ← Prev
                             </button>
                             
                             <div className={styles.pageNumbers}>
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                    <button
-                                        key={page}
-                                        onClick={() => setCurrentPage(page)}
-                                        className={`${styles.pageNumber} ${currentPage === page ? styles.activePage : ''}`}
-                                    >
-                                        {page}
-                                    </button>
-                                ))}
+                                {leadPages.map((page, index) =>
+                                    page === 'ellipsis' ? (
+                                        <span key={`lead-ellipsis-${index}`} className={styles.pageEllipsis}>
+                                            …
+                                        </span>
+                                    ) : (
+                                        <button
+                                            key={`lead-page-${page}`}
+                                            type="button"
+                                            onClick={() => setCurrentPage(page)}
+                                            className={`${styles.pageNumber} ${leadCardsPagination.currentPage === page ? styles.activePage : ''}`}
+                                            aria-current={leadCardsPagination.currentPage === page ? 'page' : undefined}
+                                        >
+                                            {page}
+                                        </button>
+                                    )
+                                )}
                             </div>
                             
                             <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
+                                type="button"
+                                onClick={() =>
+                                    setCurrentPage((page) => Math.min(leadCardsPagination.totalPages, page + 1))
+                                }
+                                disabled={leadCardsPagination.currentPage === leadCardsPagination.totalPages}
                                 className={styles.pageBtn}
+                                aria-label="Next page"
                             >
-                                Next
+                                Next →
                             </button>
                         </div>
                     )}
                     </>
                 )}
             </section>
-                )
-            })()}
 
             {/* Lead Detail Modal */}
             {selectedLead && (

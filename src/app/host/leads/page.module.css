@@ -303,6 +303,339 @@
     font-size: 14px;
 }
 
+/* Pipeline Section */
+.pipelineSection {
+    margin-bottom: 32px;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top right, rgba(129, 140, 248, 0.2), transparent 28%),
+        linear-gradient(180deg, rgba(20, 23, 48, 0.96), rgba(8, 12, 24, 0.98));
+    border: 1px solid rgba(129, 140, 248, 0.18);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.pipelineSettingsCard,
+.pipelineBoardShell {
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    backdrop-filter: blur(14px);
+}
+
+.pipelineSettingsCard {
+    margin-bottom: 24px;
+}
+
+.pipelineCardHeader,
+.pipelineBoardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.pipelineCardHeader {
+    margin-bottom: 20px;
+}
+
+.pipelineTitle {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.pipelineDescription,
+.pipelineBoardDescription {
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.pipelineBoardHeader {
+    margin-bottom: 20px;
+}
+
+.pipelineBoardTitle {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.summaryHeaderBadges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.pipelineMetaBadge {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.primaryBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    box-shadow: 0 12px 30px rgba(99, 102, 241, 0.28);
+}
+
+.primaryBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 34px rgba(99, 102, 241, 0.34);
+}
+
+.primaryBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.pipelineSettingsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fieldGroup span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.settingsInput {
+    width: 100%;
+    min-height: 46px;
+    padding: 12px 14px;
+    background: rgba(7, 10, 20, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.settingsInput:focus {
+    outline: none;
+    border-color: rgba(129, 140, 248, 0.85);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
+    background: rgba(7, 10, 20, 0.88);
+}
+
+.pipelineBoard {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(260px, 1fr);
+    gap: 18px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    align-items: start;
+}
+
+.pipelineColumn {
+    display: flex;
+    flex-direction: column;
+    min-height: 360px;
+    padding: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+}
+
+.pipelineColumnHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: var(--text-primary);
+    text-transform: capitalize;
+}
+
+.pipelineColumnCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(129, 140, 248, 0.14);
+    color: #c7d2fe;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.pipelineColumnBody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 100%;
+}
+
+.pipelineLeadCard {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(180deg, rgba(17, 22, 42, 0.9), rgba(10, 14, 28, 0.92));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-align: left;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.pipelineLeadCard:hover {
+    transform: translateY(-2px);
+    border-color: rgba(129, 140, 248, 0.3);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.pipelineLeadCardDragging {
+    opacity: 0.45;
+    transform: rotate(2deg) scale(0.98);
+}
+
+.pipelineLeadTop {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.pipelineLeadTop strong {
+    font-size: 15px;
+    line-height: 1.35;
+}
+
+.pipelineLeadStatus {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.pipelineLeadMeta {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.pipelineLeadMeta + .pipelineLeadMeta {
+    margin-top: 6px;
+}
+
+.pipelineVerdict {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.16);
+    color: #c7d2fe;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.pipelineEmpty {
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+
+.pipelineSummarySection {
+    margin-top: 24px;
+    margin-bottom: 0;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.pipelineSummaryPagination {
+    padding: 20px 0 0;
+}
+
+.stageBadgeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.stageBadge,
+.draftBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.stageBadge {
+    background: rgba(129, 140, 248, 0.14);
+    color: #c7d2fe;
+}
+
+.draftBadge {
+    background: rgba(251, 191, 36, 0.14);
+    color: #fde68a;
+}
+
 /* Filters Section */
 .filtersSection {
     margin-bottom: 24px;
@@ -967,6 +1300,16 @@
     gap: 8px;
 }
 
+.pageEllipsis {
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
 .pageNumber {
     width: 40px;
     height: 40px;
@@ -1003,6 +1346,10 @@
     .insightsHighlights {
         grid-template-columns: 1fr;
     }
+
+    .pipelineSettingsGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 768px) {
@@ -1018,8 +1365,28 @@
         padding: 20px;
     }
 
+    .pipelineSection,
+    .pipelineSettingsCard,
+    .pipelineBoardShell,
+    .pipelineSummarySection {
+        padding: 20px;
+    }
+
     .insightsHeader {
         flex-direction: column;
+    }
+
+    .pipelineCardHeader,
+    .pipelineBoardHeader {
+        flex-direction: column;
+    }
+
+    .pipelineSettingsGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .pipelineBoard {
+        grid-auto-columns: minmax(84vw, 1fr);
     }
 
     .timezoneBadge {
@@ -1038,6 +1405,10 @@
         white-space: normal;
     }
 
+    .summaryHeaderBadges {
+        justify-content: flex-start;
+    }
+
     .leadsGrid {
         grid-template-columns: 1fr;
     }
@@ -1054,6 +1425,10 @@
     
     .headerActions {
         width: 100%;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
     }
     
     .exportBtn {
