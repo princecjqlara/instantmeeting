@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { buildGuestRoomPath, buildGuestWaitingPath } from '@/lib/external-browser-handoff'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export async function GET(
 
     const { data: guest } = await supabase
         .from('waiting_guests')
-        .select('id, meeting_id, status')
+        .select('id, meeting_id, status, guest_name')
         .eq('join_token', token)
         .single()
 
@@ -38,7 +39,7 @@ export async function GET(
     }
 
     const origin = req.nextUrl.origin
-    const waitingUrl = `${origin}/waiting/${guest.meeting_id}`
+    const waitingUrl = `${origin}${buildGuestWaitingPath(guest.meeting_id, guest.id, guest.guest_name)}`
 
     if (
         guest.status !== 'admitted' ||
@@ -50,6 +51,6 @@ export async function GET(
 
     // Redirect to the in-app video room
     // google_meet_link now stores a relative path like /room/{meetingId}
-    const roomPath = meeting.google_meet_link || `/room/${guest.meeting_id}`
+    const roomPath = buildGuestRoomPath(guest.meeting_id, guest.guest_name)
     return NextResponse.redirect(`${origin}${roomPath}`)
 }

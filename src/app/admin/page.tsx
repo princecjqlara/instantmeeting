@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+
+import {
+    INSTANTMEETING_PAYMENT_PIPELINE_STAGES,
+    INSTANTMEETING_SOLD_VALUE_PHP,
+} from '@/lib/instantmeeting-payment-pipeline'
+
 import styles from './page.module.css'
 
 interface Tenant {
@@ -39,6 +45,11 @@ export default function AdminPage() {
     const [pending, setPending] = useState<PendingSignup[]>([])
     const [pendingLoading, setPendingLoading] = useState(false)
     const [reviewingId, setReviewingId] = useState<string | null>(null)
+    const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
+    const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
+    const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
+    const [paymentSettingsMsg, setPaymentSettingsMsg] = useState('')
+    const [paymentSettingsError, setPaymentSettingsError] = useState('')
 
     // Redirect non-organizers
     useEffect(() => {
@@ -77,12 +88,58 @@ export default function AdminPage() {
         }
     }
 
+    const fetchPaymentSettings = async () => {
+        try {
+            const res = await fetch('/api/profile/settings')
+            if (!res.ok) return
+
+            const data = await res.json()
+            setMetaCapiAccessToken(data.meta_capi_access_token || '')
+            setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
+        } catch (err) {
+            console.error('Error fetching payment settings:', err)
+        }
+    }
+
     useEffect(() => {
         if (status === 'authenticated') {
             fetchTenants()
             fetchPending()
+            fetchPaymentSettings()
         }
     }, [status])
+
+    const savePaymentSettings = async () => {
+        setSavingPaymentSettings(true)
+        setPaymentSettingsMsg('')
+        setPaymentSettingsError('')
+
+        try {
+            const res = await fetch('/api/profile/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    meta_capi_access_token: metaCapiAccessToken,
+                    meta_capi_dataset_id: metaCapiDatasetId,
+                    leads_pipeline_stages: [...INSTANTMEETING_PAYMENT_PIPELINE_STAGES],
+                }),
+            })
+
+            const data = await res.json().catch(() => null)
+            if (!res.ok) {
+                setPaymentSettingsError(data?.error || 'Failed to save payment funnel settings')
+                return
+            }
+
+            setMetaCapiAccessToken(data?.meta_capi_access_token || '')
+            setMetaCapiDatasetId(data?.meta_capi_dataset_id || '')
+            setPaymentSettingsMsg('Payment funnel settings saved.')
+        } catch {
+            setPaymentSettingsError('Network error while saving payment funnel settings')
+        } finally {
+            setSavingPaymentSettings(false)
+        }
+    }
 
     const reviewPending = async (id: string, action: 'verify' | 'reject') => {
         if (action === 'reject' && !confirm('Reject this signup? The user will need to pay again.')) {
@@ -177,6 +234,77 @@ export default function AdminPage() {
             </div>
 
             <div className={styles.content}>
+                <div className={`${styles.listCard} ${styles.fullWidthCard}`}>
+                    <div className={styles.paymentHeader}>
+                        <div>
+                            <h2>InstantMeeting payment funnel</h2>
+                            <p className={styles.paymentIntro}>
+                                This Meta CAPI dataset is used for the InstantMeeting landing page and manual receipt-review flow.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className={`${styles.createBtn} ${styles.paymentSaveBtn}`}
+                            onClick={savePaymentSettings}
+                            disabled={savingPaymentSettings}
+                        >
+                            {savingPaymentSettings ? 'Saving…' : 'Save payment funnel'}
+                        </button>
+                    </div>
+
+                    <div className={styles.paymentGrid}>
+                        <div className={styles.formGroup}>
+                            <label>Meta CAPI access token</label>
+                            <input
+                                type="password"
+                                value={metaCapiAccessToken}
+                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
+                                placeholder="Paste the InstantMeeting access token"
+                            />
+                        </div>
+
+                        <div className={styles.formGroup}>
+                            <label>Meta dataset id</label>
+                            <input
+                                type="text"
+                                value={metaCapiDatasetId}
+                                onChange={(e) => setMetaCapiDatasetId(e.target.value)}
+                                placeholder="Enter the dataset id"
+                            />
+                        </div>
+                    </div>
+
+                    <div className={styles.pipelineGrid}>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>unqualified</span>
+                            <strong>Landing page visit</strong>
+                            <p>Send an unqualified event as soon as someone visits the InstantMeeting sales page.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>unqualified</span>
+                            <strong>Admin reject</strong>
+                            <p>Rejected receipts stay in the unqualified stage so the ads pipeline stays clean.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={`${styles.pipelineBadge} ${styles.pipelineSoldBadge}`}>sold</span>
+                            <strong>Admin verify</strong>
+                            <p>
+                                Verified payments fire the sold conversion with a fixed value of ₱{INSTANTMEETING_SOLD_VALUE_PHP}.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className={styles.paymentMetaRow}>
+                        <span>Stages: {INSTANTMEETING_PAYMENT_PIPELINE_STAGES.join(' → ')}</span>
+                        <span>Sold value: ₱{INSTANTMEETING_SOLD_VALUE_PHP}</span>
+                    </div>
+
+                    <p className={styles.paymentIntro}>Fixed purchase value: ₱699 after admin verification.</p>
+
+                    {paymentSettingsMsg && <p className={styles.successMsg}>{paymentSettingsMsg}</p>}
+                    {paymentSettingsError && <p className={styles.errorMsg}>{paymentSettingsError}</p>}
+                </div>
+
                 {/* Create Tenant Form */}
                 <div className={styles.createCard}>
                     <h2>Create New Tenant</h2>

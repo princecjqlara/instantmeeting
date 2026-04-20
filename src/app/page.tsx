@@ -75,6 +75,38 @@ export default function Home() {
         }
     }, [status, router])
 
+    useEffect(() => {
+        if (status !== 'unauthenticated') return
+        if (typeof window === 'undefined') return
+
+        const sessionKey = 'instantmeeting:landing-capi-visit'
+        if (window.sessionStorage.getItem(sessionKey)) return
+
+        const readCookie = (name: string) => {
+            const hit = document.cookie
+                .split('; ')
+                .find((entry) => entry.startsWith(`${name}=`))
+
+            return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+        }
+
+        window.sessionStorage.setItem(sessionKey, '1')
+
+        const url = new URL(window.location.href)
+        void fetch('/api/capi/instantmeeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                page_url: url.toString(),
+                fbclid: url.searchParams.get('fbclid'),
+                fbp: readCookie('_fbp'),
+                fbc: readCookie('_fbc'),
+            }),
+        }).catch(() => {
+            window.sessionStorage.removeItem(sessionKey)
+        })
+    }, [status])
+
     if (status === 'authenticated') return null
 
     const handleLogin = async (e: React.FormEvent) => {

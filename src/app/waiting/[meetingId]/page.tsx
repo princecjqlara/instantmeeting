@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Content } from '@/lib/types'
 import { canGuestJoinRoom, shouldStopWaitingRoomPolling } from '@/lib/waiting-room-state'
 import ReelPlayer from '@/components/ReelPlayer'
@@ -9,6 +9,7 @@ import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
 import InAppBrowserGate from '@/components/InAppBrowserGate'
+import { buildGuestRoomPath, getGuestNameFromSearch } from '@/lib/external-browser-handoff'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -108,6 +109,7 @@ const prepareMeetingTab = () => {
 export default function WaitingRoom({ params }: WaitingPageProps) {
     const { meetingId } = use(params)
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [data, setData] = useState<WaitingData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -123,6 +125,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const [welcomeAudioPlaying, setWelcomeAudioPlaying] = useState(false)
     const hasPlayedWelcomeRef = useRef(false)
     const preparedMeetingTabRef = useRef<Window | null>(null)
+    const guestIdFromQuery = searchParams.get('guestId')?.trim() || null
+    const guestNameFromQuery = getGuestNameFromSearch(searchParams)
+    const guestNameForRoom = guestNameFromQuery || 'Guest'
 
 
 
@@ -244,7 +249,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             }
         }
 
-        const storedGuestId = getStoredGuestId()
+        const storedGuestId = guestIdFromQuery || getStoredGuestId()
         fetchData(storedGuestId, true)
 
         // Only poll if guest is waiting or we don't have guest data yet
@@ -252,7 +257,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             if (intervalId) return
 
             intervalId = setInterval(() => {
-                const currentGuestId = getStoredGuestId()
+                const currentGuestId = guestIdFromQuery || getStoredGuestId()
                 fetchData(currentGuestId, false)
             }, 15000)
         }
@@ -266,7 +271,23 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 clearInterval(intervalId)
             }
         }
-    }, [meetingId])
+    }, [guestIdFromQuery, meetingId])
+
+    useEffect(() => {
+        const guestStorageKey = `waitingGuest:${meetingId}`
+
+        try {
+            if (guestIdFromQuery) {
+                localStorage.setItem(guestStorageKey, guestIdFromQuery)
+            }
+
+            if (guestNameFromQuery) {
+                localStorage.setItem(`guestName:${meetingId}`, guestNameFromQuery)
+            }
+        } catch {
+            // Ignore localStorage errors
+        }
+    }, [guestIdFromQuery, guestNameFromQuery, meetingId])
 
     useEffect(() => {
         if (data?.meeting?.reschedule_requested) {
@@ -295,15 +316,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         if (canAutoJoin && !hasAutoJoinedRef.current) {
             hasAutoJoinedRef.current = true
             // Store guest name for the video room page to use
-            try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
-            const roomPath = `/room/${meetingId}`
+            try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
+            const roomPath = buildGuestRoomPath(meetingId, guestNameForRoom)
             const preparedMeetingTab = preparedMeetingTabRef.current
             preparedMeetingTabRef.current = null
             if (!openRoomInNewTab(roomPath, preparedMeetingTab)) {
                 router.push(roomPath)
             }
         }
-    }, [data, meetingId, router])
+    }, [data, guestNameForRoom, meetingId, router])
 
     useEffect(() => {
         if (
@@ -468,7 +489,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     }
 
     // Room link is now always /room/{meetingId} (in-app WebRTC room)
-    const roomLink = `/room/${meetingId}`
+    const roomLink = buildGuestRoomPath(meetingId, guestNameForRoom)
     const isAdmitted = data?.guest?.status === 'admitted'
     const isWaiting = data?.guest?.status === 'waiting'
     const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
@@ -510,7 +531,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     onEndReached={() => {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
-                            try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                            try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
                             const preparedMeetingTab = preparedMeetingTabRef.current
                             preparedMeetingTabRef.current = null
                             if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
@@ -583,7 +604,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             className="button-primary"
                             onClick={() => {
                                 hasAutoJoinedRef.current = true
-                                try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                                try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
                                 const preparedMeetingTab = preparedMeetingTabRef.current
                                 preparedMeetingTabRef.current = null
                                 if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
@@ -678,7 +699,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     className={styles.admitPrimary}
                                     onClick={() => {
                                         hasAutoJoinedRef.current = true
-                                        try { localStorage.setItem(`guestName:${meetingId}`, 'Guest') } catch { }
+                                        try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
                                         const preparedMeetingTab = preparedMeetingTabRef.current
                                         preparedMeetingTabRef.current = null
                                         if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {

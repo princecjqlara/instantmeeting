@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { sendInstantMeetingMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -95,9 +96,21 @@ export async function PATCH(req: NextRequest) {
                 status: 'rejected',
                 admin_note: note,
                 reviewed_at: new Date().toISOString(),
-            })
+        })
             .eq('id', id)
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+        void sendInstantMeetingMetaCapiEvent(supabase, {
+            organizerId: organizer.id,
+            trigger: 'admin_reject',
+            eventSourceUrl: `${req.nextUrl.origin}/admin`,
+            email: pending.email,
+            phone: pending.phone,
+            name: pending.name,
+            clientIpAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+            clientUserAgent: req.headers.get('user-agent'),
+        })
+
         return NextResponse.json({ success: true, action: 'reject' })
     }
 
@@ -120,6 +133,18 @@ export async function PATCH(req: NextRequest) {
             })
             .eq('id', id)
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+        void sendInstantMeetingMetaCapiEvent(supabase, {
+            organizerId: organizer.id,
+            trigger: 'admin_verify',
+            eventSourceUrl: `${req.nextUrl.origin}/admin`,
+            email: pending.email,
+            phone: pending.phone,
+            name: pending.name,
+            clientIpAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+            clientUserAgent: req.headers.get('user-agent'),
+        })
+
         return NextResponse.json({ success: true, action: 'verify', existing: true })
     }
 
@@ -149,6 +174,17 @@ export async function PATCH(req: NextRequest) {
     if (updateErr) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
+
+    void sendInstantMeetingMetaCapiEvent(supabase, {
+        organizerId: organizer.id,
+        trigger: 'admin_verify',
+        eventSourceUrl: `${req.nextUrl.origin}/admin`,
+        email: pending.email,
+        phone: pending.phone,
+        name: pending.name,
+        clientIpAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+        clientUserAgent: req.headers.get('user-agent'),
+    })
 
     return NextResponse.json({ success: true, action: 'verify', user: newUser })
 }

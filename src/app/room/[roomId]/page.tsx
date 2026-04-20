@@ -15,11 +15,12 @@
 
 import { useState, use, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
 import GuestInfoPanel from '@/components/GuestInfoPanel'
 import { FaVideo, FaArrowRight, FaDoorOpen } from 'react-icons/fa'
 import InAppBrowserGate from '@/components/InAppBrowserGate'
+import { getGuestNameFromSearch } from '@/lib/external-browser-handoff'
 import styles from './page.module.css'
 
 interface RoomPageProps {
@@ -30,7 +31,9 @@ export default function RoomPage({ params }: RoomPageProps) {
     const { roomId } = use(params)
     const { data: session } = useSession()
     const router = useRouter()
+    const searchParams = useSearchParams()
     const hasMarkedHostJoinedRef = useRef(false)
+    const guestNameFromQuery = getGuestNameFromSearch(searchParams)
 
     // Determine the user's display name
     const [displayName, setDisplayName] = useState<string>('')
@@ -61,6 +64,18 @@ export default function RoomPage({ params }: RoomPageProps) {
             return
         }
 
+        if (guestNameFromQuery) {
+            try {
+                localStorage.setItem(`guestName:${roomId}`, guestNameFromQuery)
+            } catch {
+                // Ignore localStorage errors
+            }
+
+            setDisplayName(guestNameFromQuery)
+            setHasJoined(true)
+            return
+        }
+
         // Check if they were a guest in this meeting's waiting room
         try {
             const guestName = localStorage.getItem(`guestName:${roomId}`)
@@ -71,7 +86,7 @@ export default function RoomPage({ params }: RoomPageProps) {
         } catch {
             // localStorage not available
         }
-    }, [session, roomId])
+    }, [guestNameFromQuery, session, roomId])
 
     // Handle leaving the room — go back to home or dashboard
     const handleLeave = useCallback(() => {
