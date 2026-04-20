@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import styles from './page.module.css'
 import { FaArrowRight, FaArrowLeft, FaCheckCircle, FaSpinner } from 'react-icons/fa'
 import BookingModal, { BookingHost } from '@/components/BookingModal'
+import { isLikelyInAppBrowserUserAgent } from '@/lib/external-browser-handoff'
 
 interface PublicQuestion {
     id: string
@@ -372,12 +373,13 @@ export default function LeadFormPage({ params }: Props) {
     const submit = async () => {
         if (!bundle || submitting) return
         setSubmitting(true)
+        const isLikelyInAppBrowser = typeof navigator !== 'undefined' && isLikelyInAppBrowserUserAgent(navigator.userAgent)
 
         // Pre-open a blank tab synchronously so the browser treats the eventual
         // navigation as a user-initiated popup (avoids popup blockers) and the
         // meeting opens in an external tab instead of replacing the form page.
         let meetingWindow: Window | null = null
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && !isLikelyInAppBrowser) {
             try {
                 meetingWindow = window.open('about:blank', '_blank', 'noopener')
             } catch {
@@ -465,6 +467,10 @@ export default function LeadFormPage({ params }: Props) {
             }
 
             if (data.verdict === 'qualified' && data.join_url) {
+                if (isLikelyInAppBrowser) {
+                    window.location.href = data.join_url
+                    return
+                }
                 if (meetingWindow && !meetingWindow.closed) {
                     meetingWindow.location.href = data.join_url
                 } else {

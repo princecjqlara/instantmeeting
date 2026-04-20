@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { markExternalBrowserHandoff } from '@/lib/external-browser-handoff'
+import { useEffect, useLayoutEffect, useState } from 'react'
+import {
+    isLikelyInAppBrowserUserAgent,
+    markExternalBrowserHandoff,
+} from '@/lib/external-browser-handoff'
 
 /**
  * Detects in-app browsers (Messenger, Facebook, Instagram, etc.)
@@ -13,11 +16,9 @@ import { markExternalBrowserHandoff } from '@/lib/external-browser-handoff'
  * If not an in-app browser, renders children normally.
  */
 
-const IN_APP_REGEX = /FBAN|FBAV|Messenger|Instagram|musical_ly|BytedanceWebview|MicroMessenger|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i
-
 function isInAppBrowser(): boolean {
     if (typeof navigator === 'undefined') return false
-    return IN_APP_REGEX.test(navigator.userAgent || '')
+    return isLikelyInAppBrowserUserAgent(navigator.userAgent || '')
 }
 
 function isAndroid(): boolean {
@@ -33,41 +34,26 @@ function tryOpenSystemBrowser(url: string): void {
     }
 
     if (isAndroid()) {
-        // Android: intent URL scheme to open in Chrome
         const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
         window.location.href = intentUrl
     } else {
-        // iOS / other: try _system target (works in some WebViews)
         window.open(url, '_system')
     }
-    // Also copy to clipboard as fallback
+
     navigator.clipboard?.writeText(url).catch(() => {})
 }
 
-export default function InAppBrowserGate({ children }: { children: React.ReactNode }) {
-    const [showGate, setShowGate] = useState(false)
-    const [attempted, setAttempted] = useState(false)
-
-    useEffect(() => {
-        if (!isInAppBrowser()) return
-
-        // Try auto-redirect on Android
-        if (isAndroid() && !attempted) {
-            setAttempted(true)
-            tryOpenSystemBrowser(window.location.href)
-            // Show fallback UI after a short delay (in case redirect didn't work)
-            const timer = setTimeout(() => setShowGate(true), 1500)
-            return () => clearTimeout(timer)
-        }
-
-        // iOS or other: show gate immediately
-        setShowGate(true)
-    }, [attempted])
-
-    if (!showGate) return <>{children}</>
-
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : ''
-
+function GateUi({
+    currentUrl,
+    attemptingExternalOpen,
+    onOpen,
+    onContinue,
+}: {
+    currentUrl: string
+    attemptingExternalOpen: boolean
+    onOpen: () => void
+    onContinue: () => void
+}) {
     return (
         <div style={{
             minHeight: '100vh',
@@ -104,7 +90,7 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
                 </div>
 
                 <h2 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: 700 }}>
-                    Open in Browser
+                    {attemptingExternalOpen ? 'Opening Browser…' : 'Open in Browser'}
                 </h2>
 
                 <p style={{ color: '#9ca0b3', fontSize: '14px', margin: 0, lineHeight: 1.5 }}>
@@ -113,7 +99,7 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
                 </p>
 
                 <button
-                    onClick={() => tryOpenSystemBrowser(currentUrl)}
+                    onClick={onOpen}
                     style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -184,7 +170,7 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
                 </div>
 
                 <button
-                    onClick={() => setShowGate(false)}
+                    onClick={onContinue}
                     style={{
                         background: 'none',
                         border: 'none',
@@ -199,4 +185,51 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
             </div>
         </div>
     )
+}
+
+export default function InAppBrowserGate({ children }: { children: React.ReactNode }) {
+    const [showGate, setShowGate] = useState(false)
+    const [attempted, setAttempted] = useState(false)
+    const [attemptingExternalOpen, setAttemptingExternalOpen] = useState(false)
+
+    useLayoutEffect(() => {
+        if (!isInAppBrowser()) return
+
+        if (isAndroid() && !attempted) {
+            setShowGate(true)
+            setAttemptingExternalOpen(true)
+            setAttempted(true)
+            tryOpenSystemBrowser(window.location.href)
+
+            const timer = setTimeout(() => setAttemptingExternalOpen(false), 1500)
+            return () => clearTimeout(timer)
+        }
+
+        setShowGate(true)
+    }, [attempted])
+
+    useEffect(() => {
+        if (!isInAppBrowser()) return
+        if (isAndroid() || attempted) return
+
+        setShowGate(true)
+    }, [attempted])
+
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : ''
+
+    if (showGate || attemptingExternalOpen) {
+        return (
+            <GateUi
+                currentUrl={currentUrl}
+                attemptingExternalOpen={attemptingExternalOpen}
+                onOpen={() => tryOpenSystemBrowser(currentUrl)}
+                onContinue={() => {
+                    setAttemptingExternalOpen(false)
+                    setShowGate(false)
+                }}
+            />
+        )
+    }
+
+    return <>{children}</>
 }

@@ -1,5 +1,10 @@
 export const EXTERNAL_BROWSER_HANDOFF_STORAGE_KEY = 'instantmeeting:external-browser-handoff'
 const EXTERNAL_BROWSER_HANDOFF_TTL_MS = 15_000
+const IN_APP_BROWSER_REGEX = /FBAN|FBAV|Messenger|Instagram|musical_ly|BytedanceWebview|MicroMessenger|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i
+
+export function isLikelyInAppBrowserUserAgent(userAgent: string | null | undefined): boolean {
+    return IN_APP_BROWSER_REGEX.test(userAgent || '')
+}
 
 export function normalizeGuestName(value: string | null | undefined): string | null {
     if (!value) return null
