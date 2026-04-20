@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import bcrypt from 'bcryptjs'
 import { v2 as cloudinary } from 'cloudinary'
 
+import { sendInstantMeetingMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
+
 export const dynamic = 'force-dynamic'
 
 cloudinary.config({
@@ -23,6 +25,21 @@ function normalizeEmail(v: unknown) {
     return typeof v === 'string' ? v.toLowerCase().trim() : ''
 }
 
+function normalizeOptionalText(v: unknown) {
+    return typeof v === 'string' ? v.trim() || null : null
+}
+
+function getClientIpAddress(req: NextRequest): string | null {
+    const forwarded = req.headers.get('x-forwarded-for')
+    if (forwarded) {
+        const first = forwarded.split(',')[0]?.trim()
+        if (first) return first
+    }
+
+    const realIp = req.headers.get('x-real-ip')?.trim()
+    return realIp || null
+}
+
 export async function POST(req: NextRequest) {
     let form: FormData
     try {
@@ -36,6 +53,10 @@ export async function POST(req: NextRequest) {
     const phone = (form.get('phone') as string | null)?.trim() || null
     const password = (form.get('password') as string | null) || ''
     const file = form.get('receipt') as File | null
+    const fbp = normalizeOptionalText(form.get('fbp'))
+    const fbc = normalizeOptionalText(form.get('fbc'))
+    const fbclid = normalizeOptionalText(form.get('fbclid'))
+    const pageUrl = normalizeOptionalText(form.get('page_url')) || req.nextUrl.origin
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return NextResponse.json({ error: 'Valid email is required.' }, { status: 400 })
@@ -153,6 +174,19 @@ export async function POST(req: NextRequest) {
             { status: 500 }
         )
     }
+
+    void sendInstantMeetingMetaCapiEvent(supabase, {
+        trigger: 'payment_review_submit',
+        eventSourceUrl: pageUrl,
+        email,
+        phone,
+        name,
+        clientIpAddress: getClientIpAddress(req),
+        clientUserAgent: req.headers.get('user-agent'),
+        fbp,
+        fbc,
+        fbclid,
+    })
 
     return NextResponse.json({
         success: true,

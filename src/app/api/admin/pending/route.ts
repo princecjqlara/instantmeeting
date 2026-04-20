@@ -100,17 +100,6 @@ export async function PATCH(req: NextRequest) {
             .eq('id', id)
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-        void sendInstantMeetingMetaCapiEvent(supabase, {
-            organizerId: organizer.id,
-            trigger: 'admin_reject',
-            eventSourceUrl: `${req.nextUrl.origin}/admin`,
-            email: pending.email,
-            phone: pending.phone,
-            name: pending.name,
-            clientIpAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
-            clientUserAgent: req.headers.get('user-agent'),
-        })
-
         return NextResponse.json({ success: true, action: 'reject' })
     }
 

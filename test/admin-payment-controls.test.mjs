@@ -10,7 +10,7 @@ test('admin page exposes InstantMeeting Meta CAPI settings and payment pipeline 
     assert.ok(source.includes('Meta dataset id'))
     assert.ok(source.includes('Meta test event code'))
     assert.ok(source.includes('Landing page visit'))
-    assert.ok(source.includes('Admin reject'))
+    assert.ok(source.includes('Receipt submitted'))
     assert.ok(source.includes('Admin verify'))
     assert.ok(source.includes('₱699'))
     assert.ok(source.includes("/api/profile/settings"))

@@ -2,7 +2,7 @@ export const INSTANTMEETING_PAYMENT_PIPELINE_STAGES = ['unqualified', 'sold'] as
 export const INSTANTMEETING_SOLD_VALUE_PHP = 699
 
 export type InstantMeetingPaymentStage = (typeof INSTANTMEETING_PAYMENT_PIPELINE_STAGES)[number]
-export type InstantMeetingPaymentTrigger = 'website_visit' | 'admin_reject' | 'admin_verify'
+export type InstantMeetingPaymentTrigger = 'website_visit' | 'payment_review_submit' | 'admin_verify'
 
 interface TriggerResolution {
     trigger: InstantMeetingPaymentTrigger
@@ -22,7 +22,7 @@ export function resolveInstantMeetingPaymentTrigger(
                 eventName: 'PageView',
                 value: null,
             }
-        case 'admin_reject':
+        case 'payment_review_submit':
             return {
                 trigger,
                 pipelineStage: 'unqualified',
@@ -37,4 +37,6 @@ export function resolveInstantMeetingPaymentTrigger(
                 value: INSTANTMEETING_SOLD_VALUE_PHP,
             }
     }
+
+    throw new Error(`Unknown InstantMeeting payment trigger: ${String(trigger)}`)
 }

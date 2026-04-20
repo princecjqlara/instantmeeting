@@ -24,8 +24,8 @@ test('payment triggers map to the expected pipeline stages', () => {
         value: null,
     })
 
-    assert.deepEqual(resolveInstantMeetingPaymentTrigger('admin_reject'), {
-        trigger: 'admin_reject',
+    assert.deepEqual(resolveInstantMeetingPaymentTrigger('payment_review_submit'), {
+        trigger: 'payment_review_submit',
         pipelineStage: 'unqualified',
         eventName: 'Lead',
         value: null,
@@ -66,4 +66,17 @@ test('buildInstantMeetingMetaEvent hashes identity fields and sets purchase valu
     assert.equal(event.user_data.client_user_agent, 'InstantMeetingTest/1.0')
     assert.equal(event.user_data.fbp, 'fb.1.123456.abcdef')
     assert.equal(event.user_data.fbc, 'fb.1.123456.test-click')
+})
+
+test('buildInstantMeetingMetaEvent marks receipt review submits as Lead events', () => {
+    const event = buildInstantMeetingMetaEvent({
+        trigger: 'payment_review_submit',
+        eventSourceUrl: 'https://instantmeeting.ai/',
+        email: 'lead@example.com',
+    })
+
+    assert.equal(event.event_name, 'Lead')
+    assert.equal(event.custom_data.pipeline_stage, 'unqualified')
+    assert.equal(event.custom_data.pipeline_trigger, 'payment_review_submit')
+    assert.ok(!('value' in event.custom_data))
 })

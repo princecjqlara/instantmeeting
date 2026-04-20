@@ -12,4 +12,5 @@ test('qualified leads are evaluated for auto-admit before offline-host booking f
     assert.notEqual(hostInactiveIndex, -1)
     assert.ok(qualifiedIndex < hostInactiveIndex)
     assert.ok(source.includes("if (hostActive && err.availabilityReason === 'no_clocked_in')"))
+    assert.ok(!source.includes('maybeSendInstantMeetingQualifiedLeadEvent'))
 })

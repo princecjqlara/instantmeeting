@@ -295,9 +295,9 @@ export default function AdminPage() {
                             <p>Send an unqualified event as soon as someone visits the InstantMeeting sales page.</p>
                         </div>
                         <div className={styles.pipelineStepCard}>
-                            <span className={styles.pipelineBadge}>unqualified</span>
-                            <strong>Admin reject</strong>
-                            <p>Rejected receipts stay in the unqualified stage so the ads pipeline stays clean.</p>
+                            <span className={styles.pipelineBadge}>lead</span>
+                            <strong>Receipt submitted</strong>
+                            <p>Submitting a payment receipt fires the Lead event so Meta can optimize for review-ready signups.</p>
                         </div>
                         <div className={styles.pipelineStepCard}>
                             <span className={`${styles.pipelineBadge} ${styles.pipelineSoldBadge}`}>sold</span>
@@ -309,11 +309,11 @@ export default function AdminPage() {
                     </div>
 
                     <div className={styles.paymentMetaRow}>
-                        <span>Stages: {INSTANTMEETING_PAYMENT_PIPELINE_STAGES.join(' → ')}</span>
+                        <span>Events: PageView → Lead → Purchase</span>
                         <span>Sold value: ₱{INSTANTMEETING_SOLD_VALUE_PHP}</span>
                     </div>
 
-                    <p className={styles.paymentIntro}>Fixed purchase value: ₱699 after admin verification.</p>
+                    <p className={styles.paymentIntro}>Lead fires on receipt submission. Purchase stays fixed at ₱699 after admin verification.</p>
 
                     {paymentSettingsMsg && <p className={styles.successMsg}>{paymentSettingsMsg}</p>}
                     {paymentSettingsError && <p className={styles.errorMsg}>{paymentSettingsError}</p>}

@@ -10,7 +10,7 @@ export function resolveInstantMeetingPaymentTrigger(trigger) {
                 eventName: 'PageView',
                 value: null,
             }
-        case 'admin_reject':
+        case 'payment_review_submit':
             return {
                 trigger,
                 pipelineStage: 'unqualified',
@@ -24,7 +24,7 @@ export function resolveInstantMeetingPaymentTrigger(trigger) {
                 eventName: 'Purchase',
                 value: INSTANTMEETING_SOLD_VALUE_PHP,
             }
-        default:
-            throw new Error(`Unknown InstantMeeting payment trigger: ${trigger}`)
     }
+
+    throw new Error(`Unknown InstantMeeting payment trigger: ${trigger}`)
 }

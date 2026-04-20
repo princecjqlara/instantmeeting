@@ -471,11 +471,28 @@ function SignupModal({
         setSubmitting(true)
         try {
             const fd = new FormData()
+            const readCookie = (name: string) => {
+                if (typeof document === 'undefined') return null
+                const hit = document.cookie
+                    .split('; ')
+                    .find((chunk) => chunk.startsWith(`${name}=`))
+                return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+            }
+
+            const pageUrl = typeof window !== 'undefined' ? window.location.href : 'https://instantmeeting.ai/'
+            const fbclid = typeof window !== 'undefined' ? new URL(window.location.href).searchParams.get('fbclid') : null
+
             fd.append('name', name)
             fd.append('email', email)
             fd.append('phone', phone)
             fd.append('password', password)
             fd.append('receipt', receipt)
+            if (pageUrl) fd.append('page_url', pageUrl)
+            if (fbclid) fd.append('fbclid', fbclid)
+            const fbp = readCookie('_fbp')
+            const fbc = readCookie('_fbc')
+            if (fbp) fd.append('fbp', fbp)
+            if (fbc) fd.append('fbc', fbc)
             const res = await fetch('/api/signup', { method: 'POST', body: fd })
             const data = await res.json()
             if (!res.ok) {
