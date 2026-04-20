@@ -10,8 +10,8 @@ import { buildPaginationItems, paginateItems } from '@/lib/pagination'
 import {
     DEFAULT_LEADS_PIPELINE_STAGES,
     canManuallyMoveLeadToStage,
-    deriveLeadPipelineStage,
     normalizeLeadsPipelineStages,
+    resolveStoredLeadPipelineStage,
 } from '@/lib/lead-pipeline'
 import {
     FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
@@ -54,15 +54,43 @@ interface Lead {
 }
 
 function resolveLeadStage(lead: Pick<Lead, 'pipeline_stage' | 'status' | 'joined_at' | 'qualification_verdict' | 'is_draft'>): string {
-    return (
-        lead.pipeline_stage ||
-        deriveLeadPipelineStage({
-            submittedAt: lead.status === 'draft' ? null : lead.joined_at,
-            qualificationVerdict: lead.qualification_verdict || null,
-            currentStage: lead.pipeline_stage,
-            isDraft: lead.is_draft,
+    return resolveStoredLeadPipelineStage({
+        currentStage: lead.pipeline_stage,
+        submittedAt: lead.status === 'draft' ? null : lead.joined_at,
+        qualificationVerdict: lead.qualification_verdict || null,
+        isDraft: lead.is_draft,
+    })
+}
+
+function matchesLeadSearch(lead: Lead, query: string): boolean {
+    const q = query.toLowerCase().trim()
+    if (!q) return true
+
+    if (lead.guest_name?.toLowerCase().includes(q)) return true
+    if (lead.meetings?.title?.toLowerCase().includes(q)) return true
+    if (lead.guest_email?.toLowerCase().includes(q)) return true
+    if (lead.guest_phone?.toLowerCase().includes(q)) return true
+    if (lead.note?.toLowerCase().includes(q)) return true
+    if ((lead.tags || []).some((tag) => tag.toLowerCase().includes(q))) return true
+
+    if (
+        (lead.lead_answers || []).some((answer) => {
+            const value = Array.isArray(answer.answer) ? answer.answer.join(' ') : String(answer.answer || '')
+            return value.toLowerCase().includes(q) || (answer.question_text || '').toLowerCase().includes(q)
         })
-    )
+    ) {
+        return true
+    }
+
+    if (
+        (lead.custom_fields || []).some(
+            (field) => (field.label || '').toLowerCase().includes(q) || (field.value || '').toLowerCase().includes(q)
+        )
+    ) {
+        return true
+    }
+
+    return false
 }
 
 const pillBtn = (active: boolean): React.CSSProperties => ({
@@ -104,8 +132,11 @@ export default function LeadsPage() {
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1)
     const [summaryPage, setSummaryPage] = useState(1)
+    const [pipelineSearchQuery, setPipelineSearchQuery] = useState('')
+    const [stagePages, setStagePages] = useState<Record<string, number>>({})
     const leadsPerPage = 12
     const summaryRowsPerPage = 10
+    const stageLeadsPerPage = 6
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -170,39 +201,13 @@ export default function LeadsPage() {
         }
 
         if (searchQuery) {
-            const q = searchQuery.toLowerCase()
-            filtered = filtered.filter((lead) => {
-                if (lead.guest_name?.toLowerCase().includes(q)) return true
-                if (lead.meetings?.title?.toLowerCase().includes(q)) return true
-                if (lead.guest_email?.toLowerCase().includes(q)) return true
-                if (lead.guest_phone?.toLowerCase().includes(q)) return true
-                if (lead.note?.toLowerCase().includes(q)) return true
-                if ((lead.tags || []).some((t) => t.toLowerCase().includes(q))) return true
-                if (
-                    (lead.lead_answers || []).some((a) => {
-                        const v = Array.isArray(a.answer) ? a.answer.join(' ') : String(a.answer || '')
-                        return (
-                            v.toLowerCase().includes(q) ||
-                            (a.question_text || '').toLowerCase().includes(q)
-                        )
-                    })
-                )
-                    return true
-                if (
-                    (lead.custom_fields || []).some(
-                        (f) =>
-                            (f.label || '').toLowerCase().includes(q) ||
-                            (f.value || '').toLowerCase().includes(q)
-                    )
-                )
-                    return true
-                return false
-            })
+            filtered = filtered.filter((lead) => matchesLeadSearch(lead, searchQuery))
         }
 
         setFilteredLeads(filtered)
         setCurrentPage(1) // Reset to first page when filters change
         setSummaryPage(1)
+        setStagePages({})
     }, [statusFilter, dataFilter, tagFilter, searchQuery, leads])
 
     const formatDate = (dateString: string) => {
@@ -311,11 +316,20 @@ export default function LeadsPage() {
     const leadPages = buildPaginationItems(leadCardsPagination.currentPage, leadCardsPagination.totalPages)
 
     const groupedPipelineLeads = useMemo(() => {
-        return pipelineStages.map((stage) => ({
-            stage,
-            leads: filteredLeads.filter((lead) => resolveLeadStage(lead) === stage),
-        }))
-    }, [filteredLeads, pipelineStages])
+        return pipelineStages.map((stage) => {
+            const scopedLeads = filteredLeads.filter(
+                (lead) => resolveLeadStage(lead) === stage && matchesLeadSearch(lead, pipelineSearchQuery)
+            )
+
+            const pagination = paginateItems(scopedLeads, stagePages[stage] || 1, stageLeadsPerPage)
+
+            return {
+                stage,
+                leads: scopedLeads,
+                pagination,
+            }
+        })
+    }, [filteredLeads, pipelineSearchQuery, pipelineStages, stagePages])
 
     const updateLeadLocally = (leadId: string, updater: (lead: Lead) => Lead) => {
         setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updater(lead) : lead)))
@@ -907,6 +921,17 @@ export default function LeadsPage() {
                             <p className={styles.pipelineBoardDescription}>
                                 Review every active stage like a kanban board, then use the summary table below for the full timeline.
                             </p>
+                            <div className={styles.pipelineSearchBox}>
+                                <FaSearch />
+                                <input
+                                    value={pipelineSearchQuery}
+                                    onChange={(e) => {
+                                        setPipelineSearchQuery(e.target.value)
+                                        setStagePages({})
+                                    }}
+                                    placeholder="Search people, answers, notes, tags across all stages..."
+                                />
+                            </div>
                         </div>
                         <div className={styles.summaryHeaderBadges}>
                             <span className={styles.summaryBadge}>{filteredLeads.length} visible leads</span>
@@ -915,7 +940,7 @@ export default function LeadsPage() {
                     </div>
 
                     <div className={styles.pipelineBoard}>
-                        {groupedPipelineLeads.map(({ stage, leads: stageLeads }) => (
+                        {groupedPipelineLeads.map(({ stage, leads: stageLeads, pagination }) => (
                             <div
                                 key={stage}
                                 className={styles.pipelineColumn}
@@ -934,7 +959,7 @@ export default function LeadsPage() {
                                 </div>
 
                                 <div className={styles.pipelineColumnBody}>
-                                    {stageLeads.map((lead) => (
+                                    {pagination.items.map((lead) => (
                                         <button
                                             key={lead.id}
                                             type="button"
@@ -967,6 +992,42 @@ export default function LeadsPage() {
                                         <div className={styles.pipelineEmpty}>No leads in this stage</div>
                                     )}
                                 </div>
+
+                                {pagination.totalPages > 1 && (
+                                    <div className={styles.pipelineStagePagination}>
+                                        <button
+                                            type="button"
+                                            className={styles.pageBtn}
+                                            onClick={() =>
+                                                setStagePages((prev) => ({
+                                                    ...prev,
+                                                    [stage]: Math.max(1, (prev[stage] || 1) - 1),
+                                                }))
+                                            }
+                                            disabled={pagination.currentPage === 1}
+                                            aria-label={`Previous ${stage} page`}
+                                        >
+                                            ←
+                                        </button>
+                                        <span className={styles.pipelineStagePageMeta}>
+                                            Page {pagination.currentPage}/{pagination.totalPages}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className={styles.pageBtn}
+                                            onClick={() =>
+                                                setStagePages((prev) => ({
+                                                    ...prev,
+                                                    [stage]: Math.min(pagination.totalPages, (prev[stage] || 1) + 1),
+                                                }))
+                                            }
+                                            disabled={pagination.currentPage === pagination.totalPages}
+                                            aria-label={`Next ${stage} page`}
+                                        >
+                                            →
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { canManuallyMoveLeadToStage, deriveLeadPipelineStage } from '@/lib/lead-pipeline'
+import { canManuallyMoveLeadToStage, deriveLeadPipelineStage, resolveStoredLeadPipelineStage } from '@/lib/lead-pipeline'
 
 export const dynamic = 'force-dynamic'
 
@@ -157,17 +157,17 @@ export async function GET(req: NextRequest) {
 
     const normalizedLeads = (leads || []).map((lead: Record<string, unknown>) => ({
         ...lead,
-        pipeline_stage:
-            lead.pipeline_stage ||
-            deriveLeadPipelineStage({
-                submittedAt: typeof lead.submitted_at === 'string' ? lead.submitted_at : null,
-                qualificationVerdict:
-                    lead.qualification_verdict === 'qualified' ||
-                    lead.qualification_verdict === 'unqualified' ||
-                    lead.qualification_verdict === 'review'
-                        ? lead.qualification_verdict
-                        : null,
-            }),
+        pipeline_stage: resolveStoredLeadPipelineStage({
+            currentStage: typeof lead.pipeline_stage === 'string' ? lead.pipeline_stage : null,
+            submittedAt: typeof lead.submitted_at === 'string' ? lead.submitted_at : null,
+            qualificationVerdict:
+                lead.qualification_verdict === 'qualified' ||
+                lead.qualification_verdict === 'unqualified' ||
+                lead.qualification_verdict === 'review'
+                    ? lead.qualification_verdict
+                    : null,
+            isDraft: false,
+        }),
         is_draft: false,
     }))
 

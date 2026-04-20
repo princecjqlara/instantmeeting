@@ -14,6 +14,8 @@ interface DeriveLeadPipelineStageInput {
     isDraft?: boolean
 }
 
+export type ResolveStoredLeadPipelineStageInput = DeriveLeadPipelineStageInput
+
 interface ManualMoveInput {
     from?: string | null
     to?: string | null
@@ -63,6 +65,16 @@ export function deriveLeadPipelineStage(input: DeriveLeadPipelineStageInput): st
         default:
             return ''
     }
+}
+
+export function resolveStoredLeadPipelineStage(input: ResolveStoredLeadPipelineStageInput): string {
+    const currentStage = normalizeStageValue(input.currentStage)
+
+    if (currentStage && currentStage !== 'prospect') {
+        return currentStage
+    }
+
+    return deriveLeadPipelineStage(input)
 }
 
 export function canManuallyMoveLeadToStage(input: ManualMoveInput): boolean {

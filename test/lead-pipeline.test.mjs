@@ -6,6 +6,7 @@ import {
     deriveLeadPipelineStage,
     normalizeLeadsPipelineStages,
     canManuallyMoveLeadToStage,
+    resolveStoredLeadPipelineStage,
 } from '../src/lib/lead-pipeline.ts'
 
 test('normalizeLeadsPipelineStages returns default ordered stages', () => {
@@ -37,6 +38,30 @@ test('deriveLeadPipelineStage does not auto-place submitted leads without a verd
     assert.equal(
         deriveLeadPipelineStage({ submittedAt: '2026-04-20T10:00:00.000Z', qualificationVerdict: null }),
         ''
+    )
+})
+
+test('resolveStoredLeadPipelineStage clears stale prospect for submitted leads without verdict', () => {
+    assert.equal(
+        resolveStoredLeadPipelineStage({
+            currentStage: 'prospect',
+            submittedAt: '2026-04-20T10:00:00.000Z',
+            qualificationVerdict: null,
+            isDraft: false,
+        }),
+        ''
+    )
+})
+
+test('resolveStoredLeadPipelineStage preserves non-prospect stored stage', () => {
+    assert.equal(
+        resolveStoredLeadPipelineStage({
+            currentStage: 'qualified',
+            submittedAt: '2026-04-20T10:00:00.000Z',
+            qualificationVerdict: null,
+            isDraft: false,
+        }),
+        'qualified'
     )
 })
 

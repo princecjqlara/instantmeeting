@@ -363,6 +363,38 @@
     margin-bottom: 6px;
 }
 
+.pipelineSearchBox {
+    position: relative;
+    margin-top: 14px;
+    max-width: 480px;
+}
+
+.pipelineSearchBox svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.pipelineSearchBox input {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 14px 10px 40px;
+    background: rgba(7, 10, 20, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.pipelineSearchBox input:focus {
+    outline: none;
+    border-color: rgba(129, 140, 248, 0.85);
+    box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.14);
+}
+
 .summaryHeaderBadges {
     display: flex;
     flex-wrap: wrap;
@@ -592,6 +624,26 @@
     color: var(--text-secondary);
     font-size: 14px;
     text-align: center;
+}
+
+.pipelineStagePagination {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.pipelineStagePagination .pageBtn {
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0;
+}
+
+.pipelineStagePageMeta {
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .pipelineSummarySection {
@@ -1387,6 +1439,10 @@
 
     .pipelineBoard {
         grid-auto-columns: minmax(84vw, 1fr);
+    }
+
+    .pipelineSearchBox {
+        max-width: none;
     }
 
     .timezoneBadge {
