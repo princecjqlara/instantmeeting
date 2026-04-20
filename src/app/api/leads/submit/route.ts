@@ -257,22 +257,6 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // Host offline / outside availability window → show a booking
-    // calendar instead of stranding the lead. The lead is still saved.
-    if (!hostActive) {
-        return NextResponse.json({
-            verdict: 'needs_booking',
-            score: qualification.score,
-            reasoning: qualification.reasoning,
-            meeting_id: meeting.id,
-            guest_id: guest.id,
-            host: bookingHost,
-            message:
-                form.unqualified_message ||
-                "The host isn't available right now — pick a time that works for you.",
-        })
-    }
-
     // Qualified → auto-admit straight into the room, but only if a team
     // member is actually available to take the call. Solo hosts (no team)
     // still pass through; if a team exists but nobody is clocked in or
@@ -301,7 +285,7 @@ export async function POST(req: NextRequest) {
                 // Host is active but the team clock isn't in use right now
                 // (no teammates clocked in). The host handles the call
                 // themselves instead of stranding the lead in a booking flow.
-                if (err.availabilityReason === 'no_clocked_in') {
+                if (hostActive && err.availabilityReason === 'no_clocked_in') {
                     try {
                         return await admitAndRespond(false)
                     } catch (retryErr) {
@@ -322,6 +306,23 @@ export async function POST(req: NextRequest) {
             }
             console.error('Auto-admit failed, falling back to waiting room:', err)
         }
+    }
+
+    // Host offline / outside availability window → show a booking
+    // calendar instead of stranding the lead. Qualified leads already
+    // got a chance to auto-admit via an available team member above.
+    if (!hostActive) {
+        return NextResponse.json({
+            verdict: 'needs_booking',
+            score: qualification.score,
+            reasoning: qualification.reasoning,
+            meeting_id: meeting.id,
+            guest_id: guest.id,
+            host: bookingHost,
+            message:
+                form.unqualified_message ||
+                "The host isn't available right now — pick a time that works for you.",
+        })
     }
 
     // Unqualified → stay out on hard disqualify or when host disables fallback
