@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,8 +74,23 @@ export async function GET(
 
     const meeting = newMeeting
 
+    const { data: guest, error: guestError } = await supabase
+        .from('waiting_guests')
+        .insert({
+            meeting_id: meeting.id,
+            guest_name: 'Guest',
+            status: 'waiting',
+        })
+        .select('id')
+        .single()
+
+    if (guestError || !guest) {
+        console.error('Failed to create universal-link guest:', guestError)
+        return NextResponse.redirect(new URL(`/?error=create_failed&username=${encodeURIComponent(normalizedUsername)}`, req.url))
+    }
+
     console.log('Redirecting to waiting room:', meeting.id)
 
     // Redirect to waiting room - this IS the preview/live experience
-    return NextResponse.redirect(new URL(`/waiting/${meeting.id}`, req.url))
+    return NextResponse.redirect(new URL(buildGuestWaitingPath(meeting.id, guest.id, 'Guest'), req.url))
 }

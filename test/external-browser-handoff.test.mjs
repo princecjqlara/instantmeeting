@@ -58,6 +58,13 @@ test('join route forwards guest context into room or waiting URLs', () => {
     assert.ok(source.includes('buildGuestWaitingPath'))
 })
 
+test('universal link route creates a guest and redirects with guest context', () => {
+    const source = readFileSync(new URL('../src/app/join/[username]/route.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes("from('waiting_guests')"))
+    assert.ok(source.includes('buildGuestWaitingPath'))
+})
+
 test('room page restores guest identity from query string for external browsers', () => {
     const source = readFileSync(new URL('../src/app/room/[roomId]/page.tsx', import.meta.url), 'utf8')
 
@@ -66,10 +73,12 @@ test('room page restores guest identity from query string for external browsers'
     assert.ok(source.includes('<InAppBrowserGate>'))
 })
 
-test('waiting page stores guest identity and suppresses left-status on external-browser handoff', () => {
+test('waiting page persists guest identity into the URL for external-browser handoff', () => {
     const source = readFileSync(new URL('../src/app/waiting/[meetingId]/page.tsx', import.meta.url), 'utf8')
 
     assert.ok(source.includes('guestName'))
     assert.ok(source.includes('getGuestNameFromSearch'))
     assert.ok(source.includes('consumeExternalBrowserHandoff'))
+    assert.ok(source.includes('buildGuestWaitingPath'))
+    assert.ok(source.includes('window.history.replaceState'))
 })

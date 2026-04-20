@@ -10,6 +10,7 @@ import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
 import InAppBrowserGate from '@/components/InAppBrowserGate'
 import {
+    buildGuestWaitingPath,
     buildGuestRoomPath,
     consumeExternalBrowserHandoff,
     getGuestNameFromSearch,
@@ -169,16 +170,25 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
                 if (createRes.ok) {
                     const created = await createRes.json()
+                    const waitingPath = buildGuestWaitingPath(meetingId, created.id, guestNameFromQuery || 'Guest')
 
                     try {
                         localStorage.setItem(guestStorageKey, created.id)
                     } catch (error) {
                         // Silently fail on localStorage errors
                     }
+
+                    if (typeof window !== 'undefined' && window.location.pathname + window.location.search !== waitingPath) {
+                        window.history.replaceState(null, '', waitingPath)
+                    }
+
                     if (isMounted) {
                         setData(prev => prev ? {
                             ...prev,
                             guest: { id: created.id, status: created.status },
+                            meetLink: created.join_token
+                                ? `${window.location.origin}/api/join/${created.join_token}`
+                                : prev.meetLink,
                             assignedMember: created.assigned_member || prev.assignedMember,
                             autoScheduleRequired: Boolean(created.autoScheduleRequired),
                             autoScheduleReason: created.autoScheduleReason || null,
@@ -293,6 +303,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             // Ignore localStorage errors
         }
     }, [guestIdFromQuery, guestNameFromQuery, meetingId])
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !data?.guest?.id) {
+            return
+        }
+
+        const waitingPath = buildGuestWaitingPath(meetingId, data.guest.id, guestNameForRoom)
+        const currentPath = `${window.location.pathname}${window.location.search}`
+
+        if (currentPath !== waitingPath) {
+            window.history.replaceState(null, '', waitingPath)
+        }
+    }, [data?.guest?.id, guestNameForRoom, meetingId])
 
     useEffect(() => {
         if (data?.meeting?.reschedule_requested) {
@@ -496,8 +519,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         )
     }
 
-    // Room link is now always /room/{meetingId} (in-app WebRTC room)
-    const roomLink = buildGuestRoomPath(meetingId, guestNameForRoom)
+    const roomLink = data?.meetLink || buildGuestRoomPath(meetingId, guestNameForRoom)
     const isAdmitted = data?.guest?.status === 'admitted'
     const isWaiting = data?.guest?.status === 'waiting'
     const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
