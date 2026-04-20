@@ -73,6 +73,15 @@ function deriveName(answers: LeadAnswer[], fallback: string): string {
     return fallback
 }
 
+function normalizeLeadSessionToken(value: unknown): string | null {
+    if (typeof value !== 'string') {
+        return null
+    }
+
+    const normalized = value.trim()
+    return normalized || null
+}
+
 export async function POST(req: NextRequest) {
     const body = await req.json()
     const { formSlug, sessionToken, answers, guestName, guestEmail, guestPhone, hp } = body || {}
@@ -154,18 +163,35 @@ export async function POST(req: NextRequest) {
     const resolvedEmail = guestEmail || pickFromAnswers(answers, 'email')
     const resolvedPhone = guestPhone || pickFromAnswers(answers, 'phone')
     const resolvedName = guestName || deriveName(answers, 'Lead')
+    const normalizedSessionToken = normalizeLeadSessionToken(sessionToken)
 
-    // Run AI qualification in parallel with creating the meeting row — the
-    // meeting insert doesn't depend on the qualification verdict, so this
-    // halves perceived submit latency when the AI call is the long pole.
-    const [qualification, meetingResult] = await Promise.all([
+    const [qualification, existingLeadSessionResult] = await Promise.all([
         qualifyLead({
             criteria: form.ai_criteria || '',
             threshold: form.auto_admit_threshold || 70,
             questions: qs,
             answers: answers as LeadAnswer[],
         }),
-        supabase
+        normalizedSessionToken
+            ? supabase
+                .from('waiting_guests')
+                .select('id, meeting_id, status')
+                .eq('lead_session_token', normalizedSessionToken)
+                .maybeSingle()
+            : Promise.resolve({ data: null, error: null }),
+    ])
+
+    const { data: existingLeadSession, error: existingLeadSessionErr } = existingLeadSessionResult
+
+    if (existingLeadSessionErr) {
+        console.error('Existing lead session lookup failed:', existingLeadSessionErr)
+        return NextResponse.json({ error: 'Failed to save lead' }, { status: 500 })
+    }
+
+    let meeting = existingLeadSession?.meeting_id ? { id: existingLeadSession.meeting_id } : null
+
+    if (!meeting) {
+        const { data: createdMeeting, error: meetingErr } = await supabase
             .from('meetings')
             .insert({
                 user_id: form.user_id,
@@ -173,37 +199,50 @@ export async function POST(req: NextRequest) {
                 status: 'active',
             })
             .select('id')
-            .single(),
-    ])
+            .single()
 
-    const { data: meeting, error: meetingErr } = meetingResult
+        if (meetingErr || !createdMeeting) {
+            console.error('Meeting create failed:', meetingErr)
+            return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 })
+        }
 
-    if (meetingErr || !meeting) {
-        console.error('Meeting create failed:', meetingErr)
-        return NextResponse.json({ error: 'Failed to create meeting' }, { status: 500 })
+        meeting = createdMeeting
     }
 
-    // Persist the lead as a waiting_guest row
     const pipelineStage = deriveLeadPipelineStage({
         submittedAt: new Date().toISOString(),
         qualificationVerdict: qualification.verdict,
     })
-    const { data: guest, error: guestErr } = await insertWaitingGuestWithCompat<{ id: string }>(supabase, {
-            meeting_id: meeting.id,
-            guest_name: resolvedName,
-            guest_email: resolvedEmail,
-            guest_phone: resolvedPhone,
-            status: 'waiting',
-            lead_form_id: form.id,
-            lead_answers: answers,
-            qualification_score: qualification.score,
-            qualification_verdict: qualification.verdict,
-            qualification_reasoning: qualification.reasoning,
-            lead_session_token: sessionToken || null,
-            submitted_at: new Date().toISOString(),
-            pipeline_stage: pipelineStage,
-            pipeline_stage_changed_at: new Date().toISOString(),
-        })
+    const guestPayload = {
+        meeting_id: meeting.id,
+        guest_name: resolvedName,
+        guest_email: resolvedEmail,
+        guest_phone: resolvedPhone,
+        status: existingLeadSession?.status === 'admitted' ? 'admitted' : 'waiting',
+        lead_form_id: form.id,
+        lead_answers: answers,
+        qualification_score: qualification.score,
+        qualification_verdict: qualification.verdict,
+        qualification_reasoning: qualification.reasoning,
+        lead_session_token: normalizedSessionToken,
+        submitted_at: new Date().toISOString(),
+        pipeline_stage: pipelineStage,
+        pipeline_stage_changed_at: new Date().toISOString(),
+    }
+
+    const guestResult = existingLeadSession?.id
+        ? (() => {
+            const { meeting_id: _ignoredMeetingId, ...guestUpdatePayload } = guestPayload
+            return supabase
+                .from('waiting_guests')
+                .update(guestUpdatePayload)
+                .eq('id', existingLeadSession.id)
+                .select('id, status, join_token')
+                .single()
+        })()
+        : insertWaitingGuestWithCompat<{ id: string; status?: string | null; join_token?: string | null }>(supabase, guestPayload)
+
+    const { data: guest, error: guestErr } = await guestResult
 
     if (guestErr || !guest) {
         console.error('Waiting guest insert failed:', guestErr)
