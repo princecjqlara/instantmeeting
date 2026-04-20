@@ -2,17 +2,7 @@ interface ErrorLike {
     message?: string | null
 }
 
-const OPTIONAL_WAITING_GUEST_COLUMNS = [
-    'pipeline_stage_changed_at',
-    'submitted_at',
-    'lead_session_token',
-    'qualification_reasoning',
-    'qualification_score',
-    'lead_answers',
-    'pipeline_stage',
-] as const
-
-type OptionalWaitingGuestColumn = (typeof OPTIONAL_WAITING_GUEST_COLUMNS)[number]
+const REQUIRED_WAITING_GUEST_COLUMNS = new Set(['meeting_id', 'guest_name', 'status'])
 
 type InsertResult<T> = {
     data: T | null
@@ -51,18 +41,45 @@ export function isMissingWaitingGuestsColumnError(
     return postgresMissingColumn || postgrestSchemaCacheMiss
 }
 
+function getMissingWaitingGuestsColumn(error: ErrorLike | null | undefined): string | null {
+    const message = error?.message || ''
+
+    const schemaCacheMatch = message.match(/'([^']+)' column of 'waiting_guests'/i)
+    if (schemaCacheMatch?.[1]) {
+        return schemaCacheMatch[1]
+    }
+
+    const postgresMatch = message.match(/waiting_guests\.(?:"([^"]+)"|([a-z0-9_]+))/i)
+    if (postgresMatch?.[1]) {
+        return postgresMatch[1]
+    }
+
+    if (postgresMatch?.[2]) {
+        return postgresMatch[2]
+    }
+
+    return null
+}
+
 function getMissingOptionalColumn(
     error: ErrorLike | null | undefined,
     payload: Record<string, unknown>
-): OptionalWaitingGuestColumn | null {
-    for (const column of OPTIONAL_WAITING_GUEST_COLUMNS) {
-        if (!(column in payload)) {
-            continue
-        }
+): string | null {
+    const column = getMissingWaitingGuestsColumn(error)
+    if (!column) {
+        return null
+    }
 
-        if (isMissingWaitingGuestsColumnError(error, column)) {
-            return column
-        }
+    if (!(column in payload)) {
+        return null
+    }
+
+    if (REQUIRED_WAITING_GUEST_COLUMNS.has(column)) {
+        return null
+    }
+
+    if (isMissingWaitingGuestsColumnError(error, column)) {
+        return column
     }
 
     return null

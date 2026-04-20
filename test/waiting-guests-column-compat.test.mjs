@@ -29,8 +29,8 @@ test('isMissingWaitingGuestsColumnError detects PostgREST schema cache errors', 
 test('insertWaitingGuestWithCompat retries without optional missing columns', async () => {
     const calls = []
     const responses = [
+        { data: null, error: { message: "Could not find the 'lead_form_id' column of 'waiting_guests' in the schema cache" } },
         { data: null, error: { message: "Could not find the 'pipeline_stage_changed_at' column of 'waiting_guests' in the schema cache" } },
-        { data: null, error: { message: "Could not find the 'submitted_at' column of 'waiting_guests' in the schema cache" } },
         { data: { id: 'guest-123' }, error: null },
     ]
 
@@ -59,16 +59,19 @@ test('insertWaitingGuestWithCompat retries without optional missing columns', as
         meeting_id: 'meeting-1',
         guest_name: 'Jane',
         status: 'waiting',
+        lead_form_id: 'form-123',
         submitted_at: '2026-04-21T00:00:00.000Z',
         pipeline_stage_changed_at: '2026-04-21T00:00:00.000Z',
     })
 
     assert.deepEqual(result, { data: { id: 'guest-123' }, error: null })
     assert.equal(calls.length, 3)
+    assert.ok('lead_form_id' in calls[0])
     assert.ok('pipeline_stage_changed_at' in calls[0])
     assert.ok('submitted_at' in calls[0])
-    assert.ok(!('pipeline_stage_changed_at' in calls[1]))
+    assert.ok(!('lead_form_id' in calls[1]))
+    assert.ok('pipeline_stage_changed_at' in calls[1])
     assert.ok('submitted_at' in calls[1])
     assert.ok(!('pipeline_stage_changed_at' in calls[2]))
-    assert.ok(!('submitted_at' in calls[2]))
+    assert.ok('submitted_at' in calls[2])
 })

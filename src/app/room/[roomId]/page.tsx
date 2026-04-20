@@ -174,34 +174,38 @@ export default function RoomPage({ params }: RoomPageProps) {
     // Meeting ended externally (host ended from dashboard)
     if (meetingEndedExternally) {
         return (
-            <div className={styles.container}>
-                <div className={styles.joinCard}>
-                    <div className={styles.iconWrapper} style={{ color: '#ff6b6b' }}>
-                        <FaDoorOpen />
+            <InAppBrowserGate>
+                <div className={styles.container}>
+                    <div className={styles.joinCard}>
+                        <div className={styles.iconWrapper} style={{ color: '#ff6b6b' }}>
+                            <FaDoorOpen />
+                        </div>
+                        <h1>Meeting Ended</h1>
+                        <p>The host has ended this meeting. You will be redirected shortly.</p>
+                        <button onClick={handleLeave} className={styles.joinBtn}>
+                            Leave Now
+                        </button>
                     </div>
-                    <h1>Meeting Ended</h1>
-                    <p>The host has ended this meeting. You will be redirected shortly.</p>
-                    <button onClick={handleLeave} className={styles.joinBtn}>
-                        Leave Now
-                    </button>
                 </div>
-            </div>
+            </InAppBrowserGate>
         )
     }
 
     // If we have a name and have joined, show the video chat
     if (hasJoined && displayName) {
         return (
-            <>
-                <VideoChat
-                    roomId={roomId}
-                    displayName={displayName}
-                    onLeave={handleLeave}
-                    isHost={!!session?.user}
-                    onStopWelcomeAudio={handleStopWelcomeAudio}
-                />
-                {session?.user && <GuestInfoPanel roomId={roomId} />}
-            </>
+            <InAppBrowserGate>
+                <>
+                    <VideoChat
+                        roomId={roomId}
+                        displayName={displayName}
+                        onLeave={handleLeave}
+                        isHost={!!session?.user}
+                        onStopWelcomeAudio={handleStopWelcomeAudio}
+                    />
+                    {session?.user && <GuestInfoPanel roomId={roomId} />}
+                </>
+            </InAppBrowserGate>
         )
     }
 

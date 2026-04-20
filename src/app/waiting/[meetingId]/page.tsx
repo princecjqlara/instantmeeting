@@ -9,7 +9,12 @@ import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
 import InAppBrowserGate from '@/components/InAppBrowserGate'
-import { buildGuestRoomPath, getGuestNameFromSearch } from '@/lib/external-browser-handoff'
+import {
+    buildGuestRoomPath,
+    consumeExternalBrowserHandoff,
+    getGuestNameFromSearch,
+    markExternalBrowserHandoff,
+} from '@/lib/external-browser-handoff'
 
 interface WaitingPageProps {
     params: Promise<{ meetingId: string }>
@@ -158,7 +163,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         meetingId,
-                        guestName: 'Guest'
+                        guestName: guestNameFromQuery || 'Guest'
                     })
                 })
 
@@ -271,7 +276,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                 clearInterval(intervalId)
             }
         }
-    }, [guestIdFromQuery, meetingId])
+    }, [guestIdFromQuery, guestNameFromQuery, meetingId])
 
     useEffect(() => {
         const guestStorageKey = `waitingGuest:${meetingId}`
@@ -427,6 +432,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             try {
                 const guestId = localStorage.getItem(guestStorageKey)
                 if (!guestId) return
+                if (consumeExternalBrowserHandoff(window.location.pathname, window.sessionStorage)) {
+                    return
+                }
                 // Use fetch with keepalive for reliability during page unload
                 fetch('/api/waiting', {
                     method: 'PATCH',
@@ -532,6 +540,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
                             try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
+                            try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
                             const preparedMeetingTab = preparedMeetingTabRef.current
                             preparedMeetingTabRef.current = null
                             if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
@@ -605,6 +614,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             onClick={() => {
                                 hasAutoJoinedRef.current = true
                                 try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
+                                try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
                                 const preparedMeetingTab = preparedMeetingTabRef.current
                                 preparedMeetingTabRef.current = null
                                 if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
@@ -700,6 +710,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     onClick={() => {
                                         hasAutoJoinedRef.current = true
                                         try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
+                                        try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
                                         const preparedMeetingTab = preparedMeetingTabRef.current
                                         preparedMeetingTabRef.current = null
                                         if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { markExternalBrowserHandoff } from '@/lib/external-browser-handoff'
 
 /**
  * Detects in-app browsers (Messenger, Facebook, Instagram, etc.)
@@ -25,6 +26,12 @@ function isAndroid(): boolean {
 }
 
 function tryOpenSystemBrowser(url: string): void {
+    try {
+        markExternalBrowserHandoff(window.location.pathname, window.sessionStorage)
+    } catch {
+        // Ignore storage errors
+    }
+
     if (isAndroid()) {
         // Android: intent URL scheme to open in Chrome
         const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
