@@ -9,6 +9,11 @@ type InsertResult<T> = {
     error: ErrorLike | null
 }
 
+type UpdateResult<T> = {
+    data: T | null
+    error: ErrorLike | null
+}
+
 function omitColumn<T extends Record<string, unknown>>(record: T, column: keyof T) {
     const next = { ...record }
     delete next[column]
@@ -96,6 +101,34 @@ export async function insertWaitingGuestWithCompat<T>(
             .from('waiting_guests')
             .insert(nextPayload)
             .select('*')
+            .single()
+
+        if (!result.error) {
+            return result
+        }
+
+        const missingColumn = getMissingOptionalColumn(result.error, nextPayload)
+        if (!missingColumn) {
+            return result
+        }
+
+        nextPayload = omitColumn(nextPayload, missingColumn)
+    }
+}
+
+export async function updateWaitingGuestWithCompat<T>(
+    supabase: any,
+    guestId: string,
+    payload: Record<string, unknown>
+): Promise<UpdateResult<T>> {
+    let nextPayload = { ...payload }
+
+    while (true) {
+        const result = await supabase
+            .from('waiting_guests')
+            .update(nextPayload)
+            .eq('id', guestId)
+            .select('id, status, join_token')
             .single()
 
         if (!result.error) {

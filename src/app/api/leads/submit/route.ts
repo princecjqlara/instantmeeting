@@ -5,7 +5,7 @@ import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
-import { insertWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
+import { insertWaitingGuestWithCompat, updateWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
 
 export const dynamic = 'force-dynamic'
 
@@ -233,12 +233,11 @@ export async function POST(req: NextRequest) {
     const guestResult = existingLeadSession?.id
         ? (() => {
             const { meeting_id: _ignoredMeetingId, ...guestUpdatePayload } = guestPayload
-            return supabase
-                .from('waiting_guests')
-                .update(guestUpdatePayload)
-                .eq('id', existingLeadSession.id)
-                .select('id, status, join_token')
-                .single()
+            return updateWaitingGuestWithCompat<{ id: string; status?: string | null; join_token?: string | null }>(
+                supabase,
+                existingLeadSession.id,
+                guestUpdatePayload
+            )
         })()
         : insertWaitingGuestWithCompat<{ id: string; status?: string | null; join_token?: string | null }>(supabase, guestPayload)
 
