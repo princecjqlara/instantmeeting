@@ -4,6 +4,8 @@ import { qualifyLead } from '@/lib/lead-qualifier'
 import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
+import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
+import { insertWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
 
 export const dynamic = 'force-dynamic'
 
@@ -186,9 +188,7 @@ export async function POST(req: NextRequest) {
         submittedAt: new Date().toISOString(),
         qualificationVerdict: qualification.verdict,
     })
-    const { data: guest, error: guestErr } = await supabase
-        .from('waiting_guests')
-        .insert({
+    const { data: guest, error: guestErr } = await insertWaitingGuestWithCompat<{ id: string }>(supabase, {
             meeting_id: meeting.id,
             guest_name: resolvedName,
             guest_email: resolvedEmail,
@@ -204,8 +204,6 @@ export async function POST(req: NextRequest) {
             pipeline_stage: pipelineStage,
             pipeline_stage_changed_at: new Date().toISOString(),
         })
-        .select('*')
-        .single()
 
     if (guestErr || !guest) {
         console.error('Waiting guest insert failed:', guestErr)
@@ -308,6 +306,6 @@ export async function POST(req: NextRequest) {
         reasoning: qualification.reasoning,
         meeting_id: meeting.id,
         guest_id: guest.id,
-        waiting_url: `${req.nextUrl.origin}/waiting/${meeting.id}?guestId=${guest.id}`,
+        waiting_url: `${req.nextUrl.origin}${buildGuestWaitingPath(meeting.id, guest.id, resolvedName)}`,
     })
 }
