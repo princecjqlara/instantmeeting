@@ -1,4 +1,4 @@
-import { DEFAULT_LEADS_PIPELINE_STAGES, normalizeLeadsPipelineStages } from './lead-pipeline.ts'
+import { DEFAULT_LEADS_PIPELINE_STAGES, normalizeLeadsPipelineStages } from './lead-pipeline.js'
 
 export type AvailabilityMode = 'always' | 'never' | 'scheduled'
 
