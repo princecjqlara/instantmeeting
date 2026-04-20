@@ -7,10 +7,16 @@ import styles from './page.module.css'
 import { buildGuestJoinInsights } from '@/lib/guest-join-insights'
 import { buildLeadSummaryRows } from '@/lib/lead-summary'
 import {
+    DEFAULT_LEADS_PIPELINE_STAGES,
+    canManuallyMoveLeadToStage,
+    deriveLeadPipelineStage,
+    normalizeLeadsPipelineStages,
+} from '@/lib/lead-pipeline'
+import {
     FaArrowLeft, FaUsers, FaCalendarAlt, FaClock,
     FaUser, FaEnvelope, FaCheckCircle, FaHourglassHalf,
     FaTimesCircle, FaSearch, FaDownload, FaPhone, FaTrash,
-    FaTag, FaPlus, FaTimes, FaCheckSquare, FaSquare
+    FaTag, FaPlus, FaTimes, FaCheckSquare, FaSquare, FaSave
 } from 'react-icons/fa'
 
 interface LeadAnswer {
@@ -25,7 +31,7 @@ interface Lead {
     guest_name: string
     guest_email?: string
     guest_phone?: string
-    status: 'waiting' | 'admitted' | 'left'
+    status: 'waiting' | 'admitted' | 'left' | 'draft'
     joined_at: string
     admitted_at?: string
     note?: string
@@ -36,6 +42,8 @@ interface Lead {
     qualification_reasoning?: string | null
     lead_answers?: LeadAnswer[] | null
     tags?: string[] | null
+    pipeline_stage?: string | null
+    is_draft?: boolean
     meetings: {
         id: string
         title: string
@@ -71,6 +79,13 @@ export default function LeadsPage() {
     const [tagInput, setTagInput] = useState('')
     const [bulkTagInput, setBulkTagInput] = useState('')
     const [bulkBusy, setBulkBusy] = useState(false)
+    const [pipelineStages, setPipelineStages] = useState<string[]>([...DEFAULT_LEADS_PIPELINE_STAGES])
+    const [pipelineStagesInput, setPipelineStagesInput] = useState(DEFAULT_LEADS_PIPELINE_STAGES.join(', '))
+    const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
+    const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
+    const [savingSettings, setSavingSettings] = useState(false)
+    const [savingLead, setSavingLead] = useState(false)
+    const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null)
     const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
     // Pagination state
@@ -86,11 +101,22 @@ export default function LeadsPage() {
     useEffect(() => {
         const fetchLeads = async () => {
             try {
-                const res = await fetch('/api/leads')
-                if (res.ok) {
-                    const data = await res.json()
+                const [leadsRes, settingsRes] = await Promise.all([
+                    fetch('/api/leads'),
+                    fetch('/api/profile/settings'),
+                ])
+                if (leadsRes.ok) {
+                    const data = await leadsRes.json()
                     setLeads(data)
                     setFilteredLeads(data)
+                }
+                if (settingsRes.ok) {
+                    const settings = await settingsRes.json()
+                    const nextStages = normalizeLeadsPipelineStages(settings.leads_pipeline_stages)
+                    setPipelineStages(nextStages)
+                    setPipelineStagesInput(nextStages.join(', '))
+                    setMetaCapiAccessToken(settings.meta_capi_access_token || '')
+                    setMetaCapiDatasetId(settings.meta_capi_dataset_id || '')
                 }
             } catch (error) {
                 console.error('Error fetching leads:', error)
@@ -183,6 +209,7 @@ export default function LeadsPage() {
             case 'admitted': return <FaCheckCircle className={styles.statusAdmitted} />
             case 'waiting': return <FaHourglassHalf className={styles.statusWaiting} />
             case 'left': return <FaTimesCircle className={styles.statusLeft} />
+            case 'draft': return <FaHourglassHalf className={styles.statusWaiting} />
             default: return <FaHourglassHalf />
         }
     }
@@ -192,6 +219,7 @@ export default function LeadsPage() {
             case 'admitted': return 'Admitted'
             case 'waiting': return 'Waiting'
             case 'left': return 'Left'
+            case 'draft': return 'Draft'
             default: return status
         }
     }
@@ -252,6 +280,126 @@ export default function LeadsPage() {
         }
         return Array.from(s).sort((a, b) => a.localeCompare(b))
     }, [leads])
+
+    const groupedPipelineLeads = useMemo(() => {
+        return pipelineStages.map((stage) => ({
+            stage,
+            leads: filteredLeads.filter(
+                (lead) =>
+                    (lead.pipeline_stage ||
+                        deriveLeadPipelineStage({
+                            submittedAt: lead.status === 'draft' ? null : lead.joined_at,
+                            qualificationVerdict: lead.qualification_verdict || null,
+                            currentStage: lead.pipeline_stage,
+                            isDraft: lead.is_draft,
+                        })) === stage
+            ),
+        }))
+    }, [filteredLeads, pipelineStages])
+
+    const updateLeadLocally = (leadId: string, updater: (lead: Lead) => Lead) => {
+        setLeads((prev) => prev.map((lead) => (lead.id === leadId ? updater(lead) : lead)))
+        setFilteredLeads((prev) => prev.map((lead) => (lead.id === leadId ? updater(lead) : lead)))
+        setSelectedLead((prev) => (prev?.id === leadId ? updater(prev) : prev))
+    }
+
+    const saveLeadPatch = async (leadId: string, patch: Record<string, unknown>) => {
+        const response = await fetch('/api/leads', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: leadId, ...patch }),
+        })
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => null)
+            throw new Error(error?.error || 'Failed to update lead')
+        }
+    }
+
+    const savePipelineSettings = async () => {
+        setSavingSettings(true)
+        try {
+            const normalizedStages = normalizeLeadsPipelineStages(
+                pipelineStagesInput.split(',').map((stage) => stage.trim())
+            )
+            const res = await fetch('/api/profile/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leads_pipeline_stages: normalizedStages,
+                    meta_capi_access_token: metaCapiAccessToken,
+                    meta_capi_dataset_id: metaCapiDatasetId,
+                }),
+            })
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => null)
+                alert(error?.error || 'Failed to save lead settings')
+                return
+            }
+
+            const data = await res.json()
+            const nextStages = normalizeLeadsPipelineStages(data.leads_pipeline_stages)
+            setPipelineStages(nextStages)
+            setPipelineStagesInput(nextStages.join(', '))
+            setMetaCapiAccessToken(data.meta_capi_access_token || '')
+            setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
+        } finally {
+            setSavingSettings(false)
+        }
+    }
+
+    const moveLeadToStage = async (lead: Lead, nextStage: string) => {
+        if (!canManuallyMoveLeadToStage({ from: lead.pipeline_stage, to: nextStage })) {
+            alert('Only qualified leads can be moved to sold.')
+            return
+        }
+
+        const previousStage = lead.pipeline_stage || 'prospect'
+        updateLeadLocally(lead.id, (item) => ({ ...item, pipeline_stage: nextStage }))
+        try {
+            await saveLeadPatch(lead.id, { pipeline_stage: nextStage })
+        } catch (error) {
+            updateLeadLocally(lead.id, (item) => ({ ...item, pipeline_stage: previousStage }))
+            alert(error instanceof Error ? error.message : 'Failed to move lead')
+        }
+    }
+
+    const saveSelectedLead = async () => {
+        if (!selectedLead) return
+        setSavingLead(true)
+        try {
+            const payload: Record<string, unknown> = {
+                guest_name: selectedLead.guest_name,
+                guest_email: selectedLead.guest_email || '',
+                guest_phone: selectedLead.guest_phone || '',
+                pipeline_stage: selectedLead.pipeline_stage || 'prospect',
+            }
+
+            if (!selectedLead.is_draft) {
+                payload.note = selectedLead.note || ''
+                payload.custom_fields = selectedLead.custom_fields || []
+            }
+
+            await saveLeadPatch(selectedLead.id, payload)
+            updateLeadLocally(selectedLead.id, () => ({ ...selectedLead }))
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Failed to save lead')
+        } finally {
+            setSavingLead(false)
+        }
+    }
+
+    const addCustomFieldToSelectedLead = () => {
+        if (!selectedLead || selectedLead.is_draft) return
+        setSelectedLead({
+            ...selectedLead,
+            custom_fields: [
+                ...(selectedLead.custom_fields || []),
+                { id: `field-${Date.now()}`, label: '', value: '' },
+            ],
+        })
+    }
 
     const toggleSelected = (id: string) => {
         setSelectedIds((prev) => {
@@ -519,6 +667,116 @@ export default function LeadsPage() {
                         </div>
                     </>
                 )}
+            </section>
+
+            <section className={styles.pipelineSection}>
+                <div className={styles.pipelineSettingsCard}>
+                    <div className={styles.pipelineCardHeader}>
+                        <div>
+                            <h2 className={styles.pipelineTitle}>Lead pipeline</h2>
+                            <p className={styles.pipelineDescription}>
+                                New unfinished and review leads go to prospect, unqualified leads go to unqualified, qualified leads go to qualified, and qualified leads can be dragged to sold.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            className={styles.primaryBtn}
+                            onClick={savePipelineSettings}
+                            disabled={savingSettings}
+                        >
+                            <FaSave />
+                            {savingSettings ? 'Saving…' : 'Save settings'}
+                        </button>
+                    </div>
+
+                    <div className={styles.pipelineSettingsGrid}>
+                        <label className={styles.fieldGroup}>
+                            <span>Pipeline stages</span>
+                            <input
+                                className={styles.settingsInput}
+                                value={pipelineStagesInput}
+                                onChange={(e) => setPipelineStagesInput(e.target.value)}
+                                placeholder="prospect, qualified, unqualified, sold"
+                            />
+                        </label>
+                        <label className={styles.fieldGroup}>
+                            <span>Meta CAPI access token</span>
+                            <input
+                                className={styles.settingsInput}
+                                type="password"
+                                value={metaCapiAccessToken}
+                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
+                                placeholder="Paste your access token"
+                            />
+                        </label>
+                        <label className={styles.fieldGroup}>
+                            <span>Meta dataset id</span>
+                            <input
+                                className={styles.settingsInput}
+                                value={metaCapiDatasetId}
+                                onChange={(e) => setMetaCapiDatasetId(e.target.value)}
+                                placeholder="Enter dataset id"
+                            />
+                        </label>
+                    </div>
+                </div>
+
+                <div className={styles.pipelineBoard}>
+                    {groupedPipelineLeads.map(({ stage, leads: stageLeads }) => (
+                        <div
+                            key={stage}
+                            className={styles.pipelineColumn}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                                e.preventDefault()
+                                const leadId = e.dataTransfer.getData('text/plain')
+                                const lead = leads.find((item) => item.id === leadId)
+                                if (lead) moveLeadToStage(lead, stage)
+                                setDraggingLeadId(null)
+                            }}
+                        >
+                            <div className={styles.pipelineColumnHeader}>
+                                <strong>{stage}</strong>
+                                <span>{stageLeads.length}</span>
+                            </div>
+
+                            <div className={styles.pipelineColumnBody}>
+                                {stageLeads.map((lead) => (
+                                    <button
+                                        key={lead.id}
+                                        type="button"
+                                        draggable={!lead.is_draft}
+                                        onDragStart={(e) => {
+                                            setDraggingLeadId(lead.id)
+                                            e.dataTransfer.setData('text/plain', lead.id)
+                                        }}
+                                        onDragEnd={() => setDraggingLeadId(null)}
+                                        onClick={() =>
+                                            setSelectedLead({
+                                                ...lead,
+                                                custom_fields: [...(lead.custom_fields || [])],
+                                            })
+                                        }
+                                        className={`${styles.pipelineLeadCard} ${draggingLeadId === lead.id ? styles.pipelineLeadCardDragging : ''}`}
+                                    >
+                                        <div className={styles.pipelineLeadTop}>
+                                            <strong>{lead.guest_name}</strong>
+                                            <span className={styles.pipelineLeadStatus}>{lead.is_draft ? 'draft' : lead.status}</span>
+                                        </div>
+                                        <span className={styles.pipelineLeadMeta}>{lead.guest_email || lead.guest_phone || 'No contact yet'}</span>
+                                        <span className={styles.pipelineLeadMeta}>{lead.meetings?.title || 'Lead form'}</span>
+                                        {lead.qualification_verdict && (
+                                            <span className={styles.pipelineVerdict}>{lead.qualification_verdict}</span>
+                                        )}
+                                    </button>
+                                ))}
+                                {stageLeads.length === 0 && (
+                                    <div className={styles.pipelineEmpty}>No leads in this stage</div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </section>
 
             {/* Filters */}
@@ -864,7 +1122,7 @@ export default function LeadsPage() {
                             <div
                                 key={lead.id}
                                 className={styles.leadCard}
-                                onClick={() => setSelectedLead(lead)}
+                                onClick={() => setSelectedLead({ ...lead, custom_fields: [...(lead.custom_fields || [])] })}
                                 style={
                                     isSelected
                                         ? { boxShadow: '0 0 0 2px rgba(99,102,241,0.7) inset' }
@@ -917,6 +1175,10 @@ export default function LeadsPage() {
 
                                 <div className={styles.leadInfo}>
                                     <h3 className={styles.leadName}>{lead.guest_name}</h3>
+                                    <div className={styles.stageBadgeRow}>
+                                        <span className={styles.stageBadge}>{lead.pipeline_stage || 'prospect'}</span>
+                                        {lead.is_draft && <span className={styles.draftBadge}>unfinished</span>}
+                                    </div>
                                     <p className={styles.leadMeeting}>
                                         <FaCalendarAlt />
                                         {lead.meetings?.title || 'Meeting'}
@@ -1075,6 +1337,32 @@ export default function LeadsPage() {
                                         {getStatusLabel(selectedLead.status)}
                                     </span>
                                 </div>
+                                <button
+                                    type="button"
+                                    className={styles.primaryBtn}
+                                    onClick={saveSelectedLead}
+                                    disabled={savingLead}
+                                >
+                                    <FaSave />
+                                    {savingLead ? 'Saving…' : 'Save lead'}
+                                </button>
+                            </div>
+
+                            <div className={styles.detailSection}>
+                                <h4>Pipeline Stage</h4>
+                                <select
+                                    className={styles.settingsInput}
+                                    value={selectedLead.pipeline_stage || 'prospect'}
+                                    onChange={(e) =>
+                                        setSelectedLead({ ...selectedLead, pipeline_stage: e.target.value })
+                                    }
+                                >
+                                    {pipelineStages.map((stage) => (
+                                        <option key={stage} value={stage}>
+                                            {stage}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className={styles.detailSection}>
@@ -1108,39 +1396,51 @@ export default function LeadsPage() {
 
                             <div className={styles.detailSection}>
                                 <h4>Contact Information</h4>
-                                <div className={styles.detailGrid}>
-                                    <div className={styles.detailItem}>
-                                        <FaUser />
-                                        <div>
-                                            <label>Name</label>
-                                            <span>{selectedLead.guest_name}</span>
-                                        </div>
-                                    </div>
-                                    {selectedLead.guest_email && (
-                                        <div className={styles.detailItem}>
-                                            <FaEnvelope />
-                                            <div>
-                                                <label>Email</label>
-                                                <span>{selectedLead.guest_email}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {selectedLead.guest_phone && (
-                                        <div className={styles.detailItem}>
-                                            <FaPhone />
-                                            <div>
-                                                <label>Phone</label>
-                                                <span>{selectedLead.guest_phone}</span>
-                                            </div>
-                                        </div>
-                                    )}
+                                <div className={styles.editGrid}>
+                                    <label className={styles.fieldGroup}>
+                                        <span>Name</span>
+                                        <input
+                                            className={styles.settingsInput}
+                                            value={selectedLead.guest_name}
+                                            onChange={(e) =>
+                                                setSelectedLead({ ...selectedLead, guest_name: e.target.value })
+                                            }
+                                        />
+                                    </label>
+                                    <label className={styles.fieldGroup}>
+                                        <span>Email</span>
+                                        <input
+                                            className={styles.settingsInput}
+                                            value={selectedLead.guest_email || ''}
+                                            onChange={(e) =>
+                                                setSelectedLead({ ...selectedLead, guest_email: e.target.value })
+                                            }
+                                        />
+                                    </label>
+                                    <label className={styles.fieldGroup}>
+                                        <span>Phone</span>
+                                        <input
+                                            className={styles.settingsInput}
+                                            value={selectedLead.guest_phone || ''}
+                                            onChange={(e) =>
+                                                setSelectedLead({ ...selectedLead, guest_phone: e.target.value })
+                                            }
+                                        />
+                                    </label>
                                 </div>
                             </div>
 
-                            {selectedLead.note && (
+                            {!selectedLead.is_draft && (
                                 <div className={styles.detailSection}>
-                                    <h4>Note</h4>
-                                    <p className={styles.noteText}>{selectedLead.note}</p>
+                                    <h4>Internal Note</h4>
+                                    <textarea
+                                        className={styles.settingsTextarea}
+                                        value={selectedLead.note || ''}
+                                        onChange={(e) =>
+                                            setSelectedLead({ ...selectedLead, note: e.target.value })
+                                        }
+                                        placeholder="Add internal notes, next steps, or context"
+                                    />
                                 </div>
                             )}
 
@@ -1288,16 +1588,47 @@ export default function LeadsPage() {
                                 </div>
                             )}
 
-                            {selectedLead.custom_fields && selectedLead.custom_fields.length > 0 && (
+                            {!selectedLead.is_draft && (
                                 <div className={styles.detailSection}>
-                                    <h4>Custom Responses</h4>
-                                    <div className={styles.detailGrid}>
-                                        {selectedLead.custom_fields.map((field) => (
-                                            <div key={field.id} className={styles.detailItem}>
-                                                <div>
-                                                    <label>{field.label}</label>
-                                                    <span>{field.value}</span>
-                                                </div>
+                                    <div className={styles.inlineSectionHeader}>
+                                        <h4>Additional Lead Info</h4>
+                                        <button type="button" className={styles.secondaryBtn} onClick={addCustomFieldToSelectedLead}>
+                                            <FaPlus /> Add field
+                                        </button>
+                                    </div>
+                                    <div className={styles.customFieldList}>
+                                        {(selectedLead.custom_fields || []).map((field, index) => (
+                                            <div key={field.id} className={styles.customFieldRow}>
+                                                <input
+                                                    className={styles.settingsInput}
+                                                    value={field.label}
+                                                    onChange={(e) => {
+                                                        const next = [...(selectedLead.custom_fields || [])]
+                                                        next[index] = { ...field, label: e.target.value }
+                                                        setSelectedLead({ ...selectedLead, custom_fields: next })
+                                                    }}
+                                                    placeholder="Field label"
+                                                />
+                                                <input
+                                                    className={styles.settingsInput}
+                                                    value={field.value}
+                                                    onChange={(e) => {
+                                                        const next = [...(selectedLead.custom_fields || [])]
+                                                        next[index] = { ...field, value: e.target.value }
+                                                        setSelectedLead({ ...selectedLead, custom_fields: next })
+                                                    }}
+                                                    placeholder="Field value"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className={styles.deleteLeadBtn}
+                                                    onClick={() => {
+                                                        const next = (selectedLead.custom_fields || []).filter((_, i) => i !== index)
+                                                        setSelectedLead({ ...selectedLead, custom_fields: next })
+                                                    }}
+                                                >
+                                                    <FaTimes />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>

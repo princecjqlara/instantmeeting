@@ -45,9 +45,14 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'waiting
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS admitted_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[];
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'prospect';
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage_changed_at TIMESTAMPTZ DEFAULT NOW();
 
 -- First-run onboarding flag for new hosts
 ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_pipeline_stages JSONB DEFAULT '["prospect","qualified","unqualified","sold"]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_join_token ON waiting_guests(join_token);
 

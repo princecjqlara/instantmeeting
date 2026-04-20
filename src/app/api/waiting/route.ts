@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
         supabase
             .from('waiting_guests')
             .select(
-                'id, guest_name, guest_email, guest_phone, note, tags, lead_answers, custom_fields, qualification_verdict, qualification_score, qualification_reasoning, submitted_at'
+                'id, guest_name, guest_email, guest_phone, note, tags, lead_answers, custom_fields, qualification_verdict, qualification_score, qualification_reasoning, submitted_at, pipeline_stage'
             )
             .eq('meeting_id', meetingId)
             .eq('status', 'admitted')

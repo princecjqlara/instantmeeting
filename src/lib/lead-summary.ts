@@ -44,6 +44,8 @@ function formatStatusLabel(status: LeadSummarySource['status']) {
             return 'Waiting'
         case 'left':
             return 'Left'
+        case 'draft':
+            return 'Draft'
         default:
             return status
     }

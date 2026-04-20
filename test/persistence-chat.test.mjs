@@ -22,6 +22,10 @@ test('normalizeProfileSettings returns safe defaults when no user exists', () =>
         followers: 0,
         following: 0,
         welcome_audio_url: null,
+        onboarding_completed: false,
+        leads_pipeline_stages: ['prospect', 'qualified', 'unqualified', 'sold'],
+        meta_capi_access_token: '',
+        meta_capi_dataset_id: '',
     })
 })
 
@@ -41,6 +45,10 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
         followers: 12,
         following: 34,
         welcome_audio_url: 'https://cdn.example.com/welcome.mp3',
+        onboarding_completed: true,
+        leads_pipeline_stages: ['prospect', 'qualified', 'sold'],
+        meta_capi_access_token: 'token-abc',
+        meta_capi_dataset_id: 'dataset-xyz',
     })
 
     assert.equal(settings.username, 'builder')
@@ -49,6 +57,10 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
     assert.equal(settings.scroll_threshold, 8)
     assert.equal(settings.meeting_duration, 45)
     assert.equal(settings.welcome_audio_url, 'https://cdn.example.com/welcome.mp3')
+    assert.equal(settings.onboarding_completed, true)
+    assert.deepEqual(settings.leads_pipeline_stages, ['prospect', 'qualified', 'sold'])
+    assert.equal(settings.meta_capi_access_token, 'token-abc')
+    assert.equal(settings.meta_capi_dataset_id, 'dataset-xyz')
 })
 
 test('createChatMessage trims input and rejects blank messages', () => {

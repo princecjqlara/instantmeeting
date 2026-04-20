@@ -1,3 +1,5 @@
+import { DEFAULT_LEADS_PIPELINE_STAGES, normalizeLeadsPipelineStages } from './lead-pipeline.ts'
+
 export type AvailabilityMode = 'always' | 'never' | 'scheduled'
 
 export interface ProfileSettingsRecord {
@@ -16,6 +18,9 @@ export interface ProfileSettingsRecord {
     following: number | null
     welcome_audio_url: string | null
     onboarding_completed: boolean | null
+    leads_pipeline_stages?: string[] | null
+    meta_capi_access_token?: string | null
+    meta_capi_dataset_id?: string | null
 }
 
 export interface ProfileSettingsResponse {
@@ -34,6 +39,9 @@ export interface ProfileSettingsResponse {
     following: number
     welcome_audio_url: string | null
     onboarding_completed: boolean
+    leads_pipeline_stages: string[]
+    meta_capi_access_token: string
+    meta_capi_dataset_id: string
 }
 
 export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
@@ -52,6 +60,9 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
     following: 0,
     welcome_audio_url: null,
     onboarding_completed: false,
+    leads_pipeline_stages: [...DEFAULT_LEADS_PIPELINE_STAGES],
+    meta_capi_access_token: '',
+    meta_capi_dataset_id: '',
 }
 
 interface NormalizeOptions {
@@ -90,5 +101,14 @@ export function normalizeProfileSettings(
         following: user.following ?? DEFAULT_PROFILE_SETTINGS.following,
         welcome_audio_url: user.welcome_audio_url ?? DEFAULT_PROFILE_SETTINGS.welcome_audio_url,
         onboarding_completed: user.onboarding_completed ?? DEFAULT_PROFILE_SETTINGS.onboarding_completed,
+        leads_pipeline_stages: normalizeLeadsPipelineStages(user.leads_pipeline_stages),
+        meta_capi_access_token:
+            typeof user.meta_capi_access_token === 'string'
+                ? user.meta_capi_access_token.trim()
+                : DEFAULT_PROFILE_SETTINGS.meta_capi_access_token,
+        meta_capi_dataset_id:
+            typeof user.meta_capi_dataset_id === 'string'
+                ? user.meta_capi_dataset_id.trim()
+                : DEFAULT_PROFILE_SETTINGS.meta_capi_dataset_id,
     }
 }

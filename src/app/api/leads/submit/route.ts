@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { qualifyLead } from '@/lib/lead-qualifier'
+import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 
@@ -181,6 +182,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Persist the lead as a waiting_guest row
+    const pipelineStage = deriveLeadPipelineStage({
+        submittedAt: new Date().toISOString(),
+        qualificationVerdict: qualification.verdict,
+    })
     const { data: guest, error: guestErr } = await supabase
         .from('waiting_guests')
         .insert({
@@ -196,6 +201,8 @@ export async function POST(req: NextRequest) {
             qualification_reasoning: qualification.reasoning,
             lead_session_token: sessionToken || null,
             submitted_at: new Date().toISOString(),
+            pipeline_stage: pipelineStage,
+            pipeline_stage_changed_at: new Date().toISOString(),
         })
         .select('*')
         .single()

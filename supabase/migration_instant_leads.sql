@@ -58,6 +58,8 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS qualification_reasoning TEXT
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS lead_answers JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS lead_session_token TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'prospect';
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage_changed_at TIMESTAMPTZ DEFAULT NOW();
 
 CREATE INDEX IF NOT EXISTS idx_waiting_guests_lead_form ON waiting_guests(lead_form_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_lead_session ON waiting_guests(lead_session_token)
@@ -103,9 +105,16 @@ CREATE TABLE IF NOT EXISTS lead_drafts (
     guest_name TEXT,
     guest_email TEXT,
     guest_phone TEXT,
+    pipeline_stage TEXT DEFAULT 'prospect',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE lead_drafts ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'prospect';
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_pipeline_stages JSONB DEFAULT '["prospect","qualified","unqualified","sold"]'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_lead_drafts_form_slug ON lead_drafts(form_slug);
 

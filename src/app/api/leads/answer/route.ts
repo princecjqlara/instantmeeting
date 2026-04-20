@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
 
     const token = sessionToken && typeof sessionToken === 'string' ? sessionToken : randomUUID()
     const supabase = getSupabaseClient()
+    const now = new Date().toISOString()
 
     // Try upsert into an optional draft table; ignore failure (table optional)
     try {
@@ -56,7 +58,8 @@ export async function POST(req: NextRequest) {
                 guest_name: guestName || null,
                 guest_email: guestEmail || null,
                 guest_phone: guestPhone || null,
-                updated_at: new Date().toISOString(),
+                pipeline_stage: deriveLeadPipelineStage({ submittedAt: null, qualificationVerdict: null, isDraft: true }),
+                updated_at: now,
             },
             { onConflict: 'session_token' }
         )

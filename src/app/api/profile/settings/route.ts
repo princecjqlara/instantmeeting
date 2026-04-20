@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeProfileSettings, type ProfileSettingsRecord } from '@/lib/profile-settings'
+import { normalizeLeadsPipelineStages } from '@/lib/lead-pipeline'
 import { isMissingUsersColumnError } from '@/lib/users-column-compat'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,9 @@ function getSupabaseClient() {
 
 const AUTO_ADMIT_COLUMN = 'auto_admit'
 const ONBOARDING_COLUMN = 'onboarding_completed'
+const LEADS_PIPELINE_STAGES_COLUMN = 'leads_pipeline_stages'
+const META_CAPI_ACCESS_TOKEN_COLUMN = 'meta_capi_access_token'
+const META_CAPI_DATASET_ID_COLUMN = 'meta_capi_dataset_id'
 
 const PROFILE_SETTINGS_COLUMNS = [
     'username',
@@ -33,6 +37,9 @@ const PROFILE_SETTINGS_COLUMNS = [
     'following',
     'welcome_audio_url',
     'onboarding_completed',
+    LEADS_PIPELINE_STAGES_COLUMN,
+    META_CAPI_ACCESS_TOKEN_COLUMN,
+    META_CAPI_DATASET_ID_COLUMN,
 ]
 
 interface ProfileSettingsQueryResult {
@@ -57,7 +64,13 @@ async function fetchProfileSettingsByEmail(
         .maybeSingle()
 
     if (queryResult.error) {
-        for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+        for (const col of [
+            AUTO_ADMIT_COLUMN,
+            ONBOARDING_COLUMN,
+            LEADS_PIPELINE_STAGES_COLUMN,
+            META_CAPI_ACCESS_TOKEN_COLUMN,
+            META_CAPI_DATASET_ID_COLUMN,
+        ]) {
             if (!skip.has(col) && isMissingUsersColumnError(queryResult.error, col)) {
                 const next = new Set(skip)
                 next.add(col)
@@ -84,7 +97,13 @@ async function insertProfileSettings(
 
     let result = await supabase.from('users').insert(payload)
 
-    for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+    for (const col of [
+        AUTO_ADMIT_COLUMN,
+        ONBOARDING_COLUMN,
+        LEADS_PIPELINE_STAGES_COLUMN,
+        META_CAPI_ACCESS_TOKEN_COLUMN,
+        META_CAPI_DATASET_ID_COLUMN,
+    ]) {
         if (
             result.error &&
             col in payload &&
@@ -107,7 +126,13 @@ async function updateProfileSettings(
 
     let result = await supabase.from('users').update(payload).eq('email', email)
 
-    for (const col of [AUTO_ADMIT_COLUMN, ONBOARDING_COLUMN]) {
+    for (const col of [
+        AUTO_ADMIT_COLUMN,
+        ONBOARDING_COLUMN,
+        LEADS_PIPELINE_STAGES_COLUMN,
+        META_CAPI_ACCESS_TOKEN_COLUMN,
+        META_CAPI_DATASET_ID_COLUMN,
+    ]) {
         if (
             result.error &&
             col in payload &&
@@ -155,7 +180,18 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { username, name, bio, followers, following, auto_admit, onboarding_completed } = body
+    const {
+        username,
+        name,
+        bio,
+        followers,
+        following,
+        auto_admit,
+        onboarding_completed,
+        leads_pipeline_stages,
+        meta_capi_access_token,
+        meta_capi_dataset_id,
+    } = body
 
     // Validate username only if it's a non-empty string
     if (username && username.length > 0) {
@@ -191,6 +227,11 @@ export async function PATCH(req: NextRequest) {
     if (following !== undefined) updateData.following = following
     if (auto_admit !== undefined) updateData.auto_admit = auto_admit
     if (onboarding_completed !== undefined) updateData.onboarding_completed = !!onboarding_completed
+    if (leads_pipeline_stages !== undefined) {
+        updateData.leads_pipeline_stages = normalizeLeadsPipelineStages(leads_pipeline_stages)
+    }
+    if (meta_capi_access_token !== undefined) updateData.meta_capi_access_token = meta_capi_access_token || null
+    if (meta_capi_dataset_id !== undefined) updateData.meta_capi_dataset_id = meta_capi_dataset_id || null
 
     // First check if user exists
     const { data: existingUser, error: existingUserError } = await supabase
