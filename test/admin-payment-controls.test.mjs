@@ -23,3 +23,12 @@ test('admin payment settings route reads and writes the signed-in organizer paym
     assert.ok(source.includes('organizerId: organizer.id'))
     assert.ok(source.includes('isMissingUsersColumnError'))
 })
+
+test('admin page auto-refreshes pending payments and tenants', () => {
+    const source = readFileSync(new URL('../src/app/admin/page.tsx', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('setInterval'))
+    assert.ok(source.includes('fetchPending()'))
+    assert.ok(source.includes('fetchTenants()'))
+    assert.ok(source.includes('clearInterval'))
+})

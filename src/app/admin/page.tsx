@@ -67,7 +67,7 @@ export default function AdminPage() {
     // Fetch tenants
     const fetchTenants = async () => {
         try {
-            const res = await fetch('/api/admin/tenants')
+            const res = await fetch('/api/admin/tenants', { cache: 'no-store' })
             if (res.ok) {
                 const data = await res.json()
                 setTenants(data)
@@ -82,7 +82,7 @@ export default function AdminPage() {
     const fetchPending = async () => {
         setPendingLoading(true)
         try {
-            const res = await fetch('/api/admin/pending?status=pending')
+            const res = await fetch('/api/admin/pending?status=pending', { cache: 'no-store' })
             if (res.ok) setPending(await res.json())
         } finally {
             setPendingLoading(false)
@@ -91,7 +91,7 @@ export default function AdminPage() {
 
     const fetchPaymentSettings = async () => {
         try {
-            const res = await fetch('/api/admin/payment-settings')
+            const res = await fetch('/api/admin/payment-settings', { cache: 'no-store' })
             if (!res.ok) return
 
             const data = await res.json()
@@ -105,10 +105,19 @@ export default function AdminPage() {
     }
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        if (status !== 'authenticated') return
+
+        fetchTenants()
+        fetchPending()
+        fetchPaymentSettings()
+
+        const intervalId = window.setInterval(() => {
             fetchTenants()
             fetchPending()
-            fetchPaymentSettings()
+        }, 5000)
+
+        return () => {
+            window.clearInterval(intervalId)
         }
     }, [status])
 
