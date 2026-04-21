@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
 import {
     INSTANTMEETING_PAYMENT_PIPELINE_STAGES,
@@ -90,4 +91,12 @@ test('buildInstantMeetingMetaEvent marks receipt review submits as Lead events',
     assert.equal(event.custom_data.pipeline_stage, 'lead')
     assert.equal(event.custom_data.pipeline_trigger, 'payment_review_submit')
     assert.ok(!('value' in event.custom_data))
+})
+
+test('payment funnel server helpers allow admin flows to force organizer-owned config', () => {
+    const source = readFileSync(new URL('../src/lib/instantmeeting-payment-capi-server.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('sendInstantMeetingPaymentMetaCapiEvent'))
+    assert.ok(source.includes('organizerId?: string | null'))
+    assert.ok(source.includes('fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: input.organizerId })'))
 })

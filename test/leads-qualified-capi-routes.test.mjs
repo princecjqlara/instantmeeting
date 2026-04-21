@@ -24,12 +24,12 @@ test('lead routes only send per-form Purchase when transitioning into sold', () 
     assert.ok(source.includes("pipeline_stage?: string | null"))
 })
 
-test('admin pending route no longer sends rejected signups to Meta', () => {
+test('admin pending route keeps reject disabled but uses the signed-in organizer for purchase sends', () => {
     const source = readFileSync(new URL('../src/app/api/admin/pending/route.ts', import.meta.url), 'utf8')
 
     assert.ok(source.includes('sendInstantMeetingPaymentMetaCapiEvent'))
     assert.ok(!source.includes("trigger: 'admin_reject'"))
-    assert.ok(!source.includes('organizerId: organizer.id'))
+    assert.ok(source.includes('organizerId: organizer.id'))
 })
 
 test('signup route sends Lead when a receipt is submitted for review', () => {

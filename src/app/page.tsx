@@ -23,6 +23,30 @@ import { useRef, useState, useEffect, useMemo } from 'react'
 import styles from './page.module.css'
 import HeroFlow from '@/components/HeroFlow'
 
+const TESTIMONIAL_VIDEOS = [
+    {
+        slug: 'testimonial-1',
+        badge: 'Customer Testimonial',
+        title: 'How InstantMeeting helped qualify leads faster',
+        quote: 'A quick look at how clients are using InstantMeeting to turn inquiries into booked conversations.',
+        featured: true,
+    },
+    {
+        slug: 'testimonial-2',
+        badge: 'Customer Testimonial',
+        title: 'Real client feedback on the live intake flow',
+        quote: 'See how the qualification flow feels from the client side and why it builds trust quickly.',
+        featured: false,
+    },
+    {
+        slug: 'testimonial-3',
+        badge: 'Customer Testimonial',
+        title: 'What prospects notice first about the experience',
+        quote: 'A short customer story about how the one-link journey feels smoother than back-and-forth follow ups.',
+        featured: false,
+    },
+] as const
+
 export default function Home() {
     const { data: session, status } = useSession()
     const router = useRouter()
@@ -157,10 +181,10 @@ export default function Home() {
                     </button>
                     <button
                         type="button"
-                        className={styles.navJoin}
+                        className={`${styles.navJoin} ${styles.joinGlow}`}
                         onClick={() => setShowSignup(true)}
                     >
-                        Join now <FaArrowRight style={{ fontSize: 10 }} />
+                        Join now <span className={styles.joinArrow}><FaArrowRight style={{ fontSize: 10 }} /></span>
                     </button>
                 </div>
             </nav>
@@ -197,13 +221,20 @@ export default function Home() {
                     <span className={styles.heroSave}>Save ₱800</span>
                 </div>
 
+                <div className={styles.heroOfferCallout}>
+                    <span className={styles.heroOfferBadge}>Free Facebook ads setup</span>
+                    <p>
+                        We set up and launch your first Facebook ads campaign for free during your first month.
+                    </p>
+                </div>
+
                 <div className={styles.heroCtas}>
                     <button
                         type="button"
-                        className={styles.btnPrimaryLg}
+                        className={`${styles.btnPrimaryLg} ${styles.joinGlow}`}
                         onClick={() => setShowSignup(true)}
                     >
-                        Join now <FaArrowRight />
+                        Join now <span className={styles.joinArrow}><FaArrowRight /></span>
                     </button>
                     <a href="#pricing" className={styles.btnGhost}>
                         View plan details
@@ -260,6 +291,44 @@ export default function Home() {
                 </div>
             </section>
 
+            <section className={styles.testimonialsSection}>
+                <div className={styles.testimonialsHeader}>
+                    <span className={styles.eyebrow}>Testimonials</span>
+                    <h2>See what clients say after using InstantMeeting</h2>
+                    <p>
+                        Real customer testimonials from businesses using InstantMeeting to qualify and convert leads faster.
+                    </p>
+                </div>
+
+                <div className={styles.testimonialsGrid}>
+                    {TESTIMONIAL_VIDEOS.map((video, index) => (
+                        <article
+                            key={video.slug}
+                            className={video.featured ? styles.testimonialFeaturedCard : styles.testimonialCard}
+                        >
+                            <div className={styles.testimonialVideoWrap}>
+                                <video
+                                    className={styles.testimonialVideo}
+                                    src={`/api/testimonials/${video.slug}`}
+                                    controls={!video.featured}
+                                    autoPlay={video.featured}
+                                    muted
+                                    loop={video.featured}
+                                    playsInline
+                                    preload="metadata"
+                                />
+                            </div>
+                            <div className={styles.testimonialCopy}>
+                                <span className={styles.testimonialBadge}>{video.badge}</span>
+                                <h3>{video.title}</h3>
+                                <p>{video.quote}</p>
+                                <span className={styles.testimonialIndex}>0{index + 1}</span>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            </section>
+
             {/* Pricing */}
             <section id="pricing" className={styles.pricing}>
                 <div className={styles.pricingHeader}>
@@ -287,7 +356,7 @@ export default function Home() {
                     <div className={styles.pricingBonus}>
                         <FaFacebook />
                         <div>
-                            <strong>Facebook ads setup included</strong>
+                            <strong>Free Facebook ads setup included</strong>
                             <span>We configure and launch your first ad campaign during your first month.</span>
                         </div>
                     </div>
