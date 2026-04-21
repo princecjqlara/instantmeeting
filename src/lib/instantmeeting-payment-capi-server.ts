@@ -30,6 +30,10 @@ export interface InstantMeetingPaymentFunnelSettings {
     config: MetaCapiConfig | null
 }
 
+interface FetchInstantMeetingPaymentFunnelSettingsOptions {
+    organizerId?: string | null
+}
+
 export async function fetchOrganizerMetaCapiConfig(
     supabase: SupabaseClient,
     organizerId: string
@@ -67,8 +71,10 @@ export async function fetchInstantMeetingMetaCapiConfig(
 }
 
 export async function fetchInstantMeetingPaymentFunnelSettings(
-    supabase: SupabaseClient
+    supabase: SupabaseClient,
+    options: FetchInstantMeetingPaymentFunnelSettingsOptions = {}
 ): Promise<InstantMeetingPaymentFunnelSettings | null> {
+    const organizerId = options.organizerId?.trim() || null
     const configuredOrganizerEmail = process.env.ORGANIZER_EMAIL?.trim().toLowerCase() || null
 
     const baseQuery = () =>
@@ -76,6 +82,34 @@ export async function fetchInstantMeetingPaymentFunnelSettings(
             .from('users')
             .select('id, email, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, instantmeeting_payment_purchase_value_php, created_at')
             .eq('role', 'organizer')
+
+    const explicitOwnerResult = organizerId
+        ? await baseQuery().eq('id', organizerId).maybeSingle()
+        : { data: null, error: null }
+
+    if (explicitOwnerResult.error) {
+        console.error('Failed to load explicit InstantMeeting payment owner:', explicitOwnerResult.error)
+        return null
+    }
+
+    if (organizerId) {
+        const data = explicitOwnerResult.data
+
+        if (!data?.id) {
+            return null
+        }
+
+        return {
+            ownerId: data.id,
+            purchaseValue:
+                typeof data.instantmeeting_payment_purchase_value_php === 'number' &&
+                Number.isFinite(data.instantmeeting_payment_purchase_value_php) &&
+                data.instantmeeting_payment_purchase_value_php > 0
+                    ? Math.round(data.instantmeeting_payment_purchase_value_php)
+                    : 699,
+            config: normalizeMetaCapiConfig(data),
+        }
+    }
 
     const configuredOwnerResult = configuredOrganizerEmail
         ? await baseQuery().eq('email', configuredOrganizerEmail).maybeSingle()
@@ -170,9 +204,11 @@ export async function sendInstantMeetingMetaCapiEvent(
 
 export async function sendInstantMeetingPaymentMetaCapiEvent(
     supabase: SupabaseClient,
-    input: BuildInstantMeetingMetaEventInput
+    input: BuildInstantMeetingMetaEventInput & {
+        organizerId?: string | null
+    }
 ) {
-    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase)
+    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: input.organizerId })
 
     if (!settings?.config) {
         return { sent: false, reason: 'missing_config' as const }

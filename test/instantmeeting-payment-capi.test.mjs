@@ -99,4 +99,5 @@ test('payment funnel server helpers allow admin flows to force organizer-owned c
     assert.ok(source.includes('sendInstantMeetingPaymentMetaCapiEvent'))
     assert.ok(source.includes('organizerId?: string | null'))
     assert.ok(source.includes('fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: input.organizerId })'))
+    assert.ok(source.includes('if (organizerId) {'))
 })

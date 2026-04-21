@@ -39,7 +39,7 @@ export async function GET() {
     }
 
     const supabase = getSupabaseClient()
-    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase)
+    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: organizer.id })
 
     if (!settings) {
         return NextResponse.json({ error: 'Payment owner not found' }, { status: 404 })
@@ -82,7 +82,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const supabase = getSupabaseClient()
-    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase)
+    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: organizer.id })
 
     if (!settings) {
         return NextResponse.json({ error: 'Payment owner not found' }, { status: 404 })

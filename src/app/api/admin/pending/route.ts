@@ -124,6 +124,7 @@ export async function PATCH(req: NextRequest) {
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
         void sendInstantMeetingPaymentMetaCapiEvent(supabase, {
+            organizerId: organizer.id,
             trigger: 'admin_verify',
             eventSourceUrl: `${req.nextUrl.origin}/admin`,
             email: pending.email,
@@ -164,6 +165,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     void sendInstantMeetingPaymentMetaCapiEvent(supabase, {
+        organizerId: organizer.id,
         trigger: 'admin_verify',
         eventSourceUrl: `${req.nextUrl.origin}/admin`,
         email: pending.email,
