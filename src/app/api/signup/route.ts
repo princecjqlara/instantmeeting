@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import bcrypt from 'bcryptjs'
 import { v2 as cloudinary } from 'cloudinary'
 
-import { sendInstantMeetingMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
+import { sendInstantMeetingPaymentMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
         )
     }
 
-    void sendInstantMeetingMetaCapiEvent(supabase, {
+    void sendInstantMeetingPaymentMetaCapiEvent(supabase, {
         trigger: 'payment_review_submit',
         eventSourceUrl: pageUrl,
         email,

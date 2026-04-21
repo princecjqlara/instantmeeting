@@ -12,9 +12,22 @@ CREATE TABLE IF NOT EXISTS lead_forms (
     ai_criteria TEXT,
     unqualified_message TEXT DEFAULT 'Thanks for your response. We''ll be in touch.',
     fallback_to_waiting BOOLEAN DEFAULT true,
+    meta_capi_access_token TEXT,
+    meta_capi_dataset_id TEXT,
+    meta_capi_test_event_code TEXT,
+    facebook_purchase_value INTEGER DEFAULT 699,
+    send_qualified_to_facebook BOOLEAN DEFAULT false,
+    send_purchase_to_facebook BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS facebook_purchase_value INTEGER DEFAULT 699;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT false;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_purchase_to_facebook BOOLEAN DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_lead_forms_user ON lead_forms(user_id);
 CREATE INDEX IF NOT EXISTS idx_lead_forms_slug ON lead_forms(slug);
@@ -60,6 +73,8 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS lead_session_token TEXT;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS submitted_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'prospect';
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage_changed_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS meta_qualified_sent_at TIMESTAMPTZ;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS meta_purchase_sent_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_waiting_guests_lead_form ON waiting_guests(lead_form_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_waiting_guests_lead_session ON waiting_guests(lead_session_token)
@@ -116,6 +131,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS leads_pipeline_stages JSONB DEFAULT '
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS instantmeeting_payment_purchase_value_php INTEGER DEFAULT 699;
 
 CREATE INDEX IF NOT EXISTS idx_lead_drafts_form_slug ON lead_drafts(form_slug);
 

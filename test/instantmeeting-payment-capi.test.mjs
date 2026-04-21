@@ -68,6 +68,17 @@ test('buildInstantMeetingMetaEvent hashes identity fields and sets purchase valu
     assert.equal(event.user_data.fbc, 'fb.1.123456.test-click')
 })
 
+test('buildInstantMeetingMetaEvent supports overriding the purchase value', () => {
+    const event = buildInstantMeetingMetaEvent({
+        trigger: 'admin_verify',
+        eventSourceUrl: 'https://instantmeeting.ai/admin',
+        valueOverride: 1250,
+    })
+
+    assert.equal(event.event_name, 'Purchase')
+    assert.equal(event.custom_data.value, 1250)
+})
+
 test('buildInstantMeetingMetaEvent marks receipt review submits as Lead events', () => {
     const event = buildInstantMeetingMetaEvent({
         trigger: 'payment_review_submit',
@@ -76,7 +87,7 @@ test('buildInstantMeetingMetaEvent marks receipt review submits as Lead events',
     })
 
     assert.equal(event.event_name, 'Lead')
-    assert.equal(event.custom_data.pipeline_stage, 'unqualified')
+    assert.equal(event.custom_data.pipeline_stage, 'lead')
     assert.equal(event.custom_data.pipeline_trigger, 'payment_review_submit')
     assert.ok(!('value' in event.custom_data))
 })

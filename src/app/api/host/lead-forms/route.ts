@@ -53,6 +53,19 @@ function buildQuestionRow(formId: string, q: any, i: number) {
     }
 }
 
+function normalizeMetaField(value: unknown) {
+    return typeof value === 'string' ? value.trim() || null : null
+}
+
+function normalizeBooleanField(value: unknown, fallback = false) {
+    return typeof value === 'boolean' ? value : fallback
+}
+
+function normalizePurchaseValue(value: unknown) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 699
+}
+
 function slugify(input: string) {
     return (input || '')
         .toLowerCase()
@@ -94,7 +107,7 @@ export async function GET(req: NextRequest) {
 
     const { data: forms, error } = await supabase
         .from('lead_forms')
-        .select('*')
+        .select('id, slug, title, is_active, auto_admit_threshold, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -118,6 +131,12 @@ export async function POST(req: NextRequest) {
         auto_admit_threshold,
         unqualified_message,
         fallback_to_waiting,
+        meta_capi_access_token,
+        meta_capi_dataset_id,
+        meta_capi_test_event_code,
+        facebook_purchase_value,
+        send_qualified_to_facebook,
+        send_purchase_to_facebook,
         questions,
     } = body || {}
 
@@ -140,6 +159,12 @@ export async function POST(req: NextRequest) {
             auto_admit_threshold: Number.isFinite(auto_admit_threshold) ? auto_admit_threshold : 70,
             unqualified_message: unqualified_message || null,
             fallback_to_waiting: fallback_to_waiting !== false,
+            meta_capi_access_token: normalizeMetaField(meta_capi_access_token),
+            meta_capi_dataset_id: normalizeMetaField(meta_capi_dataset_id),
+            meta_capi_test_event_code: normalizeMetaField(meta_capi_test_event_code),
+            facebook_purchase_value: normalizePurchaseValue(facebook_purchase_value),
+            send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, false),
+            send_purchase_to_facebook: normalizeBooleanField(send_purchase_to_facebook, false),
             is_active: true,
         })
         .select()
@@ -187,9 +212,36 @@ export async function PATCH(req: NextRequest) {
         'unqualified_message',
         'fallback_to_waiting',
         'is_active',
+        'meta_capi_access_token',
+        'meta_capi_dataset_id',
+        'meta_capi_test_event_code',
+        'facebook_purchase_value',
+        'send_qualified_to_facebook',
+        'send_purchase_to_facebook',
     ]
     for (const key of allowed) {
-        if (key in updates) patch[key] = (updates as Record<string, unknown>)[key]
+        if (!(key in updates)) continue
+
+        if (
+            key === 'meta_capi_access_token' ||
+            key === 'meta_capi_dataset_id' ||
+            key === 'meta_capi_test_event_code'
+        ) {
+            patch[key] = normalizeMetaField((updates as Record<string, unknown>)[key])
+            continue
+        }
+
+        if (key === 'facebook_purchase_value') {
+            patch[key] = normalizePurchaseValue((updates as Record<string, unknown>)[key])
+            continue
+        }
+
+        if (key === 'send_qualified_to_facebook' || key === 'send_purchase_to_facebook') {
+            patch[key] = normalizeBooleanField((updates as Record<string, unknown>)[key], false)
+            continue
+        }
+
+        patch[key] = (updates as Record<string, unknown>)[key]
     }
     patch.updated_at = new Date().toISOString()
 

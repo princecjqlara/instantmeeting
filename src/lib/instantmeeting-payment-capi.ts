@@ -26,6 +26,7 @@ export interface BuildInstantMeetingMetaEventInput {
     fbclid?: string | null
     eventId?: string | null
     eventTime?: number | null
+    valueOverride?: number | null
 }
 
 function normalizeEmail(value: string | null | undefined): string | null {
@@ -104,13 +105,21 @@ export function buildInstantMeetingMetaEvent(input: BuildInstantMeetingMetaEvent
     if (normalizedFbc) userData.fbc = normalizedFbc
 
     const customData: Record<string, unknown> = {
-        pipeline_stage: resolved.pipelineStage,
+        pipeline_stage:
+            input.trigger === 'payment_review_submit'
+                ? 'lead'
+                : resolved.pipelineStage,
         pipeline_trigger: resolved.trigger,
     }
 
-    if (resolved.value !== null) {
+    const resolvedValue =
+        typeof input.valueOverride === 'number' && Number.isFinite(input.valueOverride) && input.valueOverride > 0
+            ? input.valueOverride
+            : resolved.value
+
+    if (resolvedValue !== null) {
         customData.currency = 'PHP'
-        customData.value = resolved.value
+        customData.value = resolvedValue
     }
 
     return {

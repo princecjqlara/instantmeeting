@@ -59,6 +59,12 @@ interface FullForm extends FormSummary {
     ai_criteria?: string | null
     unqualified_message?: string | null
     fallback_to_waiting: boolean
+    meta_capi_access_token?: string | null
+    meta_capi_dataset_id?: string | null
+    meta_capi_test_event_code?: string | null
+    facebook_purchase_value?: number | null
+    send_qualified_to_facebook?: boolean
+    send_purchase_to_facebook?: boolean
     questions: Question[]
 }
 
@@ -708,6 +714,12 @@ export default function LeadFormsPage() {
                 ai_criteria: '',
                 unqualified_message: '',
                 fallback_to_waiting: true,
+                meta_capi_access_token: '',
+                meta_capi_dataset_id: '',
+                meta_capi_test_event_code: '',
+                facebook_purchase_value: 699,
+                send_qualified_to_facebook: false,
+                send_purchase_to_facebook: false,
                 questions: [newQuestion()],
             })
             return
@@ -838,6 +850,12 @@ export default function LeadFormsPage() {
                 ai_criteria: '',
                 unqualified_message: '',
                 fallback_to_waiting: true,
+                meta_capi_access_token: '',
+                meta_capi_dataset_id: '',
+                meta_capi_test_event_code: '',
+                facebook_purchase_value: 699,
+                send_qualified_to_facebook: false,
+                send_purchase_to_facebook: false,
                 questions: [],
             }
             return {
@@ -1004,6 +1022,74 @@ export default function LeadFormsPage() {
                                 }
                             />{' '}
                             Send borderline leads to the normal waiting room for manual review
+                        </label>
+                        <label className={styles.label}>Meta CAPI access token</label>
+                        <input
+                            className={styles.input}
+                            type="password"
+                            value={editing.meta_capi_access_token || ''}
+                            onChange={(e) =>
+                                setEditing({ ...editing, meta_capi_access_token: e.target.value })
+                            }
+                            placeholder="Optional per-form access token"
+                        />
+                        <label className={styles.label}>Meta dataset id</label>
+                        <input
+                            className={styles.input}
+                            value={editing.meta_capi_dataset_id || ''}
+                            onChange={(e) =>
+                                setEditing({ ...editing, meta_capi_dataset_id: e.target.value })
+                            }
+                            placeholder="Optional per-form dataset id"
+                        />
+                        <label className={styles.label}>Meta test event code</label>
+                        <input
+                            className={styles.input}
+                            value={editing.meta_capi_test_event_code || ''}
+                            onChange={(e) =>
+                                setEditing({ ...editing, meta_capi_test_event_code: e.target.value })
+                            }
+                            placeholder="Optional per-form test event code"
+                        />
+                        <label className={styles.label}>Purchase value</label>
+                        <input
+                            className={styles.input}
+                            type="number"
+                            min={1}
+                            value={editing.facebook_purchase_value ?? 699}
+                            onChange={(e) =>
+                                setEditing({
+                                    ...editing,
+                                    facebook_purchase_value: Number(e.target.value) || 699,
+                                })
+                            }
+                            placeholder="Purchase value in PHP"
+                        />
+                        <label className={styles.checkbox}>
+                            <input
+                                type="checkbox"
+                                checked={editing.send_qualified_to_facebook ?? false}
+                                onChange={(e) =>
+                                    setEditing({
+                                        ...editing,
+                                        send_qualified_to_facebook: e.target.checked,
+                                    })
+                                }
+                            />{' '}
+                            Qualified sending to Facebook
+                        </label>
+                        <label className={styles.checkbox}>
+                            <input
+                                type="checkbox"
+                                checked={editing.send_purchase_to_facebook ?? false}
+                                onChange={(e) =>
+                                    setEditing({
+                                        ...editing,
+                                        send_purchase_to_facebook: e.target.checked,
+                                    })
+                                }
+                            />{' '}
+                            Purchase sending to Facebook
                         </label>
                     </section>
 

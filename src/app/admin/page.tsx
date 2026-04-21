@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
 import {
-    INSTANTMEETING_PAYMENT_PIPELINE_STAGES,
     INSTANTMEETING_SOLD_VALUE_PHP,
 } from '@/lib/instantmeeting-payment-pipeline'
 
@@ -48,6 +47,7 @@ export default function AdminPage() {
     const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
     const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
     const [metaCapiTestEventCode, setMetaCapiTestEventCode] = useState('')
+    const [paymentPurchaseValue, setPaymentPurchaseValue] = useState(INSTANTMEETING_SOLD_VALUE_PHP)
     const [savingPaymentSettings, setSavingPaymentSettings] = useState(false)
     const [paymentSettingsMsg, setPaymentSettingsMsg] = useState('')
     const [paymentSettingsError, setPaymentSettingsError] = useState('')
@@ -91,13 +91,14 @@ export default function AdminPage() {
 
     const fetchPaymentSettings = async () => {
         try {
-            const res = await fetch('/api/profile/settings')
+            const res = await fetch('/api/admin/payment-settings')
             if (!res.ok) return
 
             const data = await res.json()
             setMetaCapiAccessToken(data.meta_capi_access_token || '')
             setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
             setMetaCapiTestEventCode(data.meta_capi_test_event_code || '')
+            setPaymentPurchaseValue(data.instantmeeting_payment_purchase_value_php || INSTANTMEETING_SOLD_VALUE_PHP)
         } catch (err) {
             console.error('Error fetching payment settings:', err)
         }
@@ -117,14 +118,14 @@ export default function AdminPage() {
         setPaymentSettingsError('')
 
         try {
-            const res = await fetch('/api/profile/settings', {
+            const res = await fetch('/api/admin/payment-settings', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     meta_capi_access_token: metaCapiAccessToken,
                     meta_capi_dataset_id: metaCapiDatasetId,
                     meta_capi_test_event_code: metaCapiTestEventCode,
-                    leads_pipeline_stages: [...INSTANTMEETING_PAYMENT_PIPELINE_STAGES],
+                    instantmeeting_payment_purchase_value_php: paymentPurchaseValue,
                 }),
             })
 
@@ -137,6 +138,7 @@ export default function AdminPage() {
             setMetaCapiAccessToken(data?.meta_capi_access_token || '')
             setMetaCapiDatasetId(data?.meta_capi_dataset_id || '')
             setMetaCapiTestEventCode(data?.meta_capi_test_event_code || '')
+            setPaymentPurchaseValue(data?.instantmeeting_payment_purchase_value_php || INSTANTMEETING_SOLD_VALUE_PHP)
             setPaymentSettingsMsg('Payment funnel settings saved.')
         } catch {
             setPaymentSettingsError('Network error while saving payment funnel settings')
@@ -286,6 +288,17 @@ export default function AdminPage() {
                                 placeholder="Optional: paste your Meta test event code"
                             />
                         </div>
+
+                        <div className={styles.formGroup}>
+                            <label>Purchase value</label>
+                            <input
+                                type="number"
+                                min={1}
+                                value={paymentPurchaseValue}
+                                onChange={(e) => setPaymentPurchaseValue(Number(e.target.value) || INSTANTMEETING_SOLD_VALUE_PHP)}
+                                placeholder="Enter the purchase value"
+                            />
+                        </div>
                     </div>
 
                     <div className={styles.pipelineGrid}>
@@ -303,17 +316,17 @@ export default function AdminPage() {
                             <span className={`${styles.pipelineBadge} ${styles.pipelineSoldBadge}`}>sold</span>
                             <strong>Admin verify</strong>
                             <p>
-                                Verified payments fire the sold conversion with a fixed value of ₱{INSTANTMEETING_SOLD_VALUE_PHP}.
+                                Verified payments fire the sold conversion with a value of ₱{paymentPurchaseValue}.
                             </p>
                         </div>
                     </div>
 
                     <div className={styles.paymentMetaRow}>
                         <span>Events: PageView → Lead → Purchase</span>
-                        <span>Sold value: ₱{INSTANTMEETING_SOLD_VALUE_PHP}</span>
+                        <span>Sold value: ₱{paymentPurchaseValue}</span>
                     </div>
 
-                    <p className={styles.paymentIntro}>Lead fires on receipt submission. Purchase stays fixed at ₱699 after admin verification.</p>
+                    <p className={styles.paymentIntro}>Lead fires on receipt submission. Purchase uses the value you set after admin verification.</p>
 
                     {paymentSettingsMsg && <p className={styles.successMsg}>{paymentSettingsMsg}</p>}
                     {paymentSettingsError && <p className={styles.errorMsg}>{paymentSettingsError}</p>}

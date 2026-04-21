@@ -374,6 +374,13 @@ export default function LeadFormPage({ params }: Props) {
         if (!bundle || submitting) return
         setSubmitting(true)
         const isLikelyInAppBrowser = typeof navigator !== 'undefined' && isLikelyInAppBrowserUserAgent(navigator.userAgent)
+        const readCookie = (name: string) => {
+            if (typeof document === 'undefined') return null
+            const hit = document.cookie
+                .split('; ')
+                .find((chunk) => chunk.startsWith(`${name}=`))
+            return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+        }
 
         // Pre-open a blank tab synchronously so the browser treats the eventual
         // navigation as a user-initiated popup (avoids popup blockers) and the
@@ -416,6 +423,13 @@ export default function LeadFormPage({ params }: Props) {
             formSlug: bundle.form.slug,
             sessionToken: sessionRef.current,
             hp: honeypotRef.current, // honeypot: must be empty
+            page_url: typeof window !== 'undefined' ? window.location.href : null,
+            fbclid:
+                typeof window !== 'undefined'
+                    ? new URL(window.location.href).searchParams.get('fbclid')
+                    : null,
+            fbp: readCookie('_fbp'),
+            fbc: readCookie('_fbc'),
             answers: questions.map((q) => ({
                 question_id: q.id,
                 question_text: q.question_text,

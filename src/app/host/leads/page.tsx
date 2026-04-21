@@ -122,9 +122,6 @@ export default function LeadsPage() {
     const [bulkBusy, setBulkBusy] = useState(false)
     const [pipelineStages, setPipelineStages] = useState<string[]>([...DEFAULT_LEADS_PIPELINE_STAGES])
     const [pipelineStagesInput, setPipelineStagesInput] = useState(DEFAULT_LEADS_PIPELINE_STAGES.join(', '))
-    const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
-    const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
-    const [metaCapiTestEventCode, setMetaCapiTestEventCode] = useState('')
     const [savingSettings, setSavingSettings] = useState(false)
     const [savingLead, setSavingLead] = useState(false)
     const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null)
@@ -162,9 +159,6 @@ export default function LeadsPage() {
                     const nextStages = normalizeLeadsPipelineStages(settings.leads_pipeline_stages)
                     setPipelineStages(nextStages)
                     setPipelineStagesInput(nextStages.join(', '))
-                    setMetaCapiAccessToken(settings.meta_capi_access_token || '')
-                    setMetaCapiDatasetId(settings.meta_capi_dataset_id || '')
-                    setMetaCapiTestEventCode(settings.meta_capi_test_event_code || '')
                 }
             } catch (error) {
                 console.error('Error fetching leads:', error)
@@ -363,9 +357,6 @@ export default function LeadsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     leads_pipeline_stages: normalizedStages,
-                    meta_capi_access_token: metaCapiAccessToken,
-                    meta_capi_dataset_id: metaCapiDatasetId,
-                    meta_capi_test_event_code: metaCapiTestEventCode,
                 }),
             })
 
@@ -379,9 +370,6 @@ export default function LeadsPage() {
             const nextStages = normalizeLeadsPipelineStages(data.leads_pipeline_stages)
             setPipelineStages(nextStages)
             setPipelineStagesInput(nextStages.join(', '))
-            setMetaCapiAccessToken(data.meta_capi_access_token || '')
-            setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
-            setMetaCapiTestEventCode(data.meta_capi_test_event_code || '')
         } finally {
             setSavingSettings(false)
         }
@@ -894,34 +882,6 @@ export default function LeadsPage() {
                                 value={pipelineStagesInput}
                                 onChange={(e) => setPipelineStagesInput(e.target.value)}
                                 placeholder="prospect, qualified, unqualified, sold"
-                            />
-                        </label>
-                        <label className={styles.fieldGroup}>
-                            <span>Meta CAPI access token</span>
-                            <input
-                                className={styles.settingsInput}
-                                type="password"
-                                value={metaCapiAccessToken}
-                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
-                                placeholder="Paste your access token"
-                            />
-                        </label>
-                        <label className={styles.fieldGroup}>
-                            <span>Meta dataset id</span>
-                            <input
-                                className={styles.settingsInput}
-                                value={metaCapiDatasetId}
-                                onChange={(e) => setMetaCapiDatasetId(e.target.value)}
-                                placeholder="Enter dataset id"
-                            />
-                        </label>
-                        <label className={styles.fieldGroup}>
-                            <span>Meta test event code</span>
-                            <input
-                                className={styles.settingsInput}
-                                value={metaCapiTestEventCode}
-                                onChange={(e) => setMetaCapiTestEventCode(e.target.value)}
-                                placeholder="Optional test event code"
                             />
                         </label>
                     </div>

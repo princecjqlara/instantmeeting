@@ -193,7 +193,7 @@ export default function Home() {
 
                 <div className={styles.heroPriceRow}>
                     <span className={styles.heroOldPrice}>₱1,499</span>
-                    <span className={styles.heroNewPrice}>₱699</span>
+                    <span className={styles.heroNewPrice}>₱699/month</span>
                     <span className={styles.heroSave}>Save ₱800</span>
                 </div>
 
@@ -208,11 +208,19 @@ export default function Home() {
                     <a href="#pricing" className={styles.btnGhost}>
                         View plan details
                     </a>
+                    <a
+                        href="https://www.facebook.com/aresmediaph"
+                        className={styles.btnGhost}
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        <FaFacebook /> Contact us
+                    </a>
                 </div>
                 <div className={styles.heroTrust}>
                     <span><FaCheck /> Facebook ads setup included (1 month)</span>
-                    <span><FaCheck /> Lifetime access</span>
-                    <span><FaCheck /> One-time payment via GCash</span>
+                    <span><FaCheck /> Monthly access</span>
+                    <span><FaCheck /> Monthly payment via GCash</span>
                 </div>
 
                 <HeroFlow />
@@ -256,8 +264,8 @@ export default function Home() {
             <section id="pricing" className={styles.pricing}>
                 <div className={styles.pricingHeader}>
                     <span className={styles.eyebrow}>Pricing</span>
-                    <h2>Single plan, one-time payment</h2>
-                    <p>Launch pricing for early customers. No subscription, no hidden fees.</p>
+                    <h2>Single plan, monthly payment</h2>
+                    <p>Launch pricing for early customers. Monthly billing, no hidden fees.</p>
                 </div>
                 <div className={styles.pricingCard}>
                     <div className={styles.pricingRibbon}>
@@ -272,9 +280,9 @@ export default function Home() {
                     <div className={styles.pricingName}>Full access</div>
                     <div className={styles.pricingPriceRow}>
                         <span className={styles.pricingOld}>₱1,499</span>
-                        <span className={styles.pricingNew}>₱699</span>
+                        <span className={styles.pricingNew}>₱699/month</span>
                     </div>
-                    <div className={styles.pricingNote}>Lifetime · one-time payment</div>
+                    <div className={styles.pricingNote}>Monthly · billed at ₱699/month</div>
 
                     <div className={styles.pricingBonus}>
                         <FaFacebook />
@@ -300,7 +308,7 @@ export default function Home() {
                         className={styles.pricingCta}
                         onClick={() => setShowSignup(true)}
                     >
-                        Join now — ₱699 <FaArrowRight />
+                        Join now — ₱699/month <FaArrowRight />
                     </button>
                     <div className={styles.pricingSmall}>
                         Payment via GCash. Accounts verified within 24 hours.
@@ -431,9 +439,9 @@ function LoginModal({
                 </form>
                 <div className={styles.modalFoot}>
                     Don&apos;t have an account?{' '}
-                    <button type="button" className={styles.linkBtn} onClick={onSwitchToSignup}>
-                        Claim the ₱699 deal →
-                    </button>
+                        <button type="button" className={styles.linkBtn} onClick={onSwitchToSignup}>
+                        Claim the ₱699/month plan →
+                        </button>
                 </div>
             </div>
         </div>
@@ -541,7 +549,7 @@ function SignupModal({
                     <div>
                         <h2 className={styles.modalTitle}>Complete your signup</h2>
                         <p className={styles.modalSubtitle}>
-                            <strong style={{ color: '#fff' }}>₱699</strong>{' '}
+                            <strong style={{ color: '#fff' }}>₱699/month</strong>{' '}
                             <span style={{ textDecoration: 'line-through', opacity: 0.5 }}>₱1,499</span>{' '}
                             · Facebook ads setup included.
                         </p>
@@ -550,7 +558,7 @@ function SignupModal({
                             <div className={styles.payStep}>
                                 <span className={styles.payStepNum}>1</span>
                                 <div>
-                                    <strong>Send ₱699 via GCash</strong>
+                                    <strong>Send ₱699/month via GCash</strong>
                                     <div className={styles.payMeta}>
                                         Number: <code>{gcashNumber}</code>
                                     </div>
@@ -640,7 +648,7 @@ function SignupModal({
                                 onClick={() => fileInputRef.current?.click()}
                                 className={styles.uploadBtn}
                             >
-                                <FaUpload /> {receipt ? 'Change receipt' : 'Upload receipt'}
+                                <FaUpload /> {receipt ? 'Change GCash receipt' : 'Upload GCash receipt'}
                             </button>
                             {receipt && (
                                 <div className={styles.uploadName}>
@@ -651,14 +659,14 @@ function SignupModal({
 
                         {error && <div className={styles.errorBox}>{error}</div>}
 
-                        <button type="submit" className={styles.btnPrimary} disabled={submitting}>
+                        <button type="submit" className={styles.btnPrimary} disabled={submitting || !receipt}>
                             {submitting ? (
                                 <>
                                     <FaSpinner style={{ animation: 'spin 1s linear infinite' }} /> Sending…
                                 </>
                             ) : (
                                 <>
-                                    Submit for review <FaArrowRight />
+                                    Submit GCash receipt <FaArrowRight />
                                 </>
                             )}
                         </button>

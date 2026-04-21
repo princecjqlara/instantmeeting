@@ -3,6 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { canManuallyMoveLeadToStage, deriveLeadPipelineStage, resolveStoredLeadPipelineStage } from '@/lib/lead-pipeline'
+import {
+    maybeSendLeadFormQualifiedMetaEvent,
+    maybeSendLeadFormPurchaseMetaEvent,
+    shouldSendLeadFormQualifiedMetaEvent,
+} from '@/lib/lead-form-qualified-capi'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +22,17 @@ function normalizeOptionalText(value: unknown, maxLength = 500) {
     if (value == null) return null
     const text = String(value).trim()
     return text ? text.slice(0, maxLength) : null
+}
+
+function getClientIpAddress(req: NextRequest): string | null {
+    const forwarded = req.headers.get('x-forwarded-for')
+    if (forwarded) {
+        const first = forwarded.split(',')[0]?.trim()
+        if (first) return first
+    }
+
+    const realIp = req.headers.get('x-real-ip')?.trim()
+    return realIp || null
 }
 
 function normalizeTags(value: unknown) {
@@ -361,7 +377,7 @@ export async function PATCH(req: NextRequest) {
 
         const { data: ownedLead, error: leadError } = await supabase
             .from('waiting_guests')
-            .select('id, pipeline_stage, meetings!inner(user_id)')
+            .select('*, meetings!inner(user_id)')
             .eq('id', singleId)
             .eq('meetings.user_id', user.id)
             .maybeSingle()
@@ -374,13 +390,16 @@ export async function PATCH(req: NextRequest) {
         }
 
         const patch: Record<string, unknown> = {}
+        let nextStage: string | null = null
+        let movedToQualified = false
+        let movedToSold = false
         if ('guest_name' in body) patch.guest_name = normalizeOptionalText(body.guest_name, 80)
         if ('guest_email' in body) patch.guest_email = normalizeOptionalText(body.guest_email, 160)
         if ('guest_phone' in body) patch.guest_phone = normalizeOptionalText(body.guest_phone, 40)
         if ('note' in body) patch.note = normalizeOptionalText(body.note, 2000)
         if ('custom_fields' in body) patch.custom_fields = normalizeCustomFields(body.custom_fields)
         if ('pipeline_stage' in body) {
-            const nextStage = normalizeOptionalText(body.pipeline_stage, 40) || 'prospect'
+            nextStage = normalizeOptionalText(body.pipeline_stage, 40) || 'prospect'
             if (
                 !canManuallyMoveLeadToStage({
                     from: (ownedLead as { pipeline_stage?: string | null }).pipeline_stage,
@@ -392,6 +411,13 @@ export async function PATCH(req: NextRequest) {
                     { status: 400 }
                 )
             }
+            movedToQualified = nextStage === 'qualified'
+            movedToSold =
+                nextStage === 'sold' &&
+                (
+                    (ownedLead as { pipeline_stage?: string | null }).pipeline_stage !== 'sold' ||
+                    !((ownedLead as { meta_purchase_sent_at?: string | null }).meta_purchase_sent_at)
+                )
             patch.pipeline_stage = nextStage
             patch.pipeline_stage_changed_at = new Date().toISOString()
         }
@@ -403,6 +429,82 @@ export async function PATCH(req: NextRequest) {
 
         if (updateError) {
             return NextResponse.json({ error: updateError.message }, { status: 500 })
+        }
+
+        if (
+            movedToQualified &&
+            shouldSendLeadFormQualifiedMetaEvent(
+                (ownedLead as { meta_qualified_sent_at?: string | null }).meta_qualified_sent_at
+            ) &&
+            (ownedLead as { lead_form_id?: string | null }).lead_form_id
+        ) {
+            const { data: leadForm } = await supabase
+                .from('lead_forms')
+                .select('id, slug, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, facebook_purchase_value, send_qualified_to_facebook, send_purchase_to_facebook')
+                .eq('id', (ownedLead as { lead_form_id?: string | null }).lead_form_id)
+                .maybeSingle()
+
+            if (leadForm) {
+                await maybeSendLeadFormQualifiedMetaEvent({
+                    supabase,
+                    leadForm,
+                    lead: {
+                        id: singleId,
+                        guest_name:
+                            ('guest_name' in patch ? (patch.guest_name as string | null) : null) ??
+                            ((ownedLead as { guest_name?: string | null }).guest_name ?? null),
+                        guest_email:
+                            ('guest_email' in patch ? (patch.guest_email as string | null) : null) ??
+                            ((ownedLead as { guest_email?: string | null }).guest_email ?? null),
+                        guest_phone:
+                            ('guest_phone' in patch ? (patch.guest_phone as string | null) : null) ??
+                            ((ownedLead as { guest_phone?: string | null }).guest_phone ?? null),
+                        meta_qualified_sent_at:
+                            (ownedLead as { meta_qualified_sent_at?: string | null }).meta_qualified_sent_at ?? null,
+                    },
+                    eventSourceUrl:
+                        leadForm.slug
+                            ? `${req.nextUrl.origin}/leads/${leadForm.slug}`
+                            : `${req.nextUrl.origin}/host/leads`,
+                    clientIpAddress: getClientIpAddress(req),
+                    clientUserAgent: req.headers.get('user-agent'),
+                })
+            }
+        }
+
+        if (movedToSold && (ownedLead as { lead_form_id?: string | null }).lead_form_id) {
+            const { data: leadForm } = await supabase
+                .from('lead_forms')
+                .select('id, slug, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, facebook_purchase_value, send_qualified_to_facebook, send_purchase_to_facebook')
+                .eq('id', (ownedLead as { lead_form_id?: string | null }).lead_form_id)
+                .maybeSingle()
+
+            if (leadForm) {
+                await maybeSendLeadFormPurchaseMetaEvent({
+                    supabase,
+                    leadForm,
+                    lead: {
+                        id: singleId,
+                        guest_name:
+                            ('guest_name' in patch ? (patch.guest_name as string | null) : null) ??
+                            ((ownedLead as { guest_name?: string | null }).guest_name ?? null),
+                        guest_email:
+                            ('guest_email' in patch ? (patch.guest_email as string | null) : null) ??
+                            ((ownedLead as { guest_email?: string | null }).guest_email ?? null),
+                        guest_phone:
+                            ('guest_phone' in patch ? (patch.guest_phone as string | null) : null) ??
+                            ((ownedLead as { guest_phone?: string | null }).guest_phone ?? null),
+                        meta_purchase_sent_at:
+                            (ownedLead as { meta_purchase_sent_at?: string | null }).meta_purchase_sent_at ?? null,
+                    },
+                    eventSourceUrl:
+                        leadForm.slug
+                            ? `${req.nextUrl.origin}/leads/${leadForm.slug}`
+                            : `${req.nextUrl.origin}/host/leads`,
+                    clientIpAddress: getClientIpAddress(req),
+                    clientUserAgent: req.headers.get('user-agent'),
+                })
+            }
         }
 
         return NextResponse.json({ success: true })

@@ -47,6 +47,17 @@ ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS left_at TIMESTAMPTZ;
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[];
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'prospect';
 ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS pipeline_stage_changed_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS meta_qualified_sent_at TIMESTAMPTZ;
+ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS meta_purchase_sent_at TIMESTAMPTZ;
+
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS facebook_purchase_value INTEGER DEFAULT 699;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT false;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_purchase_to_facebook BOOLEAN DEFAULT false;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS instantmeeting_payment_purchase_value_php INTEGER DEFAULT 699;
 
 -- First-run onboarding flag for new hosts
 ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT false;

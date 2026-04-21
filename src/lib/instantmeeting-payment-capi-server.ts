@@ -11,6 +11,25 @@ import {
 } from '@/lib/meta-capi-config'
 import { buildMetaCapiRequestBody } from '@/lib/meta-capi-request'
 
+export type MetaCapiSendResult =
+    | { sent: true }
+    | { sent: false; reason: 'request_failed'; status: number }
+    | { sent: false; reason: 'request_error' }
+
+interface InstantMeetingPaymentFunnelRow {
+    id: string
+    meta_capi_access_token?: string | null
+    meta_capi_dataset_id?: string | null
+    meta_capi_test_event_code?: string | null
+    instantmeeting_payment_purchase_value_php?: number | null
+}
+
+export interface InstantMeetingPaymentFunnelSettings {
+    ownerId: string
+    purchaseValue: number
+    config: MetaCapiConfig | null
+}
+
 export async function fetchOrganizerMetaCapiConfig(
     supabase: SupabaseClient,
     organizerId: string
@@ -47,22 +66,57 @@ export async function fetchInstantMeetingMetaCapiConfig(
     return selectMetaCapiConfig(data)
 }
 
-export async function sendInstantMeetingMetaCapiEvent(
-    supabase: SupabaseClient,
-    input: BuildInstantMeetingMetaEventInput & {
-        organizerId?: string | null
+export async function fetchInstantMeetingPaymentFunnelSettings(
+    supabase: SupabaseClient
+): Promise<InstantMeetingPaymentFunnelSettings | null> {
+    const configuredOrganizerEmail = process.env.ORGANIZER_EMAIL?.trim().toLowerCase() || null
+
+    const baseQuery = () =>
+        supabase
+            .from('users')
+            .select('id, email, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, instantmeeting_payment_purchase_value_php, created_at')
+            .eq('role', 'organizer')
+
+    const configuredOwnerResult = configuredOrganizerEmail
+        ? await baseQuery().eq('email', configuredOrganizerEmail).maybeSingle()
+        : { data: null, error: null }
+
+    if (configuredOwnerResult.error) {
+        console.error('Failed to load configured InstantMeeting payment owner:', configuredOwnerResult.error)
+        return null
     }
-) {
-    const config = input.organizerId
-        ? await fetchOrganizerMetaCapiConfig(supabase, input.organizerId)
-        : await fetchInstantMeetingMetaCapiConfig(supabase)
 
-    if (!config) {
-        return { sent: false, reason: 'missing_config' as const }
+    const fallbackOwnerResult = configuredOwnerResult.data
+        ? { data: configuredOwnerResult.data, error: null }
+        : await baseQuery().order('created_at', { ascending: true }).limit(1).maybeSingle()
+
+    const { data, error } = fallbackOwnerResult
+
+    if (error) {
+        console.error('Failed to load InstantMeeting payment funnel settings:', error)
+        return null
     }
 
-    const event = buildInstantMeetingMetaEvent(input)
+    if (!data?.id) {
+        return null
+    }
 
+    return {
+        ownerId: data.id,
+        purchaseValue:
+            typeof data.instantmeeting_payment_purchase_value_php === 'number' &&
+            Number.isFinite(data.instantmeeting_payment_purchase_value_php) &&
+            data.instantmeeting_payment_purchase_value_php > 0
+                ? Math.round(data.instantmeeting_payment_purchase_value_php)
+                : 699,
+        config: normalizeMetaCapiConfig(data),
+    }
+}
+
+export async function sendInstantMeetingMetaCapiEventWithConfig(
+    config: MetaCapiConfig,
+    event: Record<string, unknown>
+): Promise<MetaCapiSendResult> {
     try {
         const response = await fetch(
             `https://graph.facebook.com/v20.0/${config.datasetId}/events?access_token=${encodeURIComponent(config.accessToken)}`,
@@ -83,14 +137,54 @@ export async function sendInstantMeetingMetaCapiEvent(
             console.error('Meta CAPI request failed:', response.status, body)
             return {
                 sent: false,
-                reason: 'request_failed' as const,
+                reason: 'request_failed',
                 status: response.status,
             }
         }
 
-        return { sent: true as const }
+        return { sent: true }
     } catch (error) {
         console.error('Meta CAPI request errored:', error)
-        return { sent: false as const, reason: 'request_error' as const }
+        return { sent: false, reason: 'request_error' }
     }
+}
+
+export async function sendInstantMeetingMetaCapiEvent(
+    supabase: SupabaseClient,
+    input: BuildInstantMeetingMetaEventInput & {
+        organizerId?: string | null
+    }
+) {
+    const config = input.organizerId
+        ? await fetchOrganizerMetaCapiConfig(supabase, input.organizerId)
+        : await fetchInstantMeetingMetaCapiConfig(supabase)
+
+    if (!config) {
+        return { sent: false, reason: 'missing_config' as const }
+    }
+
+    const event = buildInstantMeetingMetaEvent(input)
+
+    return sendInstantMeetingMetaCapiEventWithConfig(config, event)
+}
+
+export async function sendInstantMeetingPaymentMetaCapiEvent(
+    supabase: SupabaseClient,
+    input: BuildInstantMeetingMetaEventInput
+) {
+    const settings = await fetchInstantMeetingPaymentFunnelSettings(supabase)
+
+    if (!settings?.config) {
+        return { sent: false, reason: 'missing_config' as const }
+    }
+
+    const event = buildInstantMeetingMetaEvent({
+        ...input,
+        valueOverride:
+            input.trigger === 'admin_verify'
+                ? input.valueOverride ?? settings.purchaseValue
+                : input.valueOverride,
+    })
+
+    return sendInstantMeetingMetaCapiEventWithConfig(settings.config, event)
 }

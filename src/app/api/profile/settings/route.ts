@@ -21,6 +21,7 @@ const LEADS_PIPELINE_STAGES_COLUMN = 'leads_pipeline_stages'
 const META_CAPI_ACCESS_TOKEN_COLUMN = 'meta_capi_access_token'
 const META_CAPI_DATASET_ID_COLUMN = 'meta_capi_dataset_id'
 const META_CAPI_TEST_EVENT_CODE_COLUMN = 'meta_capi_test_event_code'
+const INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN = 'instantmeeting_payment_purchase_value_php'
 
 const PROFILE_SETTINGS_COLUMNS = [
     'username',
@@ -42,6 +43,7 @@ const PROFILE_SETTINGS_COLUMNS = [
     META_CAPI_ACCESS_TOKEN_COLUMN,
     META_CAPI_DATASET_ID_COLUMN,
     META_CAPI_TEST_EVENT_CODE_COLUMN,
+    INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN,
 ]
 
 interface ProfileSettingsQueryResult {
@@ -73,6 +75,7 @@ async function fetchProfileSettingsByEmail(
             META_CAPI_ACCESS_TOKEN_COLUMN,
             META_CAPI_DATASET_ID_COLUMN,
             META_CAPI_TEST_EVENT_CODE_COLUMN,
+            INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN,
         ]) {
             if (!skip.has(col) && isMissingUsersColumnError(queryResult.error, col)) {
                 const next = new Set(skip)
@@ -107,6 +110,7 @@ async function insertProfileSettings(
         META_CAPI_ACCESS_TOKEN_COLUMN,
         META_CAPI_DATASET_ID_COLUMN,
         META_CAPI_TEST_EVENT_CODE_COLUMN,
+        INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN,
     ]) {
         if (
             result.error &&
@@ -137,6 +141,7 @@ async function updateProfileSettings(
         META_CAPI_ACCESS_TOKEN_COLUMN,
         META_CAPI_DATASET_ID_COLUMN,
         META_CAPI_TEST_EVENT_CODE_COLUMN,
+        INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN,
     ]) {
         if (
             result.error &&
@@ -197,6 +202,7 @@ export async function PATCH(req: NextRequest) {
         meta_capi_access_token,
         meta_capi_dataset_id,
         meta_capi_test_event_code,
+        instantmeeting_payment_purchase_value_php,
     } = body
 
     // Validate username only if it's a non-empty string
@@ -239,6 +245,11 @@ export async function PATCH(req: NextRequest) {
     if (meta_capi_access_token !== undefined) updateData.meta_capi_access_token = meta_capi_access_token || null
     if (meta_capi_dataset_id !== undefined) updateData.meta_capi_dataset_id = meta_capi_dataset_id || null
     if (meta_capi_test_event_code !== undefined) updateData.meta_capi_test_event_code = meta_capi_test_event_code || null
+    if (instantmeeting_payment_purchase_value_php !== undefined) {
+        const parsed = Number(instantmeeting_payment_purchase_value_php)
+        updateData.instantmeeting_payment_purchase_value_php =
+            Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 699
+    }
 
     // First check if user exists
     const { data: existingUser, error: existingUserError } = await supabase

@@ -5,6 +5,7 @@ import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
+import { maybeSendLeadFormQualifiedMetaEvent } from '@/lib/lead-form-qualified-capi'
 import { insertWaitingGuestWithCompat, updateWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
 
 export const dynamic = 'force-dynamic'
@@ -82,9 +83,20 @@ function normalizeLeadSessionToken(value: unknown): string | null {
     return normalized || null
 }
 
+function getClientIpAddress(req: NextRequest): string | null {
+    const forwarded = req.headers.get('x-forwarded-for')
+    if (forwarded) {
+        const first = forwarded.split(',')[0]?.trim()
+        if (first) return first
+    }
+
+    const realIp = req.headers.get('x-real-ip')?.trim()
+    return realIp || null
+}
+
 export async function POST(req: NextRequest) {
     const body = await req.json()
-    const { formSlug, sessionToken, answers, guestName, guestEmail, guestPhone, hp } = body || {}
+    const { formSlug, sessionToken, answers, guestName, guestEmail, guestPhone, hp, page_url, fbclid, fbp, fbc } = body || {}
 
     if (!formSlug || !Array.isArray(answers)) {
         return NextResponse.json({ error: 'formSlug and answers required' }, { status: 400 })
@@ -175,7 +187,7 @@ export async function POST(req: NextRequest) {
         normalizedSessionToken
             ? supabase
                 .from('waiting_guests')
-                .select('id, meeting_id, status')
+                .select('*')
                 .eq('lead_session_token', normalizedSessionToken)
                 .maybeSingle()
             : Promise.resolve({ data: null, error: null }),
@@ -263,6 +275,30 @@ export async function POST(req: NextRequest) {
     // free, fall back to a booking calendar so the lead isn't dropped
     // into an empty room.
     if (qualification.verdict === 'qualified') {
+        await maybeSendLeadFormQualifiedMetaEvent({
+            supabase,
+            leadForm: form,
+            lead: {
+                id: guest.id,
+                guest_name: resolvedName,
+                guest_email: resolvedEmail,
+                guest_phone: resolvedPhone,
+                meta_qualified_sent_at:
+                    typeof existingLeadSession?.meta_qualified_sent_at === 'string'
+                        ? existingLeadSession.meta_qualified_sent_at
+                        : null,
+            },
+            eventSourceUrl:
+                typeof page_url === 'string' && page_url.trim()
+                    ? page_url
+                    : `${req.nextUrl.origin}/leads/${form.slug}`,
+            clientIpAddress: getClientIpAddress(req),
+            clientUserAgent: req.headers.get('user-agent'),
+            fbp: typeof fbp === 'string' ? fbp : null,
+            fbc: typeof fbc === 'string' ? fbc : null,
+            fbclid: typeof fbclid === 'string' ? fbclid : null,
+        })
+
         const admitAndRespond = async (requireAvailableAssignee: boolean) => {
             const result = await admitGuestLogic(meeting.id, guest.id, {
                 requireAvailableAssignee,

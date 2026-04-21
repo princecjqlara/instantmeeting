@@ -22,6 +22,7 @@ export interface ProfileSettingsRecord {
     meta_capi_access_token?: string | null
     meta_capi_dataset_id?: string | null
     meta_capi_test_event_code?: string | null
+    instantmeeting_payment_purchase_value_php?: number | null
 }
 
 export interface ProfileSettingsResponse {
@@ -44,6 +45,7 @@ export interface ProfileSettingsResponse {
     meta_capi_access_token: string
     meta_capi_dataset_id: string
     meta_capi_test_event_code: string
+    instantmeeting_payment_purchase_value_php: number
 }
 
 export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
@@ -66,6 +68,7 @@ export const DEFAULT_PROFILE_SETTINGS: ProfileSettingsResponse = {
     meta_capi_access_token: '',
     meta_capi_dataset_id: '',
     meta_capi_test_event_code: '',
+    instantmeeting_payment_purchase_value_php: 699,
 }
 
 interface NormalizeOptions {
@@ -117,5 +120,11 @@ export function normalizeProfileSettings(
             typeof user.meta_capi_test_event_code === 'string'
                 ? user.meta_capi_test_event_code.trim()
                 : DEFAULT_PROFILE_SETTINGS.meta_capi_test_event_code,
+        instantmeeting_payment_purchase_value_php:
+            typeof user.instantmeeting_payment_purchase_value_php === 'number' &&
+            Number.isFinite(user.instantmeeting_payment_purchase_value_php) &&
+            user.instantmeeting_payment_purchase_value_php > 0
+                ? Math.round(user.instantmeeting_payment_purchase_value_php)
+                : DEFAULT_PROFILE_SETTINGS.instantmeeting_payment_purchase_value_php,
     }
 }

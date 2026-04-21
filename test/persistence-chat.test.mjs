@@ -27,6 +27,7 @@ test('normalizeProfileSettings returns safe defaults when no user exists', () =>
         meta_capi_access_token: '',
         meta_capi_dataset_id: '',
         meta_capi_test_event_code: '',
+        instantmeeting_payment_purchase_value_php: 699,
     })
 })
 
@@ -51,6 +52,7 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
         meta_capi_access_token: 'token-abc',
         meta_capi_dataset_id: 'dataset-xyz',
         meta_capi_test_event_code: 'TEST456',
+        instantmeeting_payment_purchase_value_php: 1250,
     })
 
     assert.equal(settings.username, 'builder')
@@ -64,6 +66,7 @@ test('normalizeProfileSettings keeps persisted values when present', () => {
     assert.equal(settings.meta_capi_access_token, 'token-abc')
     assert.equal(settings.meta_capi_dataset_id, 'dataset-xyz')
     assert.equal(settings.meta_capi_test_event_code, 'TEST456')
+    assert.equal(settings.instantmeeting_payment_purchase_value_php, 1250)
 })
 
 test('createChatMessage trims input and rejects blank messages', () => {

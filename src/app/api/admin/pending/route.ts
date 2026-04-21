@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
-import { sendInstantMeetingMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
+import { sendInstantMeetingPaymentMetaCapiEvent } from '@/lib/instantmeeting-payment-capi-server'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,7 +20,7 @@ async function requireOrganizer() {
     const supabase = getSupabaseClient()
     const { data: user } = await supabase
         .from('users')
-        .select('id, role')
+        .select('id, role, instantmeeting_payment_purchase_value_php')
         .eq('email', session.user.email)
         .single()
 
@@ -123,8 +123,7 @@ export async function PATCH(req: NextRequest) {
             .eq('id', id)
         if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-        void sendInstantMeetingMetaCapiEvent(supabase, {
-            organizerId: organizer.id,
+        void sendInstantMeetingPaymentMetaCapiEvent(supabase, {
             trigger: 'admin_verify',
             eventSourceUrl: `${req.nextUrl.origin}/admin`,
             email: pending.email,
@@ -164,8 +163,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: updateErr.message }, { status: 500 })
     }
 
-    void sendInstantMeetingMetaCapiEvent(supabase, {
-        organizerId: organizer.id,
+    void sendInstantMeetingPaymentMetaCapiEvent(supabase, {
         trigger: 'admin_verify',
         eventSourceUrl: `${req.nextUrl.origin}/admin`,
         email: pending.email,
