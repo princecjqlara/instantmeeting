@@ -21,4 +21,5 @@ test('admin payment settings route reads and writes the signed-in organizer paym
 
     assert.ok(source.includes('fetchInstantMeetingPaymentFunnelSettings'))
     assert.ok(source.includes('organizerId: organizer.id'))
+    assert.ok(source.includes('isMissingUsersColumnError'))
 })

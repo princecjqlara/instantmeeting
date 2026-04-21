@@ -4,8 +4,11 @@ import { createClient } from '@supabase/supabase-js'
 
 import { authOptions } from '@/lib/auth'
 import { fetchInstantMeetingPaymentFunnelSettings } from '@/lib/instantmeeting-payment-capi-server'
+import { isMissingUsersColumnError } from '@/lib/users-column-compat'
 
 export const dynamic = 'force-dynamic'
+
+const INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN = 'instantmeeting_payment_purchase_value_php'
 
 function getSupabaseClient() {
     return createClient(
@@ -88,15 +91,25 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: 'Payment owner not found' }, { status: 404 })
     }
 
-    const { error } = await supabase.from('users').update(payload).eq('id', settings.ownerId)
-    if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 })
+    let responsePurchaseValue = payload.instantmeeting_payment_purchase_value_php
+
+    let result = await supabase.from('users').update(payload).eq('id', settings.ownerId)
+
+    if (isMissingUsersColumnError(result.error, INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN)) {
+        const compatPayload: Record<string, string | number | null> = { ...payload }
+        delete compatPayload[INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN]
+        responsePurchaseValue = settings.purchaseValue
+        result = await supabase.from('users').update(compatPayload).eq('id', settings.ownerId)
+    }
+
+    if (result.error) {
+        return NextResponse.json({ error: result.error.message }, { status: 500 })
     }
 
     return NextResponse.json({
         meta_capi_access_token: payload.meta_capi_access_token || '',
         meta_capi_dataset_id: payload.meta_capi_dataset_id || '',
         meta_capi_test_event_code: payload.meta_capi_test_event_code || '',
-        instantmeeting_payment_purchase_value_php: payload.instantmeeting_payment_purchase_value_php,
+        instantmeeting_payment_purchase_value_php: responsePurchaseValue,
     })
 }

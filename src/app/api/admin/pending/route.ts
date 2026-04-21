@@ -20,7 +20,7 @@ async function requireOrganizer() {
     const supabase = getSupabaseClient()
     const { data: user } = await supabase
         .from('users')
-        .select('id, role, instantmeeting_payment_purchase_value_php')
+        .select('id, role')
         .eq('email', session.user.email)
         .single()
 

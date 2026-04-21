@@ -4,9 +4,6 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
     FaVideo,
-    FaBolt,
-    FaUsers,
-    FaMagic,
     FaCheck,
     FaEnvelope,
     FaLock,
@@ -170,7 +167,6 @@ export default function Home() {
                     <FaVideo /> InstantMeeting
                 </div>
                 <div className={styles.navActions}>
-                    <a href="#features" className={styles.navLink}>Features</a>
                     <a href="#pricing" className={styles.navLink}>Pricing</a>
                     <button
                         type="button"
@@ -255,40 +251,6 @@ export default function Home() {
                 </div>
 
                 <HeroFlow />
-            </section>
-
-            {/* Features */}
-            <section id="features" className={styles.features}>
-                <div className={styles.featureCard}>
-                    <div className={styles.featureIcon}>
-                        <FaMagic />
-                    </div>
-                    <h3>Scored intake forms</h3>
-                    <p>
-                        Configure a short form that scores every submission against
-                        your ideal-client criteria.
-                    </p>
-                </div>
-                <div className={styles.featureCard}>
-                    <div className={styles.featureIcon}>
-                        <FaBolt />
-                    </div>
-                    <h3>Instant admission or booking</h3>
-                    <p>
-                        Qualified leads join your live video room immediately. Others
-                        are routed to your booking calendar automatically.
-                    </p>
-                </div>
-                <div className={styles.featureCard}>
-                    <div className={styles.featureIcon}>
-                        <FaUsers />
-                    </div>
-                    <h3>Deploy anywhere</h3>
-                    <p>
-                        Embed the widget on your website or share the universal link.
-                        One consistent flow across every channel.
-                    </p>
-                </div>
             </section>
 
             <section className={styles.testimonialsSection}>

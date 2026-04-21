@@ -101,3 +101,13 @@ test('payment funnel server helpers allow admin flows to force organizer-owned c
     assert.ok(source.includes('fetchInstantMeetingPaymentFunnelSettings(supabase, { organizerId: input.organizerId })'))
     assert.ok(source.includes('if (organizerId) {'))
 })
+
+test('payment funnel owner lookup tolerates a missing purchase value column', () => {
+    const source = readFileSync(new URL('../src/lib/instantmeeting-payment-capi-server.ts', import.meta.url), 'utf8')
+    const pendingRouteSource = readFileSync(new URL('../src/app/api/admin/pending/route.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('isMissingUsersColumnError'))
+    assert.ok(source.includes('includePurchaseValueColumn'))
+    assert.ok(source.includes('return runPaymentOwnerQuery(buildQuery, false)'))
+    assert.ok(!pendingRouteSource.includes("select('id, role, instantmeeting_payment_purchase_value_php')"))
+})

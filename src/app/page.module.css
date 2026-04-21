@@ -415,95 +415,6 @@
     font-size: 10px;
 }
 
-/* Features */
-.features {
-    max-width: 1120px;
-    margin: 40px auto 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--border);
-    border-left: 1px solid var(--border);
-}
-
-.featureCard {
-    padding: 36px 32px;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-    background: transparent;
-    transition: background 0.2s;
-}
-
-.featureCard:hover {
-    background: rgba(255, 255, 255, 0.01);
-}
-
-.featureIcon {
-    width: 32px;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    color: var(--fg);
-    font-size: 13px;
-    margin-bottom: 20px;
-    border: 1px solid var(--border);
-    background: transparent;
-    position: relative;
-    transition: border-color 0.3s, color 0.3s;
-}
-
-.featureIcon::before {
-    content: '';
-    position: absolute;
-    inset: -6px;
-    border-radius: 9999px;
-    border: 1px solid rgba(214, 235, 253, 0.14);
-    opacity: 0;
-    transform: scale(0.9);
-    transition: opacity 0.35s, transform 0.35s;
-}
-
-.featureCard:hover .featureIcon {
-    border-color: rgba(214, 235, 253, 0.45);
-    color: var(--fg-strong);
-}
-
-.featureCard:hover .featureIcon::before {
-    opacity: 1;
-    transform: scale(1);
-    animation: featureRing 2s ease-in-out infinite 0.4s;
-}
-
-@keyframes featureRing {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.15);
-        opacity: 0.35;
-    }
-}
-
-.featureCard h3 {
-    margin: 0 0 8px;
-    font-family: var(--font-section);
-    font-size: 20px;
-    font-weight: 500;
-    letter-spacing: -0.4px;
-    color: var(--fg);
-    font-feature-settings: "ss01", "ss04";
-}
-
-.featureCard p {
-    margin: 0;
-    color: var(--fg-muted);
-    font-size: 14px;
-    line-height: 1.55;
-}
-
 /* Pricing */
 .pricing {
     max-width: 720px;
@@ -820,24 +731,6 @@
     color: var(--fg-dim);
 }
 
-@media (max-width: 640px) {
-    .pricingFeatures {
-        grid-template-columns: 1fr;
-    }
-
-    .pricingNew {
-        font-size: 64px;
-    }
-
-    .pricingCard {
-        padding: 28px 22px;
-    }
-
-    .heroNewPrice {
-        font-size: 24px;
-    }
-}
-
 /* Guest */
 .guestSection {
     max-width: 560px;
@@ -1069,6 +962,106 @@
 }
 
 @media (max-width: 720px) {
+    .main {
+        padding: 0 16px 96px;
+    }
+
+    .nav {
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 18px 0;
+    }
+
+    .brand {
+        font-size: 15px;
+    }
+
+    .navActions {
+        width: 100%;
+        justify-content: space-between;
+        gap: 12px 16px;
+        flex-wrap: wrap;
+    }
+
+    .navJoin {
+        margin-left: auto;
+    }
+
+    .hero {
+        padding: 72px 0 56px;
+    }
+
+    .heroSubtitle {
+        font-size: 17px;
+    }
+
+    .heroPriceRow {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .testimonialsSection {
+        margin-top: 72px;
+    }
+
+    .testimonialsGrid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .testimonialCopy h3 {
+        font-size: 18px;
+    }
+
+    .pricing {
+        margin-top: 88px;
+    }
+
+    .pricingFeatures {
+        grid-template-columns: 1fr;
+    }
+
+    .pricingCard {
+        padding: 28px 20px;
+    }
+
+    .pricingRibbon,
+    .countdownRow {
+        max-width: 100%;
+    }
+
+    .countdownRow {
+        margin-top: 10px;
+        margin-left: 0;
+    }
+
+    .pricingPriceRow {
+        flex-wrap: wrap;
+        gap: 8px 14px;
+    }
+
+    .pricingOld {
+        font-size: 18px;
+    }
+
+    .pricingNew {
+        font-size: clamp(48px, 17vw, 62px);
+        letter-spacing: -1.8px;
+        line-height: 0.95;
+    }
+
+    .pricingNote {
+        font-size: 13px;
+    }
+
+    .pricingCta {
+        font-size: 14px;
+    }
+
+    .heroNewPrice {
+        font-size: 24px;
+    }
+
     .signupGrid {
         grid-template-columns: 1fr;
     }

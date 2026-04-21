@@ -10,6 +10,7 @@ import {
     type MetaCapiConfig,
 } from '@/lib/meta-capi-config'
 import { buildMetaCapiRequestBody } from '@/lib/meta-capi-request'
+import { isMissingUsersColumnError } from '@/lib/users-column-compat'
 
 export type MetaCapiSendResult =
     | { sent: true }
@@ -32,6 +33,59 @@ export interface InstantMeetingPaymentFunnelSettings {
 
 interface FetchInstantMeetingPaymentFunnelSettingsOptions {
     organizerId?: string | null
+}
+
+interface PaymentOwnerQueryResult {
+    data: InstantMeetingPaymentFunnelRow | null
+    error: { message: string } | null
+}
+
+const INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN = 'instantmeeting_payment_purchase_value_php'
+
+function paymentOwnerSelect(includePurchaseValueColumn: boolean) {
+    return [
+        'id',
+        'email',
+        'meta_capi_access_token',
+        'meta_capi_dataset_id',
+        'meta_capi_test_event_code',
+        'created_at',
+        ...(includePurchaseValueColumn ? [INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN] : []),
+    ].join(', ')
+}
+
+function resolveInstantMeetingPurchaseValue(row: InstantMeetingPaymentFunnelRow | null | undefined) {
+    return typeof row?.instantmeeting_payment_purchase_value_php === 'number' &&
+        Number.isFinite(row.instantmeeting_payment_purchase_value_php) &&
+        row.instantmeeting_payment_purchase_value_php > 0
+        ? Math.round(row.instantmeeting_payment_purchase_value_php)
+        : 699
+}
+
+function toPaymentFunnelSettings(
+    row: InstantMeetingPaymentFunnelRow
+): InstantMeetingPaymentFunnelSettings {
+    return {
+        ownerId: row.id,
+        purchaseValue: resolveInstantMeetingPurchaseValue(row),
+        config: normalizeMetaCapiConfig(row),
+    }
+}
+
+async function runPaymentOwnerQuery(
+    buildQuery: (select: string) => PromiseLike<PaymentOwnerQueryResult>,
+    includePurchaseValueColumn = true
+): Promise<PaymentOwnerQueryResult> {
+    const result = await buildQuery(paymentOwnerSelect(includePurchaseValueColumn))
+
+    if (
+        includePurchaseValueColumn &&
+        isMissingUsersColumnError(result.error, INSTANTMEETING_PAYMENT_PURCHASE_VALUE_COLUMN)
+    ) {
+        return runPaymentOwnerQuery(buildQuery, false)
+    }
+
+    return result
 }
 
 export async function fetchOrganizerMetaCapiConfig(
@@ -77,14 +131,16 @@ export async function fetchInstantMeetingPaymentFunnelSettings(
     const organizerId = options.organizerId?.trim() || null
     const configuredOrganizerEmail = process.env.ORGANIZER_EMAIL?.trim().toLowerCase() || null
 
-    const baseQuery = () =>
+    const baseQuery = (select: string) =>
         supabase
             .from('users')
-            .select('id, email, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, instantmeeting_payment_purchase_value_php, created_at')
+            .select(select)
             .eq('role', 'organizer')
 
     const explicitOwnerResult = organizerId
-        ? await baseQuery().eq('id', organizerId).maybeSingle()
+        ? await runPaymentOwnerQuery(
+              (select) => baseQuery(select).eq('id', organizerId).maybeSingle()
+          )
         : { data: null, error: null }
 
     if (explicitOwnerResult.error) {
@@ -99,20 +155,14 @@ export async function fetchInstantMeetingPaymentFunnelSettings(
             return null
         }
 
-        return {
-            ownerId: data.id,
-            purchaseValue:
-                typeof data.instantmeeting_payment_purchase_value_php === 'number' &&
-                Number.isFinite(data.instantmeeting_payment_purchase_value_php) &&
-                data.instantmeeting_payment_purchase_value_php > 0
-                    ? Math.round(data.instantmeeting_payment_purchase_value_php)
-                    : 699,
-            config: normalizeMetaCapiConfig(data),
-        }
+        return toPaymentFunnelSettings(data)
     }
 
     const configuredOwnerResult = configuredOrganizerEmail
-        ? await baseQuery().eq('email', configuredOrganizerEmail).maybeSingle()
+        ? await runPaymentOwnerQuery(
+              (select) =>
+                  baseQuery(select).eq('email', configuredOrganizerEmail).maybeSingle()
+          )
         : { data: null, error: null }
 
     if (configuredOwnerResult.error) {
@@ -122,7 +172,13 @@ export async function fetchInstantMeetingPaymentFunnelSettings(
 
     const fallbackOwnerResult = configuredOwnerResult.data
         ? { data: configuredOwnerResult.data, error: null }
-        : await baseQuery().order('created_at', { ascending: true }).limit(1).maybeSingle()
+        : await runPaymentOwnerQuery(
+              (select) =>
+                  baseQuery(select)
+                      .order('created_at', { ascending: true })
+                      .limit(1)
+                      .maybeSingle()
+          )
 
     const { data, error } = fallbackOwnerResult
 
@@ -135,16 +191,7 @@ export async function fetchInstantMeetingPaymentFunnelSettings(
         return null
     }
 
-    return {
-        ownerId: data.id,
-        purchaseValue:
-            typeof data.instantmeeting_payment_purchase_value_php === 'number' &&
-            Number.isFinite(data.instantmeeting_payment_purchase_value_php) &&
-            data.instantmeeting_payment_purchase_value_php > 0
-                ? Math.round(data.instantmeeting_payment_purchase_value_php)
-                : 699,
-        config: normalizeMetaCapiConfig(data),
-    }
+    return toPaymentFunnelSettings(data)
 }
 
 export async function sendInstantMeetingMetaCapiEventWithConfig(
