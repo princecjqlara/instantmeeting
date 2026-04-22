@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { buildOnboardingLeadFormPayload } from '@/lib/onboarding-lead-form'
 import {
     FaArrowRight,
     FaArrowLeft,
@@ -139,7 +140,7 @@ export default function OnboardingPage() {
             const res = await fetch('/api/host/lead-forms/ai-generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+                body: JSON.stringify({ mode: 'onboarding', messages: [{ role: 'user', content: prompt }] }),
             })
             const data = await res.json()
             if (!res.ok) {
@@ -163,15 +164,7 @@ export default function OnboardingPage() {
         const res = await fetch('/api/host/lead-forms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                title: leadDraft.title,
-                description: leadDraft.description,
-                ai_criteria: leadDraft.ai_criteria,
-                auto_admit_threshold: leadDraft.auto_admit_threshold,
-                unqualified_message: leadDraft.unqualified_message,
-                fallback_to_waiting: true,
-                questions: leadDraft.questions,
-            }),
+            body: JSON.stringify(buildOnboardingLeadFormPayload(leadDraft)),
         })
         if (!res.ok) {
             const err = await res.json().catch(() => null)

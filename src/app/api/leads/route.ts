@@ -483,7 +483,7 @@ export async function PATCH(req: NextRequest) {
         ) {
             const { data: leadForm } = await supabase
                 .from('lead_forms')
-                .select('id, slug, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, facebook_purchase_value, send_qualified_to_facebook, send_purchase_to_facebook')
+                .select('*')
                 .eq('id', (ownedLead as { lead_form_id?: string | null }).lead_form_id)
                 .maybeSingle()
 
@@ -518,7 +518,7 @@ export async function PATCH(req: NextRequest) {
         if (movedToSold && (ownedLead as { lead_form_id?: string | null }).lead_form_id) {
             const { data: leadForm } = await supabase
                 .from('lead_forms')
-                .select('id, slug, meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code, facebook_purchase_value, send_qualified_to_facebook, send_purchase_to_facebook')
+                .select('*')
                 .eq('id', (ownedLead as { lead_form_id?: string | null }).lead_form_id)
                 .maybeSingle()
 

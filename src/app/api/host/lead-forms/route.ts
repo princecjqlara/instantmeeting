@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { insertLeadFormWithCompat, updateLeadFormWithCompat } from '@/lib/lead-forms-column-compat'
 
 export const dynamic = 'force-dynamic'
 
@@ -148,27 +149,23 @@ export async function POST(req: NextRequest) {
     const base = slugify(title) || 'form'
     const slug = `${base}-${randomUUID().slice(0, 6)}`
 
-    const { data: form, error } = await supabase
-        .from('lead_forms')
-        .insert({
-            user_id: user.id,
-            slug,
-            title,
-            description: description || null,
-            ai_criteria: ai_criteria || null,
-            auto_admit_threshold: Number.isFinite(auto_admit_threshold) ? auto_admit_threshold : 70,
-            unqualified_message: unqualified_message || null,
-            fallback_to_waiting: fallback_to_waiting !== false,
-            meta_capi_access_token: normalizeMetaField(meta_capi_access_token),
-            meta_capi_dataset_id: normalizeMetaField(meta_capi_dataset_id),
-            meta_capi_test_event_code: normalizeMetaField(meta_capi_test_event_code),
-            facebook_purchase_value: normalizePurchaseValue(facebook_purchase_value),
-            send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, false),
-            send_purchase_to_facebook: normalizeBooleanField(send_purchase_to_facebook, false),
-            is_active: true,
-        })
-        .select()
-        .single()
+    const { data: form, error } = await insertLeadFormWithCompat<any>(supabase, {
+        user_id: user.id,
+        slug,
+        title,
+        description: description || null,
+        ai_criteria: ai_criteria || null,
+        auto_admit_threshold: Number.isFinite(auto_admit_threshold) ? auto_admit_threshold : 70,
+        unqualified_message: unqualified_message || null,
+        fallback_to_waiting: fallback_to_waiting !== false,
+        meta_capi_access_token: normalizeMetaField(meta_capi_access_token),
+        meta_capi_dataset_id: normalizeMetaField(meta_capi_dataset_id),
+        meta_capi_test_event_code: normalizeMetaField(meta_capi_test_event_code),
+        facebook_purchase_value: normalizePurchaseValue(facebook_purchase_value),
+        send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, false),
+        send_purchase_to_facebook: normalizeBooleanField(send_purchase_to_facebook, false),
+        is_active: true,
+    })
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -245,7 +242,7 @@ export async function PATCH(req: NextRequest) {
     }
     patch.updated_at = new Date().toISOString()
 
-    const { error: upErr } = await supabase.from('lead_forms').update(patch).eq('id', id)
+    const { error: upErr } = await updateLeadFormWithCompat<any>(supabase, id, patch)
     if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 })
 
     if (Array.isArray(questions)) {

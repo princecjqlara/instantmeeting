@@ -23,3 +23,10 @@ test('lead forms API persists per-form Meta CAPI fields', () => {
     assert.ok(source.includes('send_qualified_to_facebook'))
     assert.ok(source.includes('send_purchase_to_facebook'))
 })
+
+test('onboarding saves forms without ads setup fields', () => {
+    const source = readFileSync(new URL('../src/app/onboarding/page.tsx', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('buildOnboardingLeadFormPayload'))
+    assert.ok(!source.includes('send_qualified_to_facebook: hasMetaCapiConfig'))
+})

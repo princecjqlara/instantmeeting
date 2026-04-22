@@ -2,87 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { chatCompletion, ChatMessage } from '@/lib/nvidia-ai'
+import {
+    buildLeadFormAiSystemPrompt,
+    buildOnboardingFallbackLeadForm,
+    type LeadFormAiMode,
+} from '@/lib/lead-form-ai'
 
 export const dynamic = 'force-dynamic'
-
-const SYSTEM = `You are a collaborative AI form builder. You work with the host
-in a back-and-forth conversation to design a lead qualification form that
-decides if a visitor should be auto-admitted into a live meeting.
-
-HOW QUALIFICATION WORKS (you must design for this):
-- Each single_choice/multi_choice option has a "points" value. At submit
-  time the system sums earned vs. max possible points -> percentage.
-  If percentage >= auto_admit_threshold the lead is AUTO-ADMITTED.
-- Picking a 0-point option on a scoring question is treated as a HARD
-  DISQUALIFY (lead is rejected, shown unqualified_message).
-- disqualify_on keywords on a text answer are ALSO a hard disqualify.
-- For open-ended questions you can provide scoring_rules (keyword -> pts)
-  and an ideal_answer (the system asks an LLM to rate 0-10 how close the
-  answer is to the ideal).
-- ai_criteria is a natural-language fallback used only when no points are
-  set anywhere. Always write it so it appears in the host's UI.
-
-CONVERSATIONAL STYLE:
-- If the host's request is vague or missing key info (industry, deal size,
-  buying signals, geography, budget, disqualifiers), ASK 1-3 focused
-  clarifying questions before producing a draft. Keep questions short.
-- Volunteer ideas: suggest qualification angles, disqualifier patterns,
-  or scoring gradients the host may not have considered, and ask them to
-  confirm.
-- Once you have enough signal, return a complete draft. On later turns,
-  the host may ask to tweak the draft (add a question, raise a threshold,
-  soften wording, etc.) — modify the draft and return the updated version.
-- Address the host directly in "reply". Be concise, warm, and concrete.
-  No markdown headers, no code fences.
-
-OUTPUT FORMAT (STRICT):
-Return ONLY a single valid JSON object, no prose, no code fences.
-{
-  "reply": string,              // your conversational message to the host
-  "draft": null | {             // null while still clarifying; object when you have a full form
-    "title": string,
-    "description": string,
-    "auto_admit_threshold": number,     // integer 55-80
-    "ai_criteria": string,              // 1-3 sentences, the qualified-lead profile
-    "unqualified_message": string,
-    "questions": [
-      {
-        "question_text": string,
-        "help_text": string | null,
-        "type": "short_answer" | "long_answer" | "email" | "phone" | "single_choice" | "multi_choice" | "date",
-        "required": boolean,
-        "options": [                    // required for single_choice / multi_choice
-          { "label": string, "points": number }
-        ],
-        "scoring_rules": [              // optional for text-like questions
-          { "keywords": string, "points": number }
-        ] | null,
-        "ideal_answer": string | null,
-        "disqualify_on": string | null
-      }
-    ]
-  }
-}
-
-WHEN YOU RETURN A DRAFT, IT MUST SATISFY:
-- Exactly 4-6 questions total. No fluff.
-- First question: full name (short_answer, required).
-- Include exactly one email question (type=email, required).
-- Include AT LEAST 2 qualification gates as single_choice questions.
-  Each gate must have 3-5 options with a CLEAR points gradient:
-    * 1 option with points=0 (the disqualifier / "not a fit")
-    * 1 option with the max points (the ideal fit)
-    * intermediate options in between
-- Max points per single_choice option should be 10.
-- ai_criteria is mandatory and must describe the ideal lead concretely.
-- auto_admit_threshold between 55 and 80. Set higher (70-80) when any
-  question includes a 0-point disqualifier.
-
-STYLE:
-- Questions are specific, not generic. Prefer ranges and concrete options.
-- Keep help_text empty (null) unless the question really needs a hint.
-- Never ask for SSN, card numbers, passwords, or protected attributes.
-- unqualified_message should be warm and brief (<160 chars).`
 
 type ClientMessage = { role: 'user' | 'assistant'; content: string }
 
@@ -109,6 +35,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}))
     const history = sanitizeHistory(body?.messages)
+    const mode: LeadFormAiMode = body?.mode === 'onboarding' ? 'onboarding' : 'default'
     // Back-compat: allow a single `prompt` field for the first turn.
     if (history.length === 0 && typeof body?.prompt === 'string' && body.prompt.trim()) {
         history.push({ role: 'user', content: body.prompt.trim() })
@@ -127,8 +54,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const lastUser = history.filter((m) => m.role === 'user').pop()?.content || ''
         const messages: ChatMessage[] = [
-            { role: 'system', content: SYSTEM },
+            { role: 'system', content: buildLeadFormAiSystemPrompt(mode) },
             ...history,
         ]
 
@@ -152,16 +80,34 @@ export async function POST(req: NextRequest) {
         }
 
         if (!rawDraft) {
+            if (mode === 'onboarding') {
+                const fallback = enforceQualificationSignal(
+                    buildOnboardingFallbackLeadForm(lastUser),
+                    lastUser
+                )
+                return NextResponse.json({
+                    reply: reply || 'Here is a starter draft you can refine later.',
+                    draft: fallback,
+                })
+            }
             return NextResponse.json({ reply, draft: null })
         }
 
         const normalized = normalizeForm(rawDraft)
         if (!normalized.questions.length) {
-            // treat as clarifying-only turn
+            if (mode === 'onboarding') {
+                const fallback = enforceQualificationSignal(
+                    buildOnboardingFallbackLeadForm(lastUser),
+                    lastUser
+                )
+                return NextResponse.json({
+                    reply: reply || 'Here is a starter draft you can refine later.',
+                    draft: fallback,
+                })
+            }
             return NextResponse.json({ reply, draft: null })
         }
 
-        const lastUser = history.filter((m) => m.role === 'user').pop()?.content || ''
         const enforced = enforceQualificationSignal(normalized, lastUser)
         return NextResponse.json({ reply, draft: enforced })
     } catch (err: unknown) {

@@ -4,6 +4,12 @@ export interface MetaCapiConfigRow {
     meta_capi_test_event_code?: string | null
 }
 
+interface MetaCapiConfig {
+    accessToken: string
+    datasetId: string
+    testEventCode?: string
+}
+
 export type MetaCapiSendResult =
     | { sent: true }
     | { sent: false; reason: 'request_failed'; status: number }
@@ -23,6 +29,7 @@ interface LeadFormQualifiedMetaInput {
     leadForm: MetaCapiConfigRow & {
         id?: string | null
         slug?: string | null
+        user_id?: string | null
         facebook_purchase_value?: number | null
         send_qualified_to_facebook?: boolean | null
         send_purchase_to_facebook?: boolean | null
@@ -48,7 +55,29 @@ export function shouldSendLeadFormPurchaseMetaEvent(metaPurchaseSentAt: string |
     return !(typeof metaPurchaseSentAt === 'string' && metaPurchaseSentAt.trim())
 }
 
-function normalizeMetaCapiConfig(row: MetaCapiConfigRow | null | undefined) {
+async function fetchLeadFormOwnerMetaCapiConfig(
+    supabase: any,
+    userId: string | null | undefined
+): Promise<MetaCapiConfig | null> {
+    if (!userId) {
+        return null
+    }
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('meta_capi_access_token, meta_capi_dataset_id, meta_capi_test_event_code')
+        .eq('id', userId)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Failed to load lead-form owner Meta CAPI config:', error)
+        return null
+    }
+
+    return normalizeMetaCapiConfig(data)
+}
+
+function normalizeMetaCapiConfig(row: MetaCapiConfigRow | null | undefined): MetaCapiConfig | null {
     const accessToken = row?.meta_capi_access_token?.trim()
     const datasetId = row?.meta_capi_dataset_id?.trim()
     const testEventCode = row?.meta_capi_test_event_code?.trim()
@@ -62,6 +91,23 @@ function normalizeMetaCapiConfig(row: MetaCapiConfigRow | null | undefined) {
         datasetId,
         ...(testEventCode ? { testEventCode } : {}),
     }
+}
+
+async function resolveLeadFormMetaCapiConfig(
+    supabase: any,
+    leadForm: LeadFormQualifiedMetaInput['leadForm'],
+    resolveConfig?: (supabase: any, leadForm: LeadFormQualifiedMetaInput['leadForm']) => Promise<MetaCapiConfig | null>
+): Promise<MetaCapiConfig | null> {
+    const formConfig = normalizeMetaCapiConfig(leadForm)
+    if (formConfig) {
+        return formConfig
+    }
+
+    if (resolveConfig) {
+        return resolveConfig(supabase, leadForm)
+    }
+
+    return fetchLeadFormOwnerMetaCapiConfig(supabase, leadForm.user_id)
 }
 
 async function buildInstantMeetingMetaEvent(input: Record<string, unknown>) {
@@ -110,6 +156,7 @@ async function releaseLeadFormPurchaseClaim(supabase: any, leadId: string, claim
 export async function maybeSendLeadFormQualifiedMetaEvent(
     input: LeadFormQualifiedMetaInput,
     deps: {
+        resolveConfig?: (supabase: any, leadForm: LeadFormQualifiedMetaInput['leadForm']) => Promise<MetaCapiConfig | null>
         sendWithConfig?: typeof sendInstantMeetingMetaCapiEventWithConfig
         markLeadFlags?: typeof updateWaitingGuestMetaFlags
     } = {}
@@ -122,7 +169,11 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
         return { sent: false, reason: 'disabled' }
     }
 
-    const config = normalizeMetaCapiConfig(input.leadForm)
+    const config = await resolveLeadFormMetaCapiConfig(
+        input.supabase,
+        input.leadForm,
+        deps.resolveConfig
+    )
     if (!config) {
         return { sent: false, reason: 'missing_config' }
     }
@@ -171,6 +222,7 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
 export async function maybeSendLeadFormPurchaseMetaEvent(
     input: LeadFormQualifiedMetaInput,
     deps: {
+        resolveConfig?: (supabase: any, leadForm: LeadFormQualifiedMetaInput['leadForm']) => Promise<MetaCapiConfig | null>
         sendWithConfig?: typeof sendInstantMeetingMetaCapiEventWithConfig
         markLeadFlags?: typeof updateWaitingGuestMetaFlags
         claimSend?: typeof claimLeadFormPurchaseSend
@@ -185,7 +237,11 @@ export async function maybeSendLeadFormPurchaseMetaEvent(
         return { sent: false, reason: 'already_sent' }
     }
 
-    const config = normalizeMetaCapiConfig(input.leadForm)
+    const config = await resolveLeadFormMetaCapiConfig(
+        input.supabase,
+        input.leadForm,
+        deps.resolveConfig
+    )
     if (!config) {
         return { sent: false, reason: 'missing_config' }
     }

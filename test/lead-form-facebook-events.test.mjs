@@ -32,6 +32,46 @@ test('qualified lead send skips when the form toggle is off', async () => {
     assert.equal(sendCalls, 0)
 })
 
+test('qualified lead send falls back to the form owner Meta config when the form has none', async () => {
+    let usedConfig = null
+    let markCalls = 0
+
+    const result = await maybeSendLeadFormQualifiedMetaEvent(
+        {
+            supabase: {},
+            leadForm: {
+                user_id: 'host-1',
+                send_qualified_to_facebook: true,
+            },
+            lead: { id: 'lead-1', guest_email: 'lead@example.com' },
+            eventSourceUrl: 'https://instantmeeting.ai/leads/demo',
+        },
+        {
+            resolveConfig: async () => ({
+                accessToken: 'owner-token',
+                datasetId: 'owner-dataset',
+                testEventCode: 'TEST123',
+            }),
+            sendWithConfig: async (config) => {
+                usedConfig = config
+                return { sent: true }
+            },
+            markLeadFlags: async () => {
+                markCalls += 1
+                return { error: null }
+            },
+        }
+    )
+
+    assert.deepEqual(result, { sent: true })
+    assert.deepEqual(usedConfig, {
+        accessToken: 'owner-token',
+        datasetId: 'owner-dataset',
+        testEventCode: 'TEST123',
+    })
+    assert.equal(markCalls, 1)
+})
+
 test('purchase send uses the form purchase value on sold when enabled', async () => {
     const sentPayloads = []
 
