@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react'
 import {
+    getInAppBrowserOpenStrategy,
     isLikelyInAppBrowserUserAgent,
     markExternalBrowserHandoff,
 } from '@/lib/external-browser-handoff'
@@ -37,7 +38,10 @@ function tryOpenSystemBrowser(url: string): void {
         const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
         window.location.href = intentUrl
     } else {
-        window.open(url, '_system')
+        const externalTab = window.open(url, '_blank', 'noopener,noreferrer')
+        if (!externalTab) {
+            window.location.href = url
+        }
     }
 
     navigator.clipboard?.writeText(url).catch(() => {})
@@ -46,11 +50,13 @@ function tryOpenSystemBrowser(url: string): void {
 function GateUi({
     currentUrl,
     attemptingExternalOpen,
+    showCurrentBrowserOption,
     onOpen,
     onContinue,
 }: {
     currentUrl: string
     attemptingExternalOpen: boolean
+    showCurrentBrowserOption: boolean
     onOpen: () => void
     onContinue: () => void
 }) {
@@ -90,12 +96,13 @@ function GateUi({
                 </div>
 
                 <h2 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: 700 }}>
-                    {attemptingExternalOpen ? 'Opening Browser…' : 'Open in Browser'}
+                    {attemptingExternalOpen ? 'Opening External Browser…' : 'Open in External Browser'}
                 </h2>
 
                 <p style={{ color: '#9ca0b3', fontSize: '14px', margin: 0, lineHeight: 1.5 }}>
                     This in-app browser doesn&apos;t support camera and microphone.
-                    Please open this link in Chrome or Safari.
+                    Try opening this link in Chrome or Safari first. If that doesn&apos;t work,
+                    you can continue in the current browser.
                 </p>
 
                 <button
@@ -114,8 +121,29 @@ function GateUi({
                         cursor: 'pointer',
                     }}
                 >
-                    Open in Browser
+                    Open in External Browser
                 </button>
+
+                {showCurrentBrowserOption && (
+                    <button
+                        onClick={onContinue}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '12px 24px',
+                            borderRadius: '10px',
+                            border: '1px solid rgba(255, 255, 255, 0.14)',
+                            background: 'rgba(255,255,255,0.06)',
+                            color: 'white',
+                            fontSize: '15px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Open in Current Browser
+                    </button>
+                )}
 
                 <div style={{
                     width: '100%',
@@ -169,19 +197,6 @@ function GateUi({
                     </div>
                 </div>
 
-                <button
-                    onClick={onContinue}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#6b6f83',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        marginTop: '4px',
-                    }}
-                >
-                    Continue anyway (limited features)
-                </button>
             </div>
         </div>
     )
@@ -191,11 +206,12 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
     const [showGate, setShowGate] = useState(false)
     const [attempted, setAttempted] = useState(false)
     const [attemptingExternalOpen, setAttemptingExternalOpen] = useState(false)
+    const strategy = getInAppBrowserOpenStrategy(typeof navigator !== 'undefined' ? navigator.userAgent : '')
 
     useLayoutEffect(() => {
         if (!isInAppBrowser()) return
 
-        if (isAndroid() && !attempted) {
+        if (strategy.autoAttemptExternal && !attempted) {
             setShowGate(true)
             setAttemptingExternalOpen(true)
             setAttempted(true)
@@ -206,14 +222,14 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
         }
 
         setShowGate(true)
-    }, [attempted])
+    }, [attempted, strategy.autoAttemptExternal])
 
     useEffect(() => {
         if (!isInAppBrowser()) return
-        if (isAndroid() || attempted) return
+        if (strategy.autoAttemptExternal || attempted) return
 
         setShowGate(true)
-    }, [attempted])
+    }, [attempted, strategy.autoAttemptExternal])
 
     const currentUrl = typeof window !== 'undefined' ? window.location.href : ''
 
@@ -222,6 +238,7 @@ export default function InAppBrowserGate({ children }: { children: React.ReactNo
             <GateUi
                 currentUrl={currentUrl}
                 attemptingExternalOpen={attemptingExternalOpen}
+                showCurrentBrowserOption={strategy.showCurrentBrowserOption}
                 onOpen={() => tryOpenSystemBrowser(currentUrl)}
                 onContinue={() => {
                     setAttemptingExternalOpen(false)

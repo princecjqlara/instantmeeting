@@ -16,4 +16,6 @@ test('in-app browser gate blocks the room while attempting external browser hand
     assert.ok(source.includes('useLayoutEffect'))
     assert.ok(source.includes('attemptingExternalOpen'))
     assert.ok(source.includes('if (showGate || attemptingExternalOpen)'))
+    assert.ok(source.includes('Open in External Browser'))
+    assert.ok(source.includes('Open in Current Browser'))
 })

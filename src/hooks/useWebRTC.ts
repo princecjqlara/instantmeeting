@@ -21,6 +21,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { appendChatMessage, ChatMessage, createChatMessage } from '@/lib/chat-messages'
+import { getPeerDisconnectCleanupDelayMs } from '@/lib/webrtc-peer-state'
 
 // ─── ICE Server Configuration ────────────────────────────────────────────────
 // Google's free STUN servers for NAT traversal.
@@ -401,9 +402,30 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
 
         // Track peers currently in initial negotiation to suppress onnegotiationneeded
         const initialNegotiationPeers = new Set<string>()
+        const disconnectedPeerCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
         // Queue ICE candidates that arrive before the peer connection is created
         const earlyIceCandidates = new Map<string, RTCIceCandidateInit[]>()
+
+        const clearPeerDisconnectCleanup = (remotePeerId: string) => {
+            const timer = disconnectedPeerCleanupTimers.get(remotePeerId)
+            if (timer) {
+                clearTimeout(timer)
+                disconnectedPeerCleanupTimers.delete(remotePeerId)
+            }
+        }
+
+        const removeRemotePeer = (remotePeerId: string) => {
+            clearPeerDisconnectCleanup(remotePeerId)
+
+            const peer = peersRef.current.get(remotePeerId)
+            if (peer) {
+                peer.connection.close()
+                peersRef.current.delete(remotePeerId)
+            }
+
+            setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
+        }
 
         /**
          * Create a new RTCPeerConnection for a remote peer.
@@ -475,6 +497,31 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 console.log(`[WebRTC] Connection to ${remotePeerId}: ${pc.connectionState}`)
                 // Note: Do NOT add empty MediaStream here on 'connected' — it creates
                 // ghost/invisible peers. Peers only appear via ontrack when real media arrives.
+                const disconnectCleanupDelayMs = getPeerDisconnectCleanupDelayMs(pc.connectionState)
+
+                if (disconnectCleanupDelayMs === 0) {
+                    removeRemotePeer(remotePeerId)
+                    return
+                }
+
+                if (disconnectCleanupDelayMs && disconnectCleanupDelayMs > 0) {
+                    if (!disconnectedPeerCleanupTimers.has(remotePeerId)) {
+                        const timer = setTimeout(() => {
+                            disconnectedPeerCleanupTimers.delete(remotePeerId)
+
+                            const latestState = peersRef.current.get(remotePeerId)?.connection.connectionState
+                            if (latestState === 'disconnected') {
+                                removeRemotePeer(remotePeerId)
+                            }
+                        }, disconnectCleanupDelayMs)
+
+                        disconnectedPeerCleanupTimers.set(remotePeerId, timer)
+                    }
+                    return
+                }
+
+                clearPeerDisconnectCleanup(remotePeerId)
+
                 if (pc.connectionState === 'failed') {
                     // Attempt ICE restart before giving up
                     console.log(`[WebRTC] Connection failed to ${remotePeerId}, attempting ICE restart`)
@@ -491,11 +538,8 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                         })
                     }).catch(err => {
                         console.warn('[WebRTC] ICE restart failed:', err)
-                        setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
+                        removeRemotePeer(remotePeerId)
                     })
-                }
-                if (pc.connectionState === 'closed') {
-                    setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
                 }
             }
 
@@ -678,12 +722,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          * Handle a remote peer leaving.
          */
         const handlePeerLeave = (remotePeerId: string) => {
-            const peer = peersRef.current.get(remotePeerId)
-            if (peer) {
-                peer.connection.close()
-                peersRef.current.delete(remotePeerId)
-                setRemoteStreams(prev => prev.filter(s => s.peerId !== remotePeerId))
-            }
+            removeRemotePeer(remotePeerId)
         }
 
         /**
@@ -1141,6 +1180,9 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
             peersRef.current.forEach(peer => peer.connection.close())
             peersRef.current.clear()
             setRemoteStreams([])
+
+            disconnectedPeerCleanupTimers.forEach(timer => clearTimeout(timer))
+            disconnectedPeerCleanupTimers.clear()
 
             // Unsubscribe from the Supabase Realtime channel
             if (channelRef.current) {

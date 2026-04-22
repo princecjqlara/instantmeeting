@@ -7,6 +7,7 @@ import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
 import { maybeSendLeadFormQualifiedMetaEvent } from '@/lib/lead-form-qualified-capi'
 import { insertWaitingGuestWithCompat, updateWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
+import { isHostCurrentlyAvailable } from '@/lib/waiting-room-state'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,45 +23,6 @@ function pickFromAnswers(answers: LeadAnswer[], type: string): string | null {
     if (!hit) return null
     const v = Array.isArray(hit.answer) ? hit.answer.join(', ') : String(hit.answer || '')
     return v.trim() || null
-}
-
-function isHostActive(host: {
-    availability_mode?: string | null
-    available_from?: string | null
-    available_to?: string | null
-    timezone?: string | null
-}): boolean {
-    const mode = host.availability_mode || 'always'
-    if (mode === 'always') return true
-    if (mode === 'never') return false
-    if (mode !== 'scheduled') return true
-
-    const from = host.available_from
-    const to = host.available_to
-    if (!from || !to) return false
-
-    try {
-        const tz = host.timezone || 'UTC'
-        const now = new Date()
-        const fmt = new Intl.DateTimeFormat('en-GB', {
-            timeZone: tz,
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-        })
-        const [h, m] = fmt.format(now).split(':').map(Number)
-        const cur = h * 60 + m
-        const toMin = (s: string) => {
-            const [hh, mm] = s.split(':').map(Number)
-            return (hh || 0) * 60 + (mm || 0)
-        }
-        const a = toMin(from)
-        const b = toMin(to)
-        if (a === b) return false
-        return a < b ? cur >= a && cur < b : cur >= a || cur < b
-    } catch {
-        return false
-    }
 }
 
 function deriveName(answers: LeadAnswer[], fallback: string): string {
@@ -142,7 +104,12 @@ export async function POST(req: NextRequest) {
 
     const qs = (questions || []) as LeadFormQuestion[]
 
-    const hostActive = isHostActive(host || {})
+    const hostActive = isHostCurrentlyAvailable({
+        availabilityMode: host?.availability_mode as 'always' | 'never' | 'scheduled' | null | undefined,
+        availableFrom: host?.available_from,
+        availableTo: host?.available_to,
+        timezone: host?.timezone,
+    })
     const bookingHost = host
         ? {
               id: host.id,

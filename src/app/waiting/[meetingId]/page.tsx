@@ -3,7 +3,13 @@
 import { useState, useEffect, use, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Content } from '@/lib/types'
-import { canGuestJoinRoom, shouldStopWaitingRoomPolling } from '@/lib/waiting-room-state'
+import {
+    canGuestJoinRoom,
+    isHostCurrentlyAvailable,
+    shouldAutoOpenBookingModal,
+    shouldShowBookingCallToAction,
+    shouldStopWaitingRoomPolling,
+} from '@/lib/waiting-room-state'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
 import styles from './page.module.css'
@@ -42,6 +48,7 @@ interface WaitingData {
         auto_admit?: boolean
         available_from: string | null
         available_to: string | null
+        timezone?: string | null
         meeting_duration: number | null
         booking_title?: string | null
         booking_description?: string | null
@@ -391,16 +398,15 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     ])
 
     useEffect(() => {
-        const guestStatus = data?.guest?.status
-        const meetingStatus = data?.meeting?.status
-        const autoScheduleRequired = Boolean(data?.autoScheduleRequired)
-        const hostAvailabilityMode = data?.host?.availability_mode
-
-        const shouldAutoOpenBooking = Boolean(
-            guestStatus === 'waiting' &&
-            meetingStatus !== 'completed' &&
-            (autoScheduleRequired || hostAvailabilityMode !== 'always')
-        )
+        const shouldAutoOpenBooking = shouldAutoOpenBookingModal({
+            guestStatus: data?.guest?.status,
+            meetingStatus: data?.meeting?.status,
+            autoScheduleRequired: data?.autoScheduleRequired,
+            availabilityMode: data?.host?.availability_mode,
+            availableFrom: data?.host?.available_from,
+            availableTo: data?.host?.available_to,
+            timezone: data?.host?.timezone,
+        })
 
         if (shouldAutoOpenBooking && !hasAutoOpenedBookingRef.current) {
             hasAutoOpenedBookingRef.current = true
@@ -411,6 +417,9 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
         data?.meeting?.status,
         data?.autoScheduleRequired,
         data?.host?.availability_mode,
+        data?.host?.available_from,
+        data?.host?.available_to,
+        data?.host?.timezone,
     ])
 
     // Auto-play welcome audio when guest enters
@@ -531,10 +540,21 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             rescheduleRequested: data?.meeting?.reschedule_requested,
         })
     )
-    const isHostFree = data?.host?.availability_mode === 'always'
+    const isHostFree = isHostCurrentlyAvailable({
+        availabilityMode: data?.host?.availability_mode,
+        availableFrom: data?.host?.available_from,
+        availableTo: data?.host?.available_to,
+        timezone: data?.host?.timezone,
+    })
     const meetingEnded = data?.meeting?.status === 'completed'
     const hostDisplayName = data?.host?.name || 'the host'
-    const shouldAutoSchedule = Boolean(data?.autoScheduleRequired)
+    const shouldAutoSchedule = shouldShowBookingCallToAction({
+        autoScheduleRequired: data?.autoScheduleRequired,
+        availabilityMode: data?.host?.availability_mode,
+        availableFrom: data?.host?.available_from,
+        availableTo: data?.host?.available_to,
+        timezone: data?.host?.timezone,
+    })
     const autoScheduleMessage = data?.autoScheduleReason === 'all_members_busy'
         ? 'All team members are currently in active meetings. Please request a time and we will follow up shortly.'
         : 'No team member is online right now. Please request a time and we will follow up shortly.'

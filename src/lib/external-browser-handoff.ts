@@ -2,8 +2,34 @@ export const EXTERNAL_BROWSER_HANDOFF_STORAGE_KEY = 'instantmeeting:external-bro
 const EXTERNAL_BROWSER_HANDOFF_TTL_MS = 15_000
 const IN_APP_BROWSER_REGEX = /FBAN|FBAV|Messenger|Instagram|musical_ly|BytedanceWebview|MicroMessenger|Line\/|Twitter|Snapchat|WhatsApp|Viber|Pinterest|LinkedIn/i
 
+export interface InAppBrowserOpenStrategy {
+    autoAttemptExternal: boolean
+    showExternalOption: boolean
+    showCurrentBrowserOption: boolean
+}
+
 export function isLikelyInAppBrowserUserAgent(userAgent: string | null | undefined): boolean {
     return IN_APP_BROWSER_REGEX.test(userAgent || '')
+}
+
+export function getInAppBrowserOpenStrategy(userAgent: string | null | undefined): InAppBrowserOpenStrategy {
+    const normalized = userAgent || ''
+    const isInApp = isLikelyInAppBrowserUserAgent(normalized)
+    const isAndroid = /android/i.test(normalized)
+
+    if (!isInApp) {
+        return {
+            autoAttemptExternal: false,
+            showExternalOption: false,
+            showCurrentBrowserOption: false,
+        }
+    }
+
+    return {
+        autoAttemptExternal: isAndroid,
+        showExternalOption: true,
+        showCurrentBrowserOption: true,
+    }
 }
 
 export function normalizeGuestName(value: string | null | undefined): string | null {
