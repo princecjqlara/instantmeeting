@@ -5,6 +5,7 @@ import {
     getAutoAssignableMember,
     isNoAvailableTeamMemberError,
 } from '@/lib/admit-logic'
+import { humanizeLeadAnswers } from '@/lib/lead-answer-display'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -39,8 +40,7 @@ export async function GET(req: NextRequest) {
 
     console.log('Waiting API called with meetingId:', meetingId, 'guestId:', guestId)
 
-    // Get meeting, host info, and content in parallel
-    const [{ data: meeting, error: meetingError }, contentPromise, guestPromise, hostPromise, admittedGuestPromise] = await Promise.all([
+    const [meetingResult, guestPromise, admittedGuestPromise, presenceResult] = await Promise.all([
         supabase
             .from('meetings')
             .select(`
@@ -58,9 +58,6 @@ export async function GET(req: NextRequest) {
             .eq('id', meetingId)
             .single(),
 
-        // Content query - we'll execute it if meeting exists
-        Promise.resolve(null),
-
         // Guest status if guestId provided
         guestId ? supabase
             .from('waiting_guests')
@@ -69,23 +66,31 @@ export async function GET(req: NextRequest) {
             .single()
             : Promise.resolve({ data: null, error: null }),
 
-        // Host info - we'll execute it if meeting exists
-        Promise.resolve(null),
-
         // Admitted guest check — include lead form data so the host
         // can see the guest's qualification details mid-call.
         supabase
             .from('waiting_guests')
             .select(
-                'id, guest_name, guest_email, guest_phone, note, tags, lead_answers, custom_fields, qualification_verdict, qualification_score, qualification_reasoning, submitted_at, pipeline_stage'
+                'id, guest_name, guest_email, guest_phone, note, tags, lead_answers, custom_fields, qualification_verdict, qualification_score, qualification_reasoning, submitted_at, pipeline_stage, lead_form_id'
             )
             .eq('meeting_id', meetingId)
             .eq('status', 'admitted')
-            .single()
+            .maybeSingle(),
+
+        supabase
+            .from('waiting_guests')
+            .select('status')
+            .eq('meeting_id', meetingId)
     ])
+
+    const { data: meeting, error: meetingError } = meetingResult
 
     if (meetingError || !meeting) {
         return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
+    }
+
+    if (presenceResult.error) {
+        return NextResponse.json({ error: presenceResult.error.message }, { status: 500 })
     }
 
     // Now execute dependent queries in parallel
@@ -103,8 +108,31 @@ export async function GET(req: NextRequest) {
         guestPromise
     ])
 
-    const { data: admittedGuest } = admittedGuestPromise
+    const { data: admittedGuestRaw } = admittedGuestPromise
     const origin = req.nextUrl.origin
+    const presenceRows = presenceResult.data || []
+    const waitingGuestCount = presenceRows.filter((row) => row.status === 'waiting').length
+    const activeGuestCount = presenceRows.filter((row) => row.status === 'admitted' || row.status === 'in_meeting').length
+
+    let admittedGuest = admittedGuestRaw || null
+    if (admittedGuest?.lead_form_id && Array.isArray(admittedGuest.lead_answers)) {
+        const { data: admittedGuestQuestions, error: admittedGuestQuestionsError } = await supabase
+            .from('lead_form_questions')
+            .select('id, type, options')
+            .eq('form_id', admittedGuest.lead_form_id)
+
+        if (admittedGuestQuestionsError) {
+            return NextResponse.json({ error: admittedGuestQuestionsError.message }, { status: 500 })
+        }
+
+        admittedGuest = {
+            ...admittedGuest,
+            lead_answers: humanizeLeadAnswers(
+                admittedGuest.lead_answers,
+                (admittedGuestQuestions || []) as never[]
+            ),
+        }
+    }
 
     // If meeting has an assigned team member, fetch their data
     let assignedMember = null
@@ -152,7 +180,9 @@ export async function GET(req: NextRequest) {
         assignedMember,
         content: content || [],
         guest: guestStatus,
-        admittedGuest: admittedGuest || null,
+        admittedGuest,
+        waitingGuestCount,
+        activeGuestCount,
         autoScheduleRequired,
         autoScheduleReason,
         meetLink: guestStatus?.status === 'admitted' &&

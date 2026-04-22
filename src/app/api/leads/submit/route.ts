@@ -5,6 +5,7 @@ import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
 import { admitGuestLogic, isNoAvailableTeamMemberError } from '@/lib/admit-logic'
 import type { LeadAnswer, LeadFormQuestion } from '@/lib/lead-forms-types'
 import { buildGuestWaitingPath } from '@/lib/external-browser-handoff'
+import { normalizeSubmittedLeadAnswers } from '@/lib/lead-answer-display'
 import { maybeSendLeadFormQualifiedMetaEvent } from '@/lib/lead-form-qualified-capi'
 import { insertWaitingGuestWithCompat, updateWaitingGuestWithCompat } from '@/lib/waiting-guests-column-compat'
 import { isHostCurrentlyAvailable } from '@/lib/waiting-room-state'
@@ -143,6 +144,7 @@ export async function POST(req: NextRequest) {
     const resolvedPhone = guestPhone || pickFromAnswers(answers, 'phone')
     const resolvedName = guestName || deriveName(answers, 'Lead')
     const normalizedSessionToken = normalizeLeadSessionToken(sessionToken)
+    const displayAnswers = normalizeSubmittedLeadAnswers(answers as LeadAnswer[], qs)
 
     const [qualification, existingLeadSessionResult] = await Promise.all([
         qualifyLead({
@@ -199,7 +201,7 @@ export async function POST(req: NextRequest) {
         guest_phone: resolvedPhone,
         status: existingLeadSession?.status === 'admitted' ? 'admitted' : 'waiting',
         lead_form_id: form.id,
-        lead_answers: answers,
+        lead_answers: displayAnswers,
         qualification_score: qualification.score,
         qualification_verdict: qualification.verdict,
         qualification_reasoning: qualification.reasoning,
@@ -242,7 +244,7 @@ export async function POST(req: NextRequest) {
     // free, fall back to a booking calendar so the lead isn't dropped
     // into an empty room.
     if (qualification.verdict === 'qualified') {
-        await maybeSendLeadFormQualifiedMetaEvent({
+        void maybeSendLeadFormQualifiedMetaEvent({
             supabase,
             leadForm: form,
             lead: {
@@ -264,6 +266,8 @@ export async function POST(req: NextRequest) {
             fbp: typeof fbp === 'string' ? fbp : null,
             fbc: typeof fbc === 'string' ? fbc : null,
             fbclid: typeof fbclid === 'string' ? fbclid : null,
+        }).catch((error) => {
+            console.error('Qualified Meta CAPI send failed:', error)
         })
 
         const admitAndRespond = async (requireAvailableAssignee: boolean) => {

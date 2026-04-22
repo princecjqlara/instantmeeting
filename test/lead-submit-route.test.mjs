@@ -9,3 +9,9 @@ test('lead submit route preserves guest handoff context in waiting URL', () => {
     assert.ok(source.includes('waiting_url'))
     assert.ok(source.includes('resolvedName'))
 })
+
+test('lead submit route does not block the response on Meta CAPI delivery', () => {
+    const source = readFileSync(new URL('../src/app/api/leads/submit/route.ts', import.meta.url), 'utf8')
+
+    assert.equal(source.includes('await maybeSendLeadFormQualifiedMetaEvent'), false)
+})

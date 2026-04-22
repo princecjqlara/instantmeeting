@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, use, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Content } from '@/lib/types'
 import {
     canGuestJoinRoom,
@@ -12,9 +12,9 @@ import {
 } from '@/lib/waiting-room-state'
 import ReelPlayer from '@/components/ReelPlayer'
 import BookingModal from '@/components/BookingModal'
+import GuestExternalBrowserAssist from '@/components/GuestExternalBrowserAssist'
 import styles from './page.module.css'
 import { FaUser, FaArrowRight, FaCalendarAlt, FaArrowDown, FaMicrophone } from 'react-icons/fa'
-import InAppBrowserGate from '@/components/InAppBrowserGate'
 import {
     buildGuestWaitingPath,
     buildGuestRoomPath,
@@ -83,45 +83,8 @@ interface WaitingData {
     } | null
 }
 
-const openRoomInNewTab = (roomPath: string, existingTab?: Window | null) => {
-    const meetingTab = existingTab && !existingTab.closed
-        ? existingTab
-        : window.open('', '_blank')
-    if (!meetingTab) {
-        return false
-    }
-
-    try {
-        meetingTab.opener = null
-    } catch {
-        // Ignore browsers that block setting opener
-    }
-
-    meetingTab.location.href = roomPath
-    meetingTab.focus()
-    return true
-}
-
-const prepareMeetingTab = () => {
-    const meetingTab = window.open('', '_blank')
-    if (!meetingTab) {
-        return null
-    }
-
-    try {
-        meetingTab.opener = null
-    } catch {
-        // Ignore browsers that block setting opener
-    }
-
-    meetingTab.document.write(`<!doctype html><html><head><title>Meeting Ready</title></head><body style="margin:0;font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;padding:24px;"><div><h1 style="margin:0 0 12px;font-size:28px;">Meeting Ready</h1><p style="margin:0;font-size:16px;line-height:1.5;max-width:320px;">Stay on the waiting room tab. Your meeting will open here as soon as you are admitted.</p></div></body></html>`)
-    meetingTab.document.close()
-    return meetingTab
-}
-
 export default function WaitingRoom({ params }: WaitingPageProps) {
     const { meetingId } = use(params)
-    const router = useRouter()
     const searchParams = useSearchParams()
     const [data, setData] = useState<WaitingData | null>(null)
     const [loading, setLoading] = useState(true)
@@ -137,10 +100,19 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
     const welcomeAudioRef = useRef<HTMLAudioElement | null>(null)
     const [welcomeAudioPlaying, setWelcomeAudioPlaying] = useState(false)
     const hasPlayedWelcomeRef = useRef(false)
-    const preparedMeetingTabRef = useRef<Window | null>(null)
     const guestIdFromQuery = searchParams.get('guestId')?.trim() || null
     const guestNameFromQuery = getGuestNameFromSearch(searchParams)
     const guestNameForRoom = guestNameFromQuery || 'Guest'
+
+    const goToMeeting = (roomUrl: string) => {
+        try {
+            markExternalBrowserHandoff(window.location.pathname, window.sessionStorage)
+        } catch {
+            // Ignore storage errors
+        }
+
+        window.location.href = roomUrl
+    }
 
 
 
@@ -352,50 +324,10 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             hasAutoJoinedRef.current = true
             // Store guest name for the video room page to use
             try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
-            const roomPath = buildGuestRoomPath(meetingId, guestNameForRoom)
-            const preparedMeetingTab = preparedMeetingTabRef.current
-            preparedMeetingTabRef.current = null
-            if (!openRoomInNewTab(roomPath, preparedMeetingTab)) {
-                router.push(roomPath)
-            }
+            const roomPath = buildGuestRoomPath(meetingId, data?.guest?.id, guestNameForRoom)
+            goToMeeting(roomPath)
         }
-    }, [data, guestNameForRoom, meetingId, router])
-
-    useEffect(() => {
-        if (
-            canGuestJoinRoom({
-                guestStatus: data?.guest?.status,
-                hostJoinedAt: data?.meeting?.host_joined_at,
-                meetingStatus: data?.meeting?.status,
-                rescheduleRequested: data?.meeting?.reschedule_requested,
-            }) ||
-            data?.meeting?.status === 'completed' ||
-            data?.meeting?.reschedule_requested
-        ) {
-            return
-        }
-
-        const primeMeetingTab = () => {
-            if (preparedMeetingTabRef.current && !preparedMeetingTabRef.current.closed) {
-                return
-            }
-
-            preparedMeetingTabRef.current = prepareMeetingTab()
-        }
-
-        window.addEventListener('pointerdown', primeMeetingTab, { once: true })
-        window.addEventListener('keydown', primeMeetingTab, { once: true })
-
-        return () => {
-            window.removeEventListener('pointerdown', primeMeetingTab)
-            window.removeEventListener('keydown', primeMeetingTab)
-        }
-    }, [
-        data?.guest?.status,
-        data?.meeting?.host_joined_at,
-        data?.meeting?.status,
-        data?.meeting?.reschedule_requested,
-    ])
+    }, [data, guestNameForRoom, meetingId])
 
     useEffect(() => {
         const shouldAutoOpenBooking = shouldAutoOpenBookingModal({
@@ -489,46 +421,48 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     if (loading && !data) {
         return (
-            <InAppBrowserGate>
-            <div className={styles.container}>
-                {/* Skeleton loading UI */}
-                <div className={styles.reelSection}>
-                    <div className={styles.skeletonReel}></div>
-                    <div className={styles.skeletonBanner}></div>
-                </div>
-                <div className={styles.skeletonHostProfile}>
-                    <div className={styles.skeletonAvatar}></div>
-                    <div className={styles.skeletonHostInfo}>
-                        <div className={styles.skeletonText}></div>
-                        <div className={styles.skeletonTextSmall}></div>
+            <>
+                <GuestExternalBrowserAssist />
+                <div className={styles.container}>
+                    {/* Skeleton loading UI */}
+                    <div className={styles.reelSection}>
+                        <div className={styles.skeletonReel}></div>
+                        <div className={styles.skeletonBanner}></div>
+                    </div>
+                    <div className={styles.skeletonHostProfile}>
+                        <div className={styles.skeletonAvatar}></div>
+                        <div className={styles.skeletonHostInfo}>
+                            <div className={styles.skeletonText}></div>
+                            <div className={styles.skeletonTextSmall}></div>
+                        </div>
+                    </div>
+                    <div className={styles.joinSection}>
+                        <div className={styles.skeletonCard}>
+                            <div className={styles.skeletonIcon}></div>
+                            <div className={styles.skeletonTitle}></div>
+                            <div className={styles.skeletonDescription}></div>
+                            <div className={styles.skeletonButton}></div>
+                        </div>
                     </div>
                 </div>
-                <div className={styles.joinSection}>
-                    <div className={styles.skeletonCard}>
-                        <div className={styles.skeletonIcon}></div>
-                        <div className={styles.skeletonTitle}></div>
-                        <div className={styles.skeletonDescription}></div>
-                        <div className={styles.skeletonButton}></div>
-                    </div>
-                </div>
-            </div>
-            </InAppBrowserGate>
+            </>
         )
     }
 
     if (error) {
         return (
-            <InAppBrowserGate>
-            <div className={styles.error}>
-                <h2>Oops!</h2>
-                <p>{error}</p>
-                <a href="/" className="button-secondary">Go Home</a>
-            </div>
-            </InAppBrowserGate>
+            <>
+                <GuestExternalBrowserAssist />
+                <div className={styles.error}>
+                    <h2>Oops!</h2>
+                    <p>{error}</p>
+                    <a href="/" className="button-secondary">Go Home</a>
+                </div>
+            </>
         )
     }
 
-    const roomLink = data?.meetLink || buildGuestRoomPath(meetingId, guestNameForRoom)
+    const roomLink = data?.meetLink || buildGuestRoomPath(meetingId, data?.guest?.id, guestNameForRoom)
     const isAdmitted = data?.guest?.status === 'admitted'
     const isWaiting = data?.guest?.status === 'waiting'
     const rescheduleRequested = Boolean(data?.meeting?.reschedule_requested)
@@ -566,7 +500,8 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
 
     // Waiting room with reels
     return (
-        <InAppBrowserGate>
+        <>
+        <GuestExternalBrowserAssist />
         <div ref={containerRef} className={styles.container}>
             {/* Reel Player */}
             <div className={styles.reelSection}>
@@ -582,12 +517,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         if (canJoin && !hasAutoJoinedRef.current) {
                             hasAutoJoinedRef.current = true
                             try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
-                            try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
-                            const preparedMeetingTab = preparedMeetingTabRef.current
-                            preparedMeetingTabRef.current = null
-                            if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
-                                router.push(roomLink)
-                            }
+                            goToMeeting(roomLink)
                         }
                     }}
                 />
@@ -656,12 +586,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                             onClick={() => {
                                 hasAutoJoinedRef.current = true
                                 try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
-                                try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
-                                const preparedMeetingTab = preparedMeetingTabRef.current
-                                preparedMeetingTabRef.current = null
-                                if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
-                                    router.push(roomLink)
-                                }
+                                goToMeeting(roomLink)
                             }}
                         >
                             Join Meeting
@@ -752,12 +677,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                                     onClick={() => {
                                         hasAutoJoinedRef.current = true
                                         try { localStorage.setItem(`guestName:${meetingId}`, guestNameForRoom) } catch { }
-                                        try { markExternalBrowserHandoff(window.location.pathname, window.sessionStorage) } catch { }
-                                        const preparedMeetingTab = preparedMeetingTabRef.current
-                                        preparedMeetingTabRef.current = null
-                                        if (!openRoomInNewTab(roomLink, preparedMeetingTab)) {
-                                            router.push(roomLink)
-                                        }
+                                        goToMeeting(roomLink)
                                     }}
                                 >
                                     Join now
@@ -774,6 +694,6 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             )}
 
         </div>
-        </InAppBrowserGate>
+        </>
     )
 }

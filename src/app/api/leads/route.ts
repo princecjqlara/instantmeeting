@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { humanizeLeadAnswers } from '@/lib/lead-answer-display'
 import { canManuallyMoveLeadToStage, deriveLeadPipelineStage, resolveStoredLeadPipelineStage } from '@/lib/lead-pipeline'
 import {
     maybeSendLeadFormQualifiedMetaEvent,
@@ -125,6 +126,44 @@ export async function GET(req: NextRequest) {
 
     const formList = forms || []
     const formBySlug = new Map(formList.map((form) => [form.slug, form]))
+    const formIds = formList.map((form) => form.id)
+    const formQuestionsByFormId = new Map<string, Array<{ id: string; type: string; options: Array<{ id: string; label: string; value: string }> }>>()
+
+    if (formIds.length > 0) {
+        const { data: formQuestions, error: formQuestionsError } = await supabase
+            .from('lead_form_questions')
+            .select('form_id, id, type, options')
+            .in('form_id', formIds)
+
+        if (formQuestionsError) {
+            return NextResponse.json({ error: formQuestionsError.message }, { status: 500 })
+        }
+
+        for (const question of formQuestions || []) {
+            const formId = typeof question.form_id === 'string' ? question.form_id : null
+            if (!formId) continue
+
+            if (!formQuestionsByFormId.has(formId)) {
+                formQuestionsByFormId.set(formId, [])
+            }
+
+            formQuestionsByFormId.get(formId)?.push({
+                id: question.id,
+                type: question.type,
+                options: Array.isArray(question.options) ? question.options : [],
+            })
+        }
+    }
+
+    const getHumanizedLeadAnswers = (rawAnswers: unknown, leadFormId: string | null | undefined) => {
+        if (!Array.isArray(rawAnswers)) {
+            return []
+        }
+
+        const questions = leadFormId ? (formQuestionsByFormId.get(leadFormId) || []) : []
+        return humanizeLeadAnswers(rawAnswers as never[], questions as never[])
+    }
+
     let draftLeads: Array<Record<string, unknown>> = []
 
     if (formList.length > 0) {
@@ -155,7 +194,7 @@ export async function GET(req: NextRequest) {
                 qualification_score: null,
                 qualification_verdict: null,
                 qualification_reasoning: 'Incomplete lead form draft',
-                lead_answers: Array.isArray(draft.answers) ? draft.answers : [],
+                lead_answers: getHumanizedLeadAnswers(Array.isArray(draft.answers) ? draft.answers : [], form?.id || null),
                 tags: [],
                 pipeline_stage:
                     draft.pipeline_stage ||
@@ -173,6 +212,10 @@ export async function GET(req: NextRequest) {
 
     const normalizedLeads = (leads || []).map((lead: Record<string, unknown>) => ({
         ...lead,
+        lead_answers: getHumanizedLeadAnswers(
+            lead.lead_answers,
+            typeof lead.lead_form_id === 'string' ? lead.lead_form_id : null
+        ),
         pipeline_stage: resolveStoredLeadPipelineStage({
             currentStage: typeof lead.pipeline_stage === 'string' ? lead.pipeline_stage : null,
             submittedAt: typeof lead.submitted_at === 'string' ? lead.submitted_at : null,

@@ -19,8 +19,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import VideoChat from '@/components/VideoChat'
 import GuestInfoPanel from '@/components/GuestInfoPanel'
 import { FaVideo, FaArrowRight, FaDoorOpen } from 'react-icons/fa'
-import InAppBrowserGate from '@/components/InAppBrowserGate'
-import { getGuestNameFromSearch } from '@/lib/external-browser-handoff'
+import GuestExternalBrowserAssist from '@/components/GuestExternalBrowserAssist'
+import { consumeExternalBrowserHandoff, getGuestNameFromSearch } from '@/lib/external-browser-handoff'
+import { shouldHostAutoEndMeetingWhenEmpty } from '@/lib/meeting-presence'
 import styles from './page.module.css'
 
 interface RoomPageProps {
@@ -34,12 +35,49 @@ export default function RoomPage({ params }: RoomPageProps) {
     const searchParams = useSearchParams()
     const hasMarkedHostJoinedRef = useRef(false)
     const guestNameFromQuery = getGuestNameFromSearch(searchParams)
+    const guestIdFromQuery = searchParams.get('guestId')?.trim() || null
+    const hostAutoEndRequestedRef = useRef(false)
 
     // Determine the user's display name
     const [displayName, setDisplayName] = useState<string>('')
     const [nameInput, setNameInput] = useState('')
     const [hasJoined, setHasJoined] = useState(false)
     const [meetingEndedExternally, setMeetingEndedExternally] = useState(false)
+
+    const getStoredGuestId = useCallback(() => {
+        if (guestIdFromQuery) {
+            return guestIdFromQuery
+        }
+
+        try {
+            const storedGuestId = localStorage.getItem(`waitingGuest:${roomId}`)?.trim()
+            return storedGuestId || null
+        } catch {
+            return null
+        }
+    }, [guestIdFromQuery, roomId])
+
+    const markGuestLeft = useCallback((reason: 'manual' | 'pagehide' = 'manual') => {
+        if (session?.user || typeof window === 'undefined') {
+            return
+        }
+
+        if (reason === 'pagehide' && consumeExternalBrowserHandoff(window.location.pathname, window.sessionStorage)) {
+            return
+        }
+
+        const guestId = getStoredGuestId()
+        if (!guestId) {
+            return
+        }
+
+        fetch('/api/waiting', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guestId, status: 'left' }),
+            keepalive: reason === 'pagehide',
+        }).catch(() => {})
+    }, [getStoredGuestId, session?.user])
 
     useEffect(() => {
         if (!session?.user?.email || hasMarkedHostJoinedRef.current) {
@@ -54,6 +92,20 @@ export default function RoomPage({ params }: RoomPageProps) {
             hasMarkedHostJoinedRef.current = false
         })
     }, [session?.user?.email, roomId])
+
+    useEffect(() => {
+        try {
+            if (guestIdFromQuery) {
+                localStorage.setItem(`waitingGuest:${roomId}`, guestIdFromQuery)
+            }
+
+            if (guestNameFromQuery) {
+                localStorage.setItem(`guestName:${roomId}`, guestNameFromQuery)
+            }
+        } catch {
+            // Ignore localStorage errors
+        }
+    }, [guestIdFromQuery, guestNameFromQuery, roomId])
 
     // Auto-set name for authenticated users or returning guests
     useEffect(() => {
@@ -90,12 +142,29 @@ export default function RoomPage({ params }: RoomPageProps) {
 
     // Handle leaving the room — go back to home or dashboard
     const handleLeave = useCallback(() => {
+        if (!session?.user) {
+            markGuestLeft('manual')
+        }
+
         if (session) {
             router.push('/host/dashboard')
         } else {
             router.push('/')
         }
-    }, [session, router])
+    }, [markGuestLeft, session, router])
+
+    useEffect(() => {
+        if (session?.user) {
+            return
+        }
+
+        const handlePageHide = () => markGuestLeft('pagehide')
+        window.addEventListener('pagehide', handlePageHide)
+
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide)
+        }
+    }, [markGuestLeft, session?.user])
 
     // Poll meeting status to detect if host ended from dashboard
     useEffect(() => {
@@ -103,11 +172,34 @@ export default function RoomPage({ params }: RoomPageProps) {
 
         const checkMeetingStatus = async () => {
             try {
-                const res = await fetch(`/api/waiting?meetingId=${roomId}`)
+                const guestId = getStoredGuestId()
+                const guestQuery = guestId ? `&guestId=${guestId}` : ''
+                const res = await fetch(`/api/waiting?meetingId=${roomId}${guestQuery}`)
                 if (res.ok) {
                     const data = await res.json()
                     if (data.meeting?.status === 'completed') {
                         setMeetingEndedExternally(true)
+                        return
+                    }
+
+                    if (
+                        shouldHostAutoEndMeetingWhenEmpty({
+                            isHost: Boolean(session?.user),
+                            meetingStatus: data.meeting?.status,
+                            waitingGuestCount: Number(data.waitingGuestCount || 0),
+                            activeGuestCount: Number(data.activeGuestCount || 0),
+                        }) &&
+                        !hostAutoEndRequestedRef.current
+                    ) {
+                        hostAutoEndRequestedRef.current = true
+
+                        const endRes = await fetch(`/api/meetings/${roomId}/end`, {
+                            method: 'POST',
+                        })
+
+                        if (!endRes.ok) {
+                            hostAutoEndRequestedRef.current = false
+                        }
                     }
                 }
             } catch {
@@ -115,9 +207,9 @@ export default function RoomPage({ params }: RoomPageProps) {
             }
         }
 
-        const interval = setInterval(checkMeetingStatus, 15000)
+        const interval = setInterval(checkMeetingStatus, 5000)
         return () => clearInterval(interval)
-    }, [hasJoined, roomId])
+    }, [getStoredGuestId, hasJoined, roomId, session?.user])
 
     // Auto-redirect when meeting ended externally
     useEffect(() => {
@@ -174,7 +266,8 @@ export default function RoomPage({ params }: RoomPageProps) {
     // Meeting ended externally (host ended from dashboard)
     if (meetingEndedExternally) {
         return (
-            <InAppBrowserGate>
+            <>
+                {!session?.user && <GuestExternalBrowserAssist />}
                 <div className={styles.container}>
                     <div className={styles.joinCard}>
                         <div className={styles.iconWrapper} style={{ color: '#ff6b6b' }}>
@@ -187,77 +280,77 @@ export default function RoomPage({ params }: RoomPageProps) {
                         </button>
                     </div>
                 </div>
-            </InAppBrowserGate>
+            </>
         )
     }
 
     // If we have a name and have joined, show the video chat
     if (hasJoined && displayName) {
         return (
-            <InAppBrowserGate>
-                <>
-                    <VideoChat
-                        roomId={roomId}
-                        displayName={displayName}
-                        onLeave={handleLeave}
-                        isHost={!!session?.user}
-                        onStopWelcomeAudio={handleStopWelcomeAudio}
-                    />
-                    {session?.user && <GuestInfoPanel roomId={roomId} />}
-                </>
-            </InAppBrowserGate>
+            <>
+                {!session?.user && <GuestExternalBrowserAssist />}
+                <VideoChat
+                    roomId={roomId}
+                    displayName={displayName}
+                    onLeave={handleLeave}
+                    isHost={!!session?.user}
+                    onStopWelcomeAudio={handleStopWelcomeAudio}
+                />
+                {session?.user && <GuestInfoPanel roomId={roomId} />}
+            </>
         )
     }
 
     // Otherwise, show a name prompt (for unauthenticated users without stored name)
     return (
-        <InAppBrowserGate>
-        <div className={styles.container}>
-            <div className={styles.joinCard}>
-                <div className={styles.iconWrapper}>
-                    <FaVideo />
-                </div>
-                <h1>Join Video Room</h1>
-                <p>Enter your name to join the meeting</p>
+        <>
+            <GuestExternalBrowserAssist />
+            <div className={styles.container}>
+                <div className={styles.joinCard}>
+                    <div className={styles.iconWrapper}>
+                        <FaVideo />
+                    </div>
+                    <h1>Join Video Room</h1>
+                    <p>Enter your name to join the meeting</p>
 
-                <form
-                    className={styles.nameForm}
-                    onSubmit={(e) => {
-                        e.preventDefault()
-                        const name = nameInput.trim()
-                        if (name) {
-                            // Store name for potential reconnection
-                            try {
-                                localStorage.setItem(`guestName:${roomId}`, name)
-                            } catch {
-                                // Ignore localStorage errors
+                    <form
+                        className={styles.nameForm}
+                        onSubmit={(e) => {
+                            e.preventDefault()
+                            const name = nameInput.trim()
+                            if (name) {
+                                // Store name for potential reconnection
+                                try {
+                                    localStorage.setItem(`guestName:${roomId}`, name)
+                                } catch {
+                                    // Ignore localStorage errors
+                                }
+                                setDisplayName(name)
+                                setHasJoined(true)
                             }
-                            setDisplayName(name)
-                            setHasJoined(true)
-                        }
-                    }}
-                >
-                    <input
-                        type="text"
-                        value={nameInput}
-                        onChange={(e) => setNameInput(e.target.value)}
-                        placeholder="Your name..."
-                        className={styles.nameInput}
-                        autoFocus
-                        maxLength={50}
-                        required
-                    />
-                    <button
-                        type="submit"
-                        className={styles.joinBtn}
-                        disabled={!nameInput.trim()}
+                        }}
                     >
-                        Join
-                        <FaArrowRight />
-                    </button>
-                </form>
+                        <input
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => setNameInput(e.target.value)}
+                            placeholder="Your name..."
+                            className={styles.nameInput}
+                            autoFocus
+                            maxLength={50}
+                            required
+                        />
+                        <button
+                            type="submit"
+                            className={styles.joinBtn}
+                            disabled={!nameInput.trim()}
+                        >
+                            Join
+                            <FaArrowRight />
+                        </button>
+                    </form>
+                </div>
             </div>
-        </div>
-        </InAppBrowserGate>
+        </>
     )
 }

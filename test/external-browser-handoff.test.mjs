@@ -13,8 +13,8 @@ import {
 
 test('browser handoff helpers preserve guest identity in URLs', () => {
     assert.equal(
-        buildGuestRoomPath('meeting-123', '  Jane Doe  '),
-        '/room/meeting-123?guestName=Jane+Doe'
+        buildGuestRoomPath('meeting-123', 'guest-456', '  Jane Doe  '),
+        '/room/meeting-123?guestId=guest-456&guestName=Jane+Doe'
     )
 
     assert.equal(
@@ -95,7 +95,8 @@ test('room page restores guest identity from query string for external browsers'
 
     assert.ok(source.includes('useSearchParams'))
     assert.ok(source.includes('guestName'))
-    assert.ok(source.includes('<InAppBrowserGate>'))
+    assert.ok(source.includes('guestId'))
+    assert.ok(source.includes("status: 'left'"))
 })
 
 test('waiting page persists guest identity into the URL for external-browser handoff', () => {

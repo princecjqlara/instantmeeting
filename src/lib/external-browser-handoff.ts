@@ -32,6 +32,35 @@ export function getInAppBrowserOpenStrategy(userAgent: string | null | undefined
     }
 }
 
+export function openUrlInExternalBrowser(
+    url: string,
+    pathname: string,
+    storage: StorageLike | null | undefined,
+    userAgent?: string | null
+) {
+    const normalizedUserAgent = userAgent || (typeof navigator !== 'undefined' ? navigator.userAgent : '')
+
+    try {
+        markExternalBrowserHandoff(pathname, storage)
+    } catch {
+        // Ignore storage errors
+    }
+
+    if (/android/i.test(normalizedUserAgent) && typeof window !== 'undefined') {
+        const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`
+        window.location.href = intentUrl
+    } else if (typeof window !== 'undefined') {
+        const externalTab = window.open(url, '_blank', 'noopener,noreferrer')
+        if (!externalTab) {
+            window.location.href = url
+        }
+    }
+
+    if (typeof navigator !== 'undefined') {
+        navigator.clipboard?.writeText(url).catch(() => {})
+    }
+}
+
 export function normalizeGuestName(value: string | null | undefined): string | null {
     if (!value) return null
 
@@ -39,9 +68,17 @@ export function normalizeGuestName(value: string | null | undefined): string | n
     return normalized || null
 }
 
-export function buildGuestRoomPath(meetingId: string, guestName?: string | null): string {
+export function buildGuestRoomPath(
+    meetingId: string,
+    guestId?: string | null,
+    guestName?: string | null
+): string {
     const params = new URLSearchParams()
     const normalizedName = normalizeGuestName(guestName)
+
+    if (guestId?.trim()) {
+        params.set('guestId', guestId.trim())
+    }
 
     if (normalizedName) {
         params.set('guestName', normalizedName)

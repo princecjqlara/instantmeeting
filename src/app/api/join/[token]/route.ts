@@ -51,6 +51,6 @@ export async function GET(
 
     // Redirect to the in-app video room
     // google_meet_link now stores a relative path like /room/{meetingId}
-    const roomPath = buildGuestRoomPath(guest.meeting_id, guest.guest_name)
+    const roomPath = buildGuestRoomPath(guest.meeting_id, guest.id, guest.guest_name)
     return NextResponse.redirect(`${origin}${roomPath}`)
 }
