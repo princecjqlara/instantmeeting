@@ -1,7 +1,15 @@
 export type LeadFormAiMode = 'default' | 'onboarding'
 
 export interface LeadFormAiOption {
+    id: string
     label: string
+    value: string
+    points: number
+}
+
+export interface LeadFormAiScoringRule {
+    id: string
+    keywords: string
     points: number
 }
 
@@ -11,7 +19,8 @@ export interface LeadFormAiQuestion {
     type: 'short_answer' | 'long_answer' | 'email' | 'phone' | 'single_choice' | 'multi_choice' | 'date'
     required: boolean
     options: LeadFormAiOption[]
-    scoring_rules: Array<{ keywords: string; points: number }> | null
+    ai_weight: number
+    scoring_rules: LeadFormAiScoringRule[]
     ideal_answer: string | null
     disqualify_on: string | null
 }
@@ -121,6 +130,32 @@ export function buildLeadFormAiSystemPrompt(mode: LeadFormAiMode = 'default') {
     return mode === 'onboarding' ? `${BASE_SYSTEM}${ONBOARDING_APPENDIX}` : BASE_SYSTEM
 }
 
+function buildOptionId(questionIndex: number, optionIndex: number) {
+    return `onboarding_option_${questionIndex}_${optionIndex}`
+}
+
+function createChoiceOption(questionIndex: number, optionIndex: number, label: string, points: number): LeadFormAiOption {
+    const id = buildOptionId(questionIndex, optionIndex)
+    return {
+        id,
+        label,
+        value: id,
+        points,
+    }
+}
+
+function createQuestion(
+    question: Omit<LeadFormAiQuestion, 'ai_weight' | 'scoring_rules'> & {
+        scoring_rules?: LeadFormAiScoringRule[]
+    }
+): LeadFormAiQuestion {
+    return {
+        ...question,
+        ai_weight: 1,
+        scoring_rules: question.scoring_rules ?? [],
+    }
+}
+
 export function buildOnboardingFallbackLeadForm(prompt: string): LeadFormAiDraft {
     const summary = trimPrompt(prompt) || 'your offer'
 
@@ -131,66 +166,61 @@ export function buildOnboardingFallbackLeadForm(prompt: string): LeadFormAiDraft
         ai_criteria: `Qualified leads are a strong fit for this offer: ${summary}. Prioritize decision-makers with active need and near-term intent.`,
         unqualified_message: "Thanks for sharing a bit about your needs. We'll review this and follow up if it's a fit.",
         questions: [
-            {
+            createQuestion({
                 question_text: 'Full name',
                 help_text: null,
                 type: 'short_answer',
                 required: true,
                 options: [],
-                scoring_rules: null,
                 ideal_answer: null,
                 disqualify_on: null,
-            },
-            {
+            }),
+            createQuestion({
                 question_text: 'Work email',
                 help_text: null,
                 type: 'email',
                 required: true,
                 options: [],
-                scoring_rules: null,
                 ideal_answer: null,
                 disqualify_on: null,
-            },
-            {
+            }),
+            createQuestion({
                 question_text: 'Which best describes your role in this decision?',
                 help_text: null,
                 type: 'single_choice',
                 required: true,
                 options: [
-                    { label: 'Just researching for myself', points: 0 },
-                    { label: 'Influencer or team member', points: 4 },
-                    { label: 'Primary recommender', points: 7 },
-                    { label: 'Decision-maker or owner', points: 10 },
+                    createChoiceOption(2, 0, 'Just researching for myself', 0),
+                    createChoiceOption(2, 1, 'Influencer or team member', 4),
+                    createChoiceOption(2, 2, 'Primary recommender', 7),
+                    createChoiceOption(2, 3, 'Decision-maker or owner', 10),
                 ],
-                scoring_rules: null,
                 ideal_answer: null,
                 disqualify_on: null,
-            },
-            {
+            }),
+            createQuestion({
                 question_text: 'How soon are you looking to move forward?',
                 help_text: null,
                 type: 'single_choice',
                 required: true,
                 options: [
-                    { label: 'Just browsing / no timeline', points: 0 },
-                    { label: 'Later this year', points: 4 },
-                    { label: 'Within 1-3 months', points: 7 },
-                    { label: 'This month', points: 10 },
+                    createChoiceOption(3, 0, 'Just browsing / no timeline', 0),
+                    createChoiceOption(3, 1, 'Later this year', 4),
+                    createChoiceOption(3, 2, 'Within 1-3 months', 7),
+                    createChoiceOption(3, 3, 'This month', 10),
                 ],
-                scoring_rules: null,
                 ideal_answer: null,
                 disqualify_on: null,
-            },
-            {
+            }),
+            createQuestion({
                 question_text: 'What are you trying to solve right now?',
                 help_text: null,
                 type: 'long_answer',
                 required: true,
                 options: [],
-                scoring_rules: null,
                 ideal_answer: summary,
                 disqualify_on: null,
-            },
+            }),
         ],
     }
 }

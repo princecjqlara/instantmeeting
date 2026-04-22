@@ -30,8 +30,14 @@ test('onboarding fallback lead form creates a complete starter draft', () => {
     const qualifyingGates = draft.questions.filter((question) => question.type === 'single_choice')
     assert.ok(qualifyingGates.length >= 2)
     for (const gate of qualifyingGates.slice(0, 2)) {
+        assert.equal(gate.ai_weight, 1)
         const points = gate.options.map((option) => option.points)
         assert.ok(points.includes(0))
         assert.ok(points.includes(10))
+        assert.ok(gate.options.every((option) => typeof option.id === 'string' && option.id.length > 0))
+        assert.ok(gate.options.every((option) => typeof option.value === 'string' && option.value.length > 0))
     }
+
+    assert.ok(draft.questions.every((question) => question.ai_weight === 1))
+    assert.ok(draft.questions.every((question) => Array.isArray(question.scoring_rules)))
 })
