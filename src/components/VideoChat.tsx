@@ -160,6 +160,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
     } = useWebRTC(roomId, displayName, isHost)
 
     const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
+    const hostLeaveEndedMeetingRef = useRef(false)
 
     // Guest: stop welcome audio when host sends the signal
     useEffect(() => {
@@ -179,10 +180,43 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         )
 
     // Handle leave: clean up WebRTC, then call parent callback
-    const handleLeave = () => {
+    const handleLeave = async () => {
         leaveRoom()
+
+        if (isHost && !hostLeaveEndedMeetingRef.current) {
+            hostLeaveEndedMeetingRef.current = true
+            try {
+                await fetch(`/api/meetings/${roomId}/end`, {
+                    method: 'POST',
+                    keepalive: true,
+                })
+            } catch (err) {
+                console.error('Error ending meeting on host leave:', err)
+            }
+        }
+
         onLeave()
     }
+
+    useEffect(() => {
+        if (!isHost) return
+
+        const handlePageHide = () => {
+            if (hostLeaveEndedMeetingRef.current) {
+                return
+            }
+
+            hostLeaveEndedMeetingRef.current = true
+
+            fetch(`/api/meetings/${roomId}/end`, {
+                method: 'POST',
+                keepalive: true,
+            }).catch(() => {})
+        }
+
+        window.addEventListener('pagehide', handlePageHide)
+        return () => window.removeEventListener('pagehide', handlePageHide)
+    }, [isHost, roomId])
 
     // Handle end meeting for all (host only)
     const handleEndMeeting = async () => {

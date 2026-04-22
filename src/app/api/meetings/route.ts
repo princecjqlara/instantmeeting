@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
+import { shouldAutoCompleteMeetingFromGuestStatuses } from '@/lib/meeting-presence'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -53,7 +54,35 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json(meetings, {
+    const normalizedMeetings = (meetings || []).map((meeting) => ({
+        ...meeting,
+        waiting_guests: Array.isArray(meeting.waiting_guests) ? meeting.waiting_guests : [],
+    }))
+
+    const staleActiveMeetingIds = normalizedMeetings
+        .filter((meeting) =>
+            shouldAutoCompleteMeetingFromGuestStatuses(
+                meeting.status,
+                (meeting.waiting_guests || []).map((guest: { status?: string | null }) => guest.status)
+            )
+        )
+        .map((meeting) => meeting.id)
+
+    if (staleActiveMeetingIds.length > 0) {
+        await supabase
+            .from('meetings')
+            .update({ status: 'completed', ended_at: new Date().toISOString() })
+            .in('id', staleActiveMeetingIds)
+            .eq('user_id', user.id)
+
+        for (const meeting of normalizedMeetings) {
+            if (staleActiveMeetingIds.includes(meeting.id)) {
+                meeting.status = 'completed'
+            }
+        }
+    }
+
+    return NextResponse.json(normalizedMeetings, {
         headers: { 'Cache-Control': 'private, max-age=5, stale-while-revalidate=15' },
     })
 }

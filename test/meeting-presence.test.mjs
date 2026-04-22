@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { shouldHostAutoEndMeetingWhenEmpty } from '../src/lib/meeting-presence.ts'
+import {
+    shouldAutoCompleteMeetingFromGuestStatuses,
+    shouldHostAutoEndMeetingWhenEmpty,
+} from '../src/lib/meeting-presence.ts'
 
 test('host auto-ends when no guest is waiting or active', () => {
     assert.equal(
@@ -35,6 +38,30 @@ test('host does not auto-end completed meetings twice', () => {
             waitingGuestCount: 0,
             activeGuestCount: 0,
         }),
+        false
+    )
+})
+
+test('meetings with no waiting or admitted guests should auto-complete', () => {
+    assert.equal(
+        shouldAutoCompleteMeetingFromGuestStatuses('active', []),
+        true
+    )
+
+    assert.equal(
+        shouldAutoCompleteMeetingFromGuestStatuses('active', ['left', 'left']),
+        true
+    )
+})
+
+test('meetings stay active while a waiting or admitted guest exists', () => {
+    assert.equal(
+        shouldAutoCompleteMeetingFromGuestStatuses('active', ['waiting']),
+        false
+    )
+
+    assert.equal(
+        shouldAutoCompleteMeetingFromGuestStatuses('active', ['admitted', 'left']),
         false
     )
 })
