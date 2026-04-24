@@ -27,6 +27,22 @@ function toAutoScheduleReason(reason: string | null | undefined) {
         : 'no_online_members'
 }
 
+async function isAssignedMemberClockedIn(supabase: ReturnType<typeof getSupabaseClient>, memberId: string) {
+    const { data, error } = await supabase
+        .from('clock_sessions')
+        .select('id')
+        .eq('member_id', memberId)
+        .is('clocked_out_at', null)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Assigned member clock lookup failed:', error)
+        return false
+    }
+
+    return Boolean(data?.id)
+}
+
 // GET: Get waiting room info and host's content
 export async function GET(req: NextRequest) {
     const supabase = getSupabaseClient()
@@ -151,16 +167,44 @@ export async function GET(req: NextRequest) {
     let autoScheduleRequired = false
     let autoScheduleReason: 'no_online_members' | 'all_members_busy' | null = null
 
-    if (guestStatus?.status === 'waiting' && host?.auto_admit && !meeting.assigned_member_id) {
-        const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
-
-        if (!availability.nextMember) {
-            // Only require scheduling when an actual team exists but no one is available.
-            // Solo hosts (no_team / no_members) handle meetings themselves.
-            const blockingReasons = ['no_clocked_in', 'all_members_busy', 'lookup_failed']
-            if (blockingReasons.includes(availability.reason)) {
+    if (guestStatus?.status === 'waiting' && host?.auto_admit) {
+        if (meeting.assigned_member_id) {
+            const assignedMemberClockedIn = await isAssignedMemberClockedIn(supabase, meeting.assigned_member_id)
+            if (!assignedMemberClockedIn) {
                 autoScheduleRequired = true
-                autoScheduleReason = toAutoScheduleReason(availability.reason)
+                autoScheduleReason = 'no_online_members'
+            }
+        } else {
+            const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
+
+            if (!availability.nextMember) {
+                // Only require scheduling when an actual team exists but no one is available.
+                // Solo hosts (no_team / no_members) handle meetings themselves.
+                const blockingReasons = ['no_clocked_in', 'all_members_busy', 'lookup_failed']
+                if (blockingReasons.includes(availability.reason)) {
+                    autoScheduleRequired = true
+                    autoScheduleReason = toAutoScheduleReason(availability.reason)
+                }
+            }
+        }
+    }
+
+    if (!autoScheduleRequired && guestStatus?.status === 'admitted') {
+        if (meeting.assigned_member_id) {
+            const assignedMemberClockedIn = await isAssignedMemberClockedIn(supabase, meeting.assigned_member_id)
+            if (!assignedMemberClockedIn) {
+                autoScheduleRequired = true
+                autoScheduleReason = 'no_online_members'
+            }
+        } else {
+            const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
+
+            if (!availability.nextMember) {
+                const blockingReasons = ['no_clocked_in', 'all_members_busy', 'lookup_failed']
+                if (blockingReasons.includes(availability.reason)) {
+                    autoScheduleRequired = true
+                    autoScheduleReason = toAutoScheduleReason(availability.reason)
+                }
             }
         }
     }
@@ -271,15 +315,6 @@ export async function POST(req: NextRequest) {
             return await runAdmit(true)
         } catch (admitError) {
             if (isNoAvailableTeamMemberError(admitError)) {
-                // Nobody clocked in just means the team clock feature isn't
-                // being used — the active host takes the call themselves.
-                if (admitError.availabilityReason === 'no_clocked_in') {
-                    try {
-                        return await runAdmit(false)
-                    } catch (retryError) {
-                        console.error('Auto-admit retry without assignee failed:', retryError)
-                    }
-                }
                 return NextResponse.json({
                     ...guest,
                     autoScheduleRequired: true,

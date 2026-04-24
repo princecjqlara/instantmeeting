@@ -56,6 +56,7 @@ test('qualified lead send falls back to the form owner Meta config when the form
                 usedConfig = config
                 return { sent: true }
             },
+            claimSend: async () => ({ claimed: true, error: null }),
             markLeadFlags: async () => {
                 markCalls += 1
                 return { error: null }
@@ -70,6 +71,73 @@ test('qualified lead send falls back to the form owner Meta config when the form
         testEventCode: 'TEST123',
     })
     assert.equal(markCalls, 1)
+})
+
+test('qualified lead send claims before delivery to avoid duplicate sends', async () => {
+    const calls = []
+
+    const result = await maybeSendLeadFormQualifiedMetaEvent(
+        {
+            supabase: {},
+            leadForm: {
+                meta_capi_access_token: 'token',
+                meta_capi_dataset_id: 'dataset',
+                send_qualified_to_facebook: true,
+            },
+            lead: { id: 'lead-1', guest_email: 'lead@example.com' },
+            eventSourceUrl: 'https://instantmeeting.ai/leads/demo',
+        },
+        {
+            claimSend: async (_supabase, leadId, timestamp) => {
+                calls.push(['claim', leadId, typeof timestamp])
+                return { claimed: true, error: null }
+            },
+            sendWithConfig: async () => {
+                calls.push(['send'])
+                return { sent: true }
+            },
+            markLeadFlags: async () => {
+                calls.push(['mark'])
+                return { error: null }
+            },
+        }
+    )
+
+    assert.deepEqual(result, { sent: true })
+    assert.deepEqual(calls, [
+        ['claim', 'lead-1', 'string'],
+        ['send'],
+        ['mark'],
+    ])
+})
+
+test('qualified lead send releases its claim when delivery fails', async () => {
+    let released = null
+
+    const result = await maybeSendLeadFormQualifiedMetaEvent(
+        {
+            supabase: {},
+            leadForm: {
+                meta_capi_access_token: 'token',
+                meta_capi_dataset_id: 'dataset',
+                send_qualified_to_facebook: true,
+            },
+            lead: { id: 'lead-1', guest_email: 'lead@example.com' },
+            eventSourceUrl: 'https://instantmeeting.ai/leads/demo',
+        },
+        {
+            claimSend: async (_supabase, _leadId, timestamp) => ({ claimed: true, error: null, timestamp }),
+            sendWithConfig: async () => ({ sent: false, reason: 'request_error' }),
+            releaseClaim: async (_supabase, leadId, timestamp) => {
+                released = { leadId, timestamp }
+                return { error: null }
+            },
+        }
+    )
+
+    assert.deepEqual(result, { sent: false, reason: 'request_error' })
+    assert.equal(released?.leadId, 'lead-1')
+    assert.equal(typeof released?.timestamp, 'string')
 })
 
 test('purchase send uses the form purchase value on sold when enabled', async () => {

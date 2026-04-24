@@ -83,6 +83,29 @@ test('join route forwards guest context into room or waiting URLs', () => {
     assert.ok(source.includes('buildGuestWaitingPath'))
 })
 
+test('join route keeps admitted guests in booking flow when team clock has nobody online', () => {
+    const source = readFileSync(new URL('../src/app/api/join/[token]/route.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('getAutoAssignableMember'))
+    assert.ok(source.includes('shouldRouteAdmittedGuestToBooking'))
+    assert.ok(source.includes('return NextResponse.redirect(waitingUrl)'))
+})
+
+test('waiting API reports booking requirement for clocked-out admitted guests without requiring auto-admit', () => {
+    const source = readFileSync(new URL('../src/app/api/waiting/route.ts', import.meta.url), 'utf8')
+    const admittedStatusIndex = source.indexOf("guestStatus?.status === 'admitted'")
+    const assignedClockIndex = source.indexOf('isAssignedMemberClockedIn')
+    const autoAdmitGuardIndex = source.indexOf('&& host?.auto_admit', admittedStatusIndex)
+
+    assert.notEqual(admittedStatusIndex, -1)
+    assert.notEqual(assignedClockIndex, -1)
+    assert.equal(
+        autoAdmitGuardIndex,
+        -1,
+        'admitted guest booking guard should not depend on host.auto_admit'
+    )
+})
+
 test('universal link route creates a guest and redirects with guest context', () => {
     const source = readFileSync(new URL('../src/app/join/[username]/route.ts', import.meta.url), 'utf8')
 

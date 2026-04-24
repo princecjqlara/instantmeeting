@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { qualifyLead } from '@/lib/lead-qualifier'
 import { deriveLeadPipelineStage } from '@/lib/lead-pipeline'
@@ -244,31 +244,33 @@ export async function POST(req: NextRequest) {
     // free, fall back to a booking calendar so the lead isn't dropped
     // into an empty room.
     if (qualification.verdict === 'qualified') {
-        void maybeSendLeadFormQualifiedMetaEvent({
-            supabase,
-            leadForm: form,
-            lead: {
-                id: guest.id,
-                guest_name: resolvedName,
-                guest_email: resolvedEmail,
-                guest_phone: resolvedPhone,
-                meta_qualified_sent_at:
-                    typeof existingLeadSession?.meta_qualified_sent_at === 'string'
-                        ? existingLeadSession.meta_qualified_sent_at
-                        : null,
-            },
-            eventSourceUrl:
-                typeof page_url === 'string' && page_url.trim()
-                    ? page_url
-                    : `${req.nextUrl.origin}/leads/${form.slug}`,
-            clientIpAddress: getClientIpAddress(req),
-            clientUserAgent: req.headers.get('user-agent'),
-            fbp: typeof fbp === 'string' ? fbp : null,
-            fbc: typeof fbc === 'string' ? fbc : null,
-            fbclid: typeof fbclid === 'string' ? fbclid : null,
-        }).catch((error) => {
-            console.error('Qualified Meta CAPI send failed:', error)
-        })
+        after(() =>
+            maybeSendLeadFormQualifiedMetaEvent({
+                supabase,
+                leadForm: form,
+                lead: {
+                    id: guest.id,
+                    guest_name: resolvedName,
+                    guest_email: resolvedEmail,
+                    guest_phone: resolvedPhone,
+                    meta_qualified_sent_at:
+                        typeof existingLeadSession?.meta_qualified_sent_at === 'string'
+                            ? existingLeadSession.meta_qualified_sent_at
+                            : null,
+                },
+                eventSourceUrl:
+                    typeof page_url === 'string' && page_url.trim()
+                        ? page_url
+                        : `${req.nextUrl.origin}/leads/${form.slug}`,
+                clientIpAddress: getClientIpAddress(req),
+                clientUserAgent: req.headers.get('user-agent'),
+                fbp: typeof fbp === 'string' ? fbp : null,
+                fbc: typeof fbc === 'string' ? fbc : null,
+                fbclid: typeof fbclid === 'string' ? fbclid : null,
+            }).catch((error) => {
+                console.error('Qualified Meta CAPI send failed:', error)
+            })
+        )
 
         const admitAndRespond = async (requireAvailableAssignee: boolean) => {
             const result = await admitGuestLogic(meeting.id, guest.id, {
@@ -289,16 +291,6 @@ export async function POST(req: NextRequest) {
             return await admitAndRespond(true)
         } catch (err) {
             if (isNoAvailableTeamMemberError(err)) {
-                // Host is active but the team clock isn't in use right now
-                // (no teammates clocked in). The host handles the call
-                // themselves instead of stranding the lead in a booking flow.
-                if (hostActive && err.availabilityReason === 'no_clocked_in') {
-                    try {
-                        return await admitAndRespond(false)
-                    } catch (retryErr) {
-                        console.error('Auto-admit retry without assignee failed:', retryErr)
-                    }
-                }
                 return NextResponse.json({
                     verdict: 'needs_booking',
                     score: qualification.score,

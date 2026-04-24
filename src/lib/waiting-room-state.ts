@@ -3,6 +3,7 @@ export interface WaitingRoomJoinState {
     guestStatus?: 'waiting' | 'admitted' | 'left' | null
     hostJoinedAt?: string | null
     rescheduleRequested?: boolean | null
+    autoScheduleRequired?: boolean | null
 }
 
 export interface HostAvailabilityState {
@@ -55,7 +56,7 @@ export function isHostCurrentlyAvailable(state: HostAvailabilityState, now = new
 
 export function shouldAutoOpenBookingModal(state: WaitingRoomBookingState, now = new Date()): boolean {
     return (
-        state.guestStatus === 'waiting' &&
+        (state.guestStatus === 'waiting' || state.guestStatus === 'admitted') &&
         state.meetingStatus !== 'completed' &&
         (Boolean(state.autoScheduleRequired) || !isHostCurrentlyAvailable(state, now))
     )
@@ -69,7 +70,8 @@ export function canGuestJoinRoom(state: WaitingRoomJoinState): boolean {
     return (
         state.guestStatus === 'admitted' &&
         state.meetingStatus !== 'completed' &&
-        !state.rescheduleRequested
+        !state.rescheduleRequested &&
+        !state.autoScheduleRequired
     )
 }
 

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+    canGuestJoinRoom,
     isHostCurrentlyAvailable,
     shouldAutoOpenBookingModal,
     shouldShowBookingCallToAction,
@@ -82,4 +83,24 @@ test('waiting room still shows booking when host is outside their scheduled wind
     )
 
     assert.equal(shouldShowBooking, true)
+})
+
+test('admitted guests cannot join the room when booking is required', () => {
+    const canJoin = canGuestJoinRoom({
+        meetingStatus: 'active',
+        guestStatus: 'admitted',
+        autoScheduleRequired: true,
+    })
+
+    assert.equal(canJoin, false)
+})
+
+test('waiting room auto-opens booking for admitted guests when booking is required', () => {
+    const shouldAutoOpen = shouldAutoOpenBookingModal({
+        guestStatus: 'admitted',
+        meetingStatus: 'active',
+        autoScheduleRequired: true,
+    })
+
+    assert.equal(shouldAutoOpen, true)
 })

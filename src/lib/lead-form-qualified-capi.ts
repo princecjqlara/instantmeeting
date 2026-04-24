@@ -145,6 +145,22 @@ async function claimLeadFormPurchaseSend(supabase: any, leadId: string, claimTim
     return { claimed: Boolean(result.data?.id), error: null }
 }
 
+async function claimLeadFormQualifiedSend(supabase: any, leadId: string, claimTimestamp: string) {
+    const result = await supabase
+        .from('waiting_guests')
+        .update({ meta_qualified_sent_at: claimTimestamp })
+        .eq('id', leadId)
+        .is('meta_qualified_sent_at', null)
+        .select('id')
+        .maybeSingle()
+
+    if (result.error) {
+        return { claimed: false, error: result.error }
+    }
+
+    return { claimed: Boolean(result.data?.id), error: null }
+}
+
 async function releaseLeadFormPurchaseClaim(supabase: any, leadId: string, claimTimestamp: string) {
     return supabase
         .from('waiting_guests')
@@ -153,12 +169,22 @@ async function releaseLeadFormPurchaseClaim(supabase: any, leadId: string, claim
         .eq('meta_purchase_sent_at', claimTimestamp)
 }
 
+async function releaseLeadFormQualifiedClaim(supabase: any, leadId: string, claimTimestamp: string) {
+    return supabase
+        .from('waiting_guests')
+        .update({ meta_qualified_sent_at: null })
+        .eq('id', leadId)
+        .eq('meta_qualified_sent_at', claimTimestamp)
+}
+
 export async function maybeSendLeadFormQualifiedMetaEvent(
     input: LeadFormQualifiedMetaInput,
     deps: {
         resolveConfig?: (supabase: any, leadForm: LeadFormQualifiedMetaInput['leadForm']) => Promise<MetaCapiConfig | null>
         sendWithConfig?: typeof sendInstantMeetingMetaCapiEventWithConfig
         markLeadFlags?: typeof updateWaitingGuestMetaFlags
+        claimSend?: typeof claimLeadFormQualifiedSend
+        releaseClaim?: typeof releaseLeadFormQualifiedClaim
     } = {}
 ): Promise<MetaCapiSendResult | { sent: false; reason: 'missing_config' | 'already_sent' | 'disabled' }> {
     if (!shouldSendLeadFormQualifiedMetaEvent(input.lead.meta_qualified_sent_at)) {
@@ -176,6 +202,20 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
     )
     if (!config) {
         return { sent: false, reason: 'missing_config' }
+    }
+
+    const claimTimestamp = new Date().toISOString()
+    const claimSend = deps.claimSend ?? claimLeadFormQualifiedSend
+    const releaseClaim = deps.releaseClaim ?? releaseLeadFormQualifiedClaim
+
+    const claimResult = await claimSend(input.supabase, input.lead.id, claimTimestamp)
+    if (claimResult.error) {
+        console.error('Failed to claim lead-form qualified Meta event send:', claimResult.error)
+        return { sent: false, reason: 'request_error' }
+    }
+
+    if (!claimResult.claimed) {
+        return { sent: false, reason: 'already_sent' }
     }
 
     const baseEvent = await buildInstantMeetingMetaEvent({
@@ -213,6 +253,11 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
 
         if (markResult.error) {
             console.error('Failed to mark lead-form qualified Meta event as sent:', markResult.error)
+        }
+    } else {
+        const releaseResult = await releaseClaim(input.supabase, input.lead.id, claimTimestamp)
+        if (releaseResult?.error) {
+            console.error('Failed to release lead-form qualified Meta event claim:', releaseResult.error)
         }
     }
 

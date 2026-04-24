@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { buildGuestRoomPath, buildGuestWaitingPath } from '@/lib/external-browser-handoff'
+import { getAutoAssignableMember } from '@/lib/admit-logic'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,39 @@ function getSupabaseClient() {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+}
+
+async function isAssignedMemberClockedIn(supabase: ReturnType<typeof getSupabaseClient>, memberId: string) {
+    const { data, error } = await supabase
+        .from('clock_sessions')
+        .select('id')
+        .eq('member_id', memberId)
+        .is('clocked_out_at', null)
+        .maybeSingle()
+
+    if (error) {
+        console.error('Assigned member clock lookup failed:', error)
+        return false
+    }
+
+    return Boolean(data?.id)
+}
+
+async function shouldRouteAdmittedGuestToBooking(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    meeting: {
+        id: string
+        user_id: string
+        assigned_member_id?: string | null
+    }
+) {
+    if (meeting.assigned_member_id) {
+        return !(await isAssignedMemberClockedIn(supabase, meeting.assigned_member_id))
+    }
+
+    const availability = await getAutoAssignableMember(meeting.user_id, meeting.id)
+
+    return ['no_clocked_in', 'all_members_busy', 'lookup_failed'].includes(availability.reason)
 }
 
 export async function GET(
@@ -30,7 +64,7 @@ export async function GET(
 
     const { data: meeting } = await supabase
         .from('meetings')
-        .select('id, google_meet_link, status, host_joined_at, reschedule_requested')
+        .select('id, user_id, google_meet_link, status, host_joined_at, reschedule_requested, assigned_member_id')
         .eq('id', guest.meeting_id)
         .single()
 
@@ -44,7 +78,8 @@ export async function GET(
     if (
         guest.status !== 'admitted' ||
         meeting.status === 'completed' ||
-        meeting.reschedule_requested
+        meeting.reschedule_requested ||
+        await shouldRouteAdmittedGuestToBooking(supabase, meeting)
     ) {
         return NextResponse.redirect(waitingUrl)
     }

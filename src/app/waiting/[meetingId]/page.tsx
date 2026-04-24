@@ -227,6 +227,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
                         guestStatus: result.guest?.status,
                         hostJoinedAt: result.meeting?.host_joined_at,
                         rescheduleRequested: result.meeting?.reschedule_requested,
+                        autoScheduleRequired: result.autoScheduleRequired,
                     })
                 ) {
                     if (intervalId) {
@@ -317,6 +318,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             hostJoinedAt: data?.meeting?.host_joined_at,
             meetingStatus: data?.meeting?.status,
             rescheduleRequested: data?.meeting?.reschedule_requested,
+            autoScheduleRequired: data?.autoScheduleRequired,
         })
 
         // Auto-join: navigate to in-app video room instead of external Google Meet
@@ -472,6 +474,7 @@ export default function WaitingRoom({ params }: WaitingPageProps) {
             hostJoinedAt: data?.meeting?.host_joined_at,
             meetingStatus: data?.meeting?.status,
             rescheduleRequested: data?.meeting?.reschedule_requested,
+            autoScheduleRequired: data?.autoScheduleRequired,
         })
     )
     const isHostFree = isHostCurrentlyAvailable({
