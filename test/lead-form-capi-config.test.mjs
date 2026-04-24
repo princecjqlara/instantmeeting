@@ -59,6 +59,13 @@ test('lead form event route supports PageView and LeadFormStart without exposing
     assert.ok(!source.includes('NextResponse.json({ form'))
 })
 
+test('lead-form CAPI helper avoids dynamic expression imports that Vercel cannot bundle', () => {
+    const source = readFileSync(new URL('../src/lib/lead-form-qualified-capi.ts', import.meta.url), 'utf8')
+
+    assert.ok(!source.includes('import(new URL('))
+    assert.ok(!source.includes('Cannot find module as expression is too dynamic'))
+})
+
 test('booking flow forwards lead context and sends Schedule events', () => {
     const modalSource = readFileSync(new URL('../src/components/BookingModal.tsx', import.meta.url), 'utf8')
     const routeSource = readFileSync(new URL('../src/app/api/meetings/public/route.ts', import.meta.url), 'utf8')
