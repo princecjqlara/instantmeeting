@@ -65,7 +65,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 22px 0;
+    padding: 12px 0;
     border-bottom: 1px solid var(--border);
 }
 
@@ -174,7 +174,7 @@
 .hero {
     max-width: 880px;
     margin: 0 auto;
-    padding: 96px 0 72px;
+    padding: 16px 0 32px;
     text-align: center;
 }
 
@@ -219,12 +219,12 @@
 
 .heroTitle {
     font-family: var(--font-display);
-    font-size: clamp(56px, 9vw, 96px);
-    font-weight: 400;
-    line-height: 1.00;
-    letter-spacing: -0.96px;
+    font-size: clamp(26px, 3.8vw, 42px);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.4px;
     color: var(--fg);
-    margin: 0 0 24px;
+    margin: 0 0 12px;
     font-feature-settings: "ss01", "ss04", "ss11";
 }
 
@@ -235,12 +235,12 @@
 
 .heroSubtitle {
     font-family: var(--font-body);
-    font-size: 20px;
+    font-size: 15px;
     font-weight: 400;
     line-height: 1.45;
     color: var(--fg-muted);
-    max-width: 640px;
-    margin: 0 auto 36px;
+    max-width: 560px;
+    margin: 0 auto 20px;
 }
 
 .heroPriceRow {
@@ -426,15 +426,54 @@
     margin-bottom: 32px;
 }
 
+.heroBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 11px 5px 10px;
+    background: rgba(17, 255, 153, 0.08);
+    border: 1px solid rgba(17, 255, 153, 0.35);
+    border-radius: 999px;
+    color: #b8ffda;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    box-shadow: 0 0 0 3px rgba(17, 255, 153, 0.04);
+}
+
+.heroBadgeDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #11ff99;
+    box-shadow: 0 0 10px #11ff99, 0 0 4px #11ff99;
+    animation: badgePulse 1.6s ease-in-out infinite;
+}
+
+.heroBadgeTag {
+    background: #11ff99;
+    color: #0a0a0a;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+@keyframes badgePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.55; transform: scale(0.85); }
+}
+
 .eyebrow {
     display: inline-block;
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.12em;
     color: var(--fg-dim);
-    margin-bottom: 16px;
+    margin-bottom: 10px;
 }
 
 .pricingHeader h2 {
@@ -968,8 +1007,8 @@
 
     .nav {
         flex-wrap: wrap;
-        gap: 14px;
-        padding: 18px 0;
+        gap: 10px;
+        padding: 10px 0;
     }
 
     .brand {
@@ -988,11 +1027,22 @@
     }
 
     .hero {
-        padding: 72px 0 56px;
+        padding: 12px 0 24px;
     }
 
     .heroSubtitle {
-        font-size: 17px;
+        font-size: 14px;
+        margin-bottom: 14px;
+    }
+
+    .vslWrap {
+        max-width: 100%;
+        max-height: 36vh;
+        margin-bottom: 12px;
+    }
+
+    .vslVideo {
+        max-height: 36vh;
     }
 
     .heroPriceRow {
@@ -1212,5 +1262,213 @@
 @keyframes spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* Urgency Banner */
+.urgencyBanner {
+    width: 100%;
+    background: linear-gradient(90deg, #ff3b3b 0%, #ff8a00 100%);
+    color: #fff;
+    padding: 16px 12px;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(255, 59, 59, 0.25);
+    position: relative;
+    z-index: 20;
+}
+
+.urgencyBannerInner {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    font-family: var(--font-body);
+    font-size: 18px;
+    font-weight: 500;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.urgencyPill {
+    background: #fff;
+    color: #c81818;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    letter-spacing: 1px;
+}
+
+.urgencySlots strong,
+.urgencyCountdown strong {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    font-size: 20px;
+}
+
+.urgencySlots .slotsDot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    margin-right: 8px;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35);
+    animation: pulse 1.4s ease-in-out infinite;
+}
+
+.urgencyDivider {
+    width: 1px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+@media (max-width: 640px) {
+    .urgencyBannerInner {
+        gap: 10px;
+        font-size: 15px;
+    }
+    .urgencySlots strong,
+    .urgencyCountdown strong {
+        font-size: 17px;
+    }
+    .urgencyDivider { display: none; }
+}
+
+/* VSL */
+.vslWrap {
+    max-width: 520px;
+    margin: 0 auto 14px;
+    background: #000;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    aspect-ratio: 16 / 9;
+    max-height: 42vh;
+}
+
+.vslVideo {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #111;
+    object-fit: cover;
+}
+
+.vslCaption {
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 8px 12px;
+    background: #0e0e10;
+    color: #aaa;
+    text-align: center;
+}
+
+/* Funnel */
+.funnelSection {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 72px 20px;
+}
+
+.funnelHeader {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.funnelHeader h2 {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.15;
+    margin: 10px 0 0;
+    color: var(--fg);
+}
+
+.funnelAccordion {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.funnelItem {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--bg-elev, #fff);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.funnelItem[open] {
+    border-color: var(--accent-orange, #ff801f);
+    box-shadow: 0 6px 24px rgba(255, 128, 31, 0.12);
+}
+
+.funnelQuestion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--fg);
+    list-style: none;
+    user-select: none;
+}
+
+.funnelQuestion::-webkit-details-marker {
+    display: none;
+}
+
+.funnelIcon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--accent-orange, #ff801f);
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    transition: transform 0.2s ease;
+}
+
+.funnelItem[open] .funnelIcon {
+    transform: rotate(45deg);
+}
+
+.funnelAnswer {
+    padding: 0 22px 22px;
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--fg-muted);
+}
+
+.funnelCtaRow {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    margin-top: 40px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+    .funnelQuestion {
+        font-size: 16px;
+        padding: 16px 18px;
+    }
+    .funnelAnswer {
+        padding: 0 18px 18px;
+        font-size: 15px;
     }
 }

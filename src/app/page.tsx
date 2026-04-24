@@ -16,9 +16,11 @@ import {
     FaFacebook,
     FaSpinner,
 } from 'react-icons/fa'
-import { useRef, useState, useEffect, useMemo } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import styles from './page.module.css'
 import HeroFlow from '@/components/HeroFlow'
+import ScarcityBanner from '@/components/ScarcityBanner'
+import SellerLeadFunnel from '@/components/SellerLeadFunnel'
 
 const TESTIMONIAL_VIDEOS = [
     {
@@ -54,41 +56,6 @@ export default function Home() {
     const [password, setPassword] = useState('')
     const [loginError, setLoginError] = useState('')
     const [loggingIn, setLoggingIn] = useState(false)
-
-    const offerEndsAt = useMemo(() => {
-        if (typeof window === 'undefined') return Date.now() + 24 * 60 * 60 * 1000
-        const envEnd = process.env.NEXT_PUBLIC_OFFER_ENDS_AT
-        if (envEnd) {
-            const t = Date.parse(envEnd)
-            if (!Number.isNaN(t)) return t
-        }
-        const stored = localStorage.getItem('offerEndsAt')
-        if (stored) {
-            const n = Number(stored)
-            if (n > Date.now()) return n
-        }
-        const ends = Date.now() + 24 * 60 * 60 * 1000
-        try {
-            localStorage.setItem('offerEndsAt', String(ends))
-        } catch {
-            /* ignore */
-        }
-        return ends
-    }, [])
-
-    const [now, setNow] = useState(() => Date.now())
-    useEffect(() => {
-        const t = setInterval(() => setNow(Date.now()), 1000)
-        return () => clearInterval(t)
-    }, [])
-
-    const remaining = Math.max(0, offerEndsAt - now)
-    const hours = Math.floor(remaining / (60 * 60 * 1000))
-    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000))
-    const seconds = Math.floor((remaining % (60 * 1000)) / 1000)
-    const pad = (n: number) => n.toString().padStart(2, '0')
-
-    const slotsLeft = 7
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -161,13 +128,15 @@ export default function Home() {
     return (
         <main className={styles.main}>
 
+            <ScarcityBanner />
+
             {/* Top Nav */}
             <nav className={styles.nav}>
                 <div className={styles.brand}>
                     <FaVideo /> InstantMeeting
                 </div>
                 <div className={styles.navActions}>
-                    <a href="#pricing" className={styles.navLink}>Pricing</a>
+                    <a href="#seller-funnel" className={styles.navLink}>How it works</a>
                     <button
                         type="button"
                         className={styles.navLink}
@@ -175,65 +144,45 @@ export default function Home() {
                     >
                         Sign in
                     </button>
-                    <button
-                        type="button"
+                    <a
+                        href="#seller-funnel"
                         className={`${styles.navJoin} ${styles.joinGlow}`}
-                        onClick={() => setShowSignup(true)}
                     >
                         Join now <span className={styles.joinArrow}><FaArrowRight style={{ fontSize: 10 }} /></span>
-                    </button>
+                    </a>
                 </div>
             </nav>
 
             {/* Hero */}
             <section className={styles.hero}>
-                <div className={styles.scarcityRow}>
-                    <span>
-                        <span className={styles.slotsDot} />
-                        <strong>{slotsLeft}</strong> slots at launch price
-                    </span>
-                    <span className={styles.scarcityDivider} />
-                    <span>
-                        Offer ends in{' '}
-                        <strong>
-                            {pad(hours)}:{pad(minutes)}:{pad(seconds)}
-                        </strong>
-                    </span>
+                <div className={styles.heroBadge}>
+                    <span className={styles.heroBadgeDot} /> Free Facebook ads setup included <span className={styles.heroBadgeTag}>₱0 setup fee</span>
+                </div>
+                <h1 className={styles.heroTitle}>
+                    What if lahat ng nag-i-inquire sa&rsquo;yo,
+                    <span className={styles.heroGradient}> ma-convert mo lahat?</span>
+                </h1>
+
+                <div className={styles.vslWrap}>
+                    <video
+                        className={styles.vslVideo}
+                        src="/api/testimonials/testimonial-1"
+                        controls
+                        playsInline
+                        preload="metadata"
+                    />
                 </div>
 
-                <h1 className={styles.heroTitle}>
-                    Qualify, meet, and book clients
-                    <span className={styles.heroGradient}> from one link.</span>
-                </h1>
                 <p className={styles.heroSubtitle}>
-                    Prospects fill a short intake form. Qualified leads are admitted
-                    straight into your live video room. Everyone else books a time on
-                    your calendar.
+                    Hindi impossible. Ang InstantMeeting ay nag-fi-filter, nag-bu-book, at nag-a-admit ng bawat seryosong inquiry sa live video room — habang sila hot pa.
                 </p>
 
-                <div className={styles.heroPriceRow}>
-                    <span className={styles.heroOldPrice}>₱1,499</span>
-                    <span className={styles.heroNewPrice}>₱699/month</span>
-                    <span className={styles.heroSave}>Save ₱800</span>
-                </div>
-
-                <div className={styles.heroOfferCallout}>
-                    <span className={styles.heroOfferBadge}>Free Facebook ads setup</span>
-                    <p>
-                        We set up and launch your first Facebook ads campaign for free during your first month.
-                    </p>
-                </div>
-
                 <div className={styles.heroCtas}>
-                    <button
-                        type="button"
+                    <a
+                        href="#seller-funnel"
                         className={`${styles.btnPrimaryLg} ${styles.joinGlow}`}
-                        onClick={() => setShowSignup(true)}
                     >
-                        Join now <span className={styles.joinArrow}><FaArrowRight /></span>
-                    </button>
-                    <a href="#pricing" className={styles.btnGhost}>
-                        View plan details
+                        Sumali na <span className={styles.joinArrow}><FaArrowRight /></span>
                     </a>
                     <a
                         href="https://www.facebook.com/aresmediaph"
@@ -244,12 +193,15 @@ export default function Home() {
                         <FaFacebook /> Contact us
                     </a>
                 </div>
-                <div className={styles.heroTrust}>
-                    <span><FaCheck /> Facebook ads setup included (1 month)</span>
-                    <span><FaCheck /> Monthly access</span>
-                    <span><FaCheck /> Monthly payment via GCash</span>
-                </div>
+            </section>
 
+            {/* Seller Lead Diagnostic Funnel */}
+            <section className={styles.funnelSection}>
+                <div className={styles.funnelHeader}>
+                    <span className={styles.eyebrow}>Pipeline Diagnostic — para sa mga real estate agents</span>
+                    <h2>6 tanong lang. Ikukwenta mo mismo kung magkano ang komisyon na nawawala sa iyo bawat buwan — at kung paano ito itigil.</h2>
+                </div>
+                <SellerLeadFunnel />
                 <HeroFlow />
             </section>
 
@@ -288,62 +240,6 @@ export default function Home() {
                             </div>
                         </article>
                     ))}
-                </div>
-            </section>
-
-            {/* Pricing */}
-            <section id="pricing" className={styles.pricing}>
-                <div className={styles.pricingHeader}>
-                    <span className={styles.eyebrow}>Pricing</span>
-                    <h2>Single plan, monthly payment</h2>
-                    <p>Launch pricing for early customers. Monthly billing, no hidden fees.</p>
-                </div>
-                <div className={styles.pricingCard}>
-                    <div className={styles.pricingRibbon}>
-                        Launch pricing · 53% off · {slotsLeft} slots left
-                    </div>
-                    <div className={styles.countdownRow}>
-                        Offer ends in{' '}
-                        <strong>
-                            {pad(hours)}h {pad(minutes)}m {pad(seconds)}s
-                        </strong>
-                    </div>
-                    <div className={styles.pricingName}>Full access</div>
-                    <div className={styles.pricingPriceRow}>
-                        <span className={styles.pricingOld}>₱1,499</span>
-                        <span className={styles.pricingNew}>₱699/month</span>
-                    </div>
-                    <div className={styles.pricingNote}>Monthly · billed at ₱699/month</div>
-
-                    <div className={styles.pricingBonus}>
-                        <FaFacebook />
-                        <div>
-                            <strong>Free Facebook ads setup included</strong>
-                            <span>We configure and launch your first ad campaign during your first month.</span>
-                        </div>
-                    </div>
-
-                    <ul className={styles.pricingFeatures}>
-                        <li><FaCheck /> Scored lead qualification forms</li>
-                        <li><FaCheck /> Instant admission for qualified leads</li>
-                        <li><FaCheck /> Built-in booking calendar</li>
-                        <li><FaCheck /> Live video room with content reels</li>
-                        <li><FaCheck /> Embeddable website widget</li>
-                        <li><FaCheck /> Team clock-in with round-robin routing</li>
-                        <li><FaCheck /> Lead management with tags &amp; bulk actions</li>
-                        <li><FaCheck /> Facebook ads setup (1 month)</li>
-                    </ul>
-
-                    <button
-                        type="button"
-                        className={styles.pricingCta}
-                        onClick={() => setShowSignup(true)}
-                    >
-                        Join now — ₱699/month <FaArrowRight />
-                    </button>
-                    <div className={styles.pricingSmall}>
-                        Payment via GCash. Accounts verified within 24 hours.
-                    </div>
                 </div>
             </section>
 
