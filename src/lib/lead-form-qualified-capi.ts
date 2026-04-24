@@ -15,11 +15,15 @@ export type MetaCapiSendResult =
     | { sent: false; reason: 'request_failed'; status: number }
     | { sent: false; reason: 'request_error' }
 
+export type LeadFormFunnelMetaEventName = 'PageView' | 'InstantMeetingLeadFormStart' | 'Schedule'
+
 interface LeadFormQualifiedLeadRecord {
     id: string
     guest_name?: string | null
     guest_email?: string | null
     guest_phone?: string | null
+    qualification_score?: number | null
+    qualification_verdict?: string | null
     meta_qualified_sent_at?: string | null
     meta_purchase_sent_at?: string | null
 }
@@ -41,6 +45,12 @@ interface LeadFormQualifiedMetaInput {
     fbp?: string | null
     fbc?: string | null
     fbclid?: string | null
+}
+
+interface LeadFormFunnelMetaInput extends Omit<LeadFormQualifiedMetaInput, 'lead'> {
+    eventName: LeadFormFunnelMetaEventName
+    lead?: LeadFormQualifiedLeadRecord | null
+    eventId?: string | null
 }
 
 export function buildLeadFormQualifiedEventId(leadId: string) {
@@ -120,6 +130,79 @@ async function sendInstantMeetingMetaCapiEventWithConfig(config: any, event: Rec
     return module.sendInstantMeetingMetaCapiEventWithConfig(config, event)
 }
 
+async function buildLeadFormMetaEvent(input: {
+    eventName: string
+    eventSourceUrl: string
+    eventId?: string | null
+    lead?: LeadFormQualifiedLeadRecord | null
+    clientIpAddress?: string | null
+    clientUserAgent?: string | null
+    fbp?: string | null
+    fbc?: string | null
+    fbclid?: string | null
+    customData: Record<string, unknown>
+}) {
+    const module = await import(new URL('./instantmeeting-payment-capi.ts', import.meta.url).href)
+    const base = module.buildInstantMeetingMetaEvent({
+        trigger: input.eventName === 'PageView' ? 'website_visit' : 'payment_review_submit',
+        eventSourceUrl: input.eventSourceUrl,
+        email: input.lead?.guest_email,
+        phone: input.lead?.guest_phone,
+        name: input.lead?.guest_name,
+        clientIpAddress: input.clientIpAddress,
+        clientUserAgent: input.clientUserAgent,
+        fbp: input.fbp,
+        fbc: input.fbc,
+        fbclid: input.fbclid,
+        eventId: input.eventId,
+    } as any)
+
+    return {
+        ...base,
+        event_name: input.eventName,
+        custom_data: input.customData,
+    }
+}
+
+function buildLeadFormQualityCustomData(input: {
+    leadForm: LeadFormQualifiedMetaInput['leadForm']
+    lead?: LeadFormQualifiedLeadRecord | null
+    pipelineStage: string
+    pipelineTrigger: string
+    extra?: Record<string, unknown>
+}) {
+    const customData: Record<string, unknown> = {
+        pipeline_stage: input.pipelineStage,
+        pipeline_trigger: input.pipelineTrigger,
+    }
+
+    if (input.leadForm.slug) customData.lead_form_slug = input.leadForm.slug
+    if (input.leadForm.id) customData.lead_form_id = input.leadForm.id
+    if (typeof input.lead?.qualification_score === 'number') {
+        customData.lead_score = input.lead.qualification_score
+    }
+    if (input.lead?.qualification_verdict) {
+        customData.lead_verdict = input.lead.qualification_verdict
+    }
+
+    return {
+        ...customData,
+        ...(input.extra || {}),
+    }
+}
+
+function resolveLeadFormFunnelPipeline(eventName: LeadFormFunnelMetaEventName) {
+    if (eventName === 'PageView') {
+        return { pipelineStage: 'view', pipelineTrigger: 'lead_form_view' }
+    }
+
+    if (eventName === 'InstantMeetingLeadFormStart') {
+        return { pipelineStage: 'started', pipelineTrigger: 'lead_form_start' }
+    }
+
+    return { pipelineStage: 'booked', pipelineTrigger: 'booking_created' }
+}
+
 async function updateWaitingGuestMetaFlags(
     supabase: any,
     leadId: string,
@@ -191,10 +274,6 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
         return { sent: false, reason: 'already_sent' }
     }
 
-    if (!input.leadForm.send_qualified_to_facebook) {
-        return { sent: false, reason: 'disabled' }
-    }
-
     const config = await resolveLeadFormMetaCapiConfig(
         input.supabase,
         input.leadForm,
@@ -234,11 +313,12 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
 
     const event = {
         ...baseEvent,
-        custom_data: {
-            ...baseEvent.custom_data,
-            pipeline_stage: 'qualified',
-            pipeline_trigger: 'qualified',
-        },
+        custom_data: buildLeadFormQualityCustomData({
+            leadForm: input.leadForm,
+            lead: input.lead,
+            pipelineStage: 'qualified',
+            pipelineTrigger: 'qualified',
+        }),
     }
 
     const sendWithConfig = deps.sendWithConfig ?? sendInstantMeetingMetaCapiEventWithConfig
@@ -262,6 +342,45 @@ export async function maybeSendLeadFormQualifiedMetaEvent(
     }
 
     return result
+}
+
+export async function maybeSendLeadFormFunnelMetaEvent(
+    input: LeadFormFunnelMetaInput,
+    deps: {
+        resolveConfig?: (supabase: any, leadForm: LeadFormQualifiedMetaInput['leadForm']) => Promise<MetaCapiConfig | null>
+        sendWithConfig?: typeof sendInstantMeetingMetaCapiEventWithConfig
+    } = {}
+): Promise<MetaCapiSendResult | { sent: false; reason: 'missing_config' }> {
+    const config = await resolveLeadFormMetaCapiConfig(
+        input.supabase,
+        input.leadForm,
+        deps.resolveConfig
+    )
+    if (!config) {
+        return { sent: false, reason: 'missing_config' }
+    }
+
+    const { pipelineStage, pipelineTrigger } = resolveLeadFormFunnelPipeline(input.eventName)
+    const event = await buildLeadFormMetaEvent({
+        eventName: input.eventName,
+        eventSourceUrl: input.eventSourceUrl,
+        eventId: input.eventId,
+        lead: input.lead,
+        clientIpAddress: input.clientIpAddress,
+        clientUserAgent: input.clientUserAgent,
+        fbp: input.fbp,
+        fbc: input.fbc,
+        fbclid: input.fbclid,
+        customData: buildLeadFormQualityCustomData({
+            leadForm: input.leadForm,
+            lead: input.lead,
+            pipelineStage,
+            pipelineTrigger,
+        }),
+    })
+
+    const sendWithConfig = deps.sendWithConfig ?? sendInstantMeetingMetaCapiEventWithConfig
+    return sendWithConfig(config, event)
 }
 
 export async function maybeSendLeadFormPurchaseMetaEvent(
@@ -326,10 +445,16 @@ export async function maybeSendLeadFormPurchaseMetaEvent(
     const sendWithConfig = deps.sendWithConfig ?? sendInstantMeetingMetaCapiEventWithConfig
     const result = await sendWithConfig(config, {
         ...event,
-        custom_data: {
-            ...event.custom_data,
-            pipeline_trigger: 'sold',
-        },
+        custom_data: buildLeadFormQualityCustomData({
+            leadForm: input.leadForm,
+            lead: input.lead,
+            pipelineStage: 'sold',
+            pipelineTrigger: 'sold',
+            extra: {
+                ...('currency' in event.custom_data ? { currency: event.custom_data.currency } : {}),
+                ...('value' in event.custom_data ? { value: event.custom_data.value } : {}),
+            },
+        }),
     })
 
     if (!result.sent) {

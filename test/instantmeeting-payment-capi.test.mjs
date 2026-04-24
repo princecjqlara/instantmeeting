@@ -12,24 +12,60 @@ import {
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex')
 
-test('InstantMeeting payment pipeline is fixed to unqualified and sold', () => {
-    assert.deepEqual(INSTANTMEETING_PAYMENT_PIPELINE_STAGES, ['unqualified', 'sold'])
+test('InstantMeeting payment pipeline follows the paid signup ladder', () => {
+    assert.deepEqual(INSTANTMEETING_PAYMENT_PIPELINE_STAGES, [
+        'landing_visit',
+        'diagnostic_started',
+        'diagnostic_completed',
+        'checkout_opened',
+        'payment_info_added',
+        'lead',
+        'sold',
+    ])
     assert.equal(INSTANTMEETING_SOLD_VALUE_PHP, 699)
 })
 
 test('payment triggers map to the expected pipeline stages', () => {
     assert.deepEqual(resolveInstantMeetingPaymentTrigger('website_visit'), {
         trigger: 'website_visit',
-        pipelineStage: 'unqualified',
+        pipelineStage: 'landing_visit',
         eventName: 'PageView',
-        value: null,
+        value: 699,
+    })
+
+    assert.deepEqual(resolveInstantMeetingPaymentTrigger('diagnostic_start'), {
+        trigger: 'diagnostic_start',
+        pipelineStage: 'diagnostic_started',
+        eventName: 'InstantMeetingDiagnosticStart',
+        value: 699,
+    })
+
+    assert.deepEqual(resolveInstantMeetingPaymentTrigger('diagnostic_complete'), {
+        trigger: 'diagnostic_complete',
+        pipelineStage: 'diagnostic_completed',
+        eventName: 'InstantMeetingDiagnosticComplete',
+        value: 699,
+    })
+
+    assert.deepEqual(resolveInstantMeetingPaymentTrigger('checkout_opened'), {
+        trigger: 'checkout_opened',
+        pipelineStage: 'checkout_opened',
+        eventName: 'InitiateCheckout',
+        value: 699,
+    })
+
+    assert.deepEqual(resolveInstantMeetingPaymentTrigger('payment_info_added'), {
+        trigger: 'payment_info_added',
+        pipelineStage: 'payment_info_added',
+        eventName: 'AddPaymentInfo',
+        value: 699,
     })
 
     assert.deepEqual(resolveInstantMeetingPaymentTrigger('payment_review_submit'), {
         trigger: 'payment_review_submit',
-        pipelineStage: 'unqualified',
+        pipelineStage: 'lead',
         eventName: 'Lead',
-        value: null,
+        value: 699,
     })
 
     assert.deepEqual(resolveInstantMeetingPaymentTrigger('admin_verify'), {
@@ -59,6 +95,9 @@ test('buildInstantMeetingMetaEvent hashes identity fields and sets purchase valu
     assert.equal(event.custom_data.currency, 'PHP')
     assert.equal(event.custom_data.value, 699)
     assert.equal(event.custom_data.pipeline_stage, 'sold')
+    assert.equal(event.custom_data.funnel, 'instantmeeting_admin_landing')
+    assert.equal(event.custom_data.landing_variant, 'real_estate_vsl')
+    assert.equal(event.custom_data.plan, 'starter')
     assert.equal(event.user_data.em?.[0], sha256('test@example.com'))
     assert.equal(event.user_data.ph?.[0], sha256('639123456789'))
     assert.equal(event.user_data.fn?.[0], sha256('jane'))
@@ -90,7 +129,44 @@ test('buildInstantMeetingMetaEvent marks receipt review submits as Lead events',
     assert.equal(event.event_name, 'Lead')
     assert.equal(event.custom_data.pipeline_stage, 'lead')
     assert.equal(event.custom_data.pipeline_trigger, 'payment_review_submit')
-    assert.ok(!('value' in event.custom_data))
+    assert.equal(event.custom_data.funnel, 'instantmeeting_admin_landing')
+    assert.equal(event.custom_data.landing_variant, 'real_estate_vsl')
+    assert.equal(event.custom_data.plan, 'starter')
+    assert.equal(event.custom_data.currency, 'PHP')
+    assert.equal(event.custom_data.value, 699)
+})
+
+test('buildInstantMeetingMetaEvent enriches landing diagnostic and checkout events', () => {
+    const diagnostic = buildInstantMeetingMetaEvent({
+        trigger: 'diagnostic_complete',
+        eventSourceUrl: 'https://instantmeeting.ai/?utm=diag',
+        diagnosticScore: 84,
+        diagnosticVerdict: 'high_fit',
+    })
+
+    assert.equal(diagnostic.event_name, 'InstantMeetingDiagnosticComplete')
+    assert.equal(diagnostic.custom_data.funnel, 'instantmeeting_admin_landing')
+    assert.equal(diagnostic.custom_data.landing_variant, 'real_estate_vsl')
+    assert.equal(diagnostic.custom_data.plan, 'starter')
+    assert.equal(diagnostic.custom_data.pipeline_stage, 'diagnostic_completed')
+    assert.equal(diagnostic.custom_data.diagnostic_score, 84)
+    assert.equal(diagnostic.custom_data.diagnostic_verdict, 'high_fit')
+    assert.equal(diagnostic.custom_data.currency, 'PHP')
+    assert.equal(diagnostic.custom_data.value, 699)
+
+    const checkout = buildInstantMeetingMetaEvent({
+        trigger: 'checkout_opened',
+        eventSourceUrl: 'https://instantmeeting.ai/#seller-funnel',
+        diagnosticScore: 92,
+        diagnosticVerdict: 'urgent',
+        valueOverride: 799,
+    })
+
+    assert.equal(checkout.event_name, 'InitiateCheckout')
+    assert.equal(checkout.custom_data.pipeline_stage, 'checkout_opened')
+    assert.equal(checkout.custom_data.diagnostic_score, 92)
+    assert.equal(checkout.custom_data.diagnostic_verdict, 'urgent')
+    assert.equal(checkout.custom_data.value, 799)
 })
 
 test('payment funnel server helpers allow admin flows to force organizer-owned config', () => {

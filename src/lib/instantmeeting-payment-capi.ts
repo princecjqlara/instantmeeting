@@ -27,6 +27,10 @@ export interface BuildInstantMeetingMetaEventInput {
     eventId?: string | null
     eventTime?: number | null
     valueOverride?: number | null
+    diagnosticScore?: number | string | null
+    diagnosticVerdict?: string | null
+    landingVariant?: string | null
+    plan?: string | null
 }
 
 function normalizeEmail(value: string | null | undefined): string | null {
@@ -72,6 +76,21 @@ function normalizeCookieValue(value: string | null | undefined): string | null {
     return normalized || null
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | null {
+    if (!value) return null
+    const normalized = value.trim()
+    return normalized || null
+}
+
+function normalizeDiagnosticScore(value: number | string | null | undefined): number | null {
+    if (value === null || value === undefined || value === '') return null
+
+    const parsed = typeof value === 'number' ? value : Number(value)
+    if (!Number.isFinite(parsed)) return null
+
+    return Math.max(0, Math.min(100, Math.round(parsed)))
+}
+
 function buildFbc(fbc: string | null | undefined, fbclid: string | null | undefined): string | null {
     const normalizedFbc = normalizeCookieValue(fbc)
     if (normalizedFbc) return normalizedFbc
@@ -105,12 +124,18 @@ export function buildInstantMeetingMetaEvent(input: BuildInstantMeetingMetaEvent
     if (normalizedFbc) userData.fbc = normalizedFbc
 
     const customData: Record<string, unknown> = {
-        pipeline_stage:
-            input.trigger === 'payment_review_submit'
-                ? 'lead'
-                : resolved.pipelineStage,
+        funnel: 'instantmeeting_admin_landing',
+        landing_variant: normalizeOptionalText(input.landingVariant) || 'real_estate_vsl',
+        plan: normalizeOptionalText(input.plan) || 'starter',
+        pipeline_stage: resolved.pipelineStage,
         pipeline_trigger: resolved.trigger,
     }
+
+    const diagnosticScore = normalizeDiagnosticScore(input.diagnosticScore)
+    const diagnosticVerdict = normalizeOptionalText(input.diagnosticVerdict)
+
+    if (diagnosticScore !== null) customData.diagnostic_score = diagnosticScore
+    if (diagnosticVerdict) customData.diagnostic_verdict = diagnosticVerdict
 
     const resolvedValue =
         typeof input.valueOverride === 'number' && Number.isFinite(input.valueOverride) && input.valueOverride > 0

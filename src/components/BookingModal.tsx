@@ -163,6 +163,14 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
         setSelectedDate(isoDate)
     }
 
+    const readCookie = (name: string) => {
+        if (typeof document === 'undefined') return null
+        const hit = document.cookie
+            .split('; ')
+            .find((chunk) => chunk.startsWith(`${name}=`))
+        return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+    }
+
     const handleSubmit = async () => {
         setSubmitting(true)
         setError(null)
@@ -201,6 +209,21 @@ export default function BookingModal({ host, onClose, onSuccess, meetingId, gues
                 date: selectedDate,
                 time: selectedTime,
                 customFields: mergedCustomFields,
+                pageUrl: typeof window !== 'undefined' ? window.location.href : null,
+                fbclid:
+                    typeof window !== 'undefined'
+                        ? new URL(window.location.href).searchParams.get('fbclid')
+                        : null,
+                fbp: readCookie('_fbp'),
+                fbc: readCookie('_fbc'),
+            }
+
+            if (meetingId) {
+                payload.sourceMeetingId = meetingId
+            }
+
+            if (guestId) {
+                payload.sourceGuestId = guestId
             }
 
             if (mode === 'reschedule' && meetingId) {

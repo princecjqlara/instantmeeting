@@ -162,7 +162,7 @@ export async function POST(req: NextRequest) {
         meta_capi_dataset_id: normalizeMetaField(meta_capi_dataset_id),
         meta_capi_test_event_code: normalizeMetaField(meta_capi_test_event_code),
         facebook_purchase_value: normalizePurchaseValue(facebook_purchase_value),
-        send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, false),
+        send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, true),
         send_purchase_to_facebook: normalizeBooleanField(send_purchase_to_facebook, false),
         is_active: true,
     })

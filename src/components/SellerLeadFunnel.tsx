@@ -81,6 +81,19 @@ const QUESTIONS: Question[] = [
 ]
 
 type Tier = 'urgent' | 'leaking' | 'scale'
+type LandingFunnelEventTrigger =
+    | 'diagnostic_start'
+    | 'diagnostic_complete'
+    | 'checkout_opened'
+    | 'payment_info_added'
+
+type LandingFunnelEventMeta = {
+    diagnostic_score?: number
+    diagnostic_verdict?: string
+    name?: string
+    email?: string
+    phone?: string
+}
 
 function computeTier(answers: Record<string, OptionValue>): { tier: Tier; title: string; body: string; badge: string; urgency: string } {
     const dropOff = answers['drop-off']
@@ -122,6 +135,20 @@ function computeTier(answers: Record<string, OptionValue>): { tier: Tier; title:
     }
 }
 
+function computeDiagnosticMeta(answers: Record<string, OptionValue>) {
+    const { tier } = computeTier(answers)
+
+    if (tier === 'urgent') {
+        return { diagnostic_score: 92, diagnostic_verdict: 'high_fit' }
+    }
+
+    if (tier === 'leaking') {
+        return { diagnostic_score: 84, diagnostic_verdict: 'medium_fit' }
+    }
+
+    return { diagnostic_score: 78, diagnostic_verdict: 'scale_fit' }
+}
+
 const FEATURES = [
     'Scored lead qualification forms',
     'Instant admission for qualified leads',
@@ -159,6 +186,7 @@ export default function SellerLeadFunnel({
     const [checkoutError, setCheckoutError] = useState<string | null>(null)
     const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const sentLandingFunnelEventsRef = useRef<Set<LandingFunnelEventTrigger>>(new Set())
 
     const gcashNumber = process.env.NEXT_PUBLIC_GCASH_NUMBER || '0992 703 1276'
     const gcashName = process.env.NEXT_PUBLIC_GCASH_NAME || 'PR***E C* L.'
@@ -173,8 +201,66 @@ export default function SellerLeadFunnel({
     const effectiveTotal = totalSteps + 1
     const progressPct = isResult ? 100 : Math.round((effectiveStep / effectiveTotal) * 100)
 
+    const sendLandingFunnelEvent = async (
+        trigger: LandingFunnelEventTrigger,
+        eventMeta: LandingFunnelEventMeta = {}
+    ) => {
+        if (typeof window === 'undefined') return
+        if (sentLandingFunnelEventsRef.current.has(trigger)) return
+
+        sentLandingFunnelEventsRef.current.add(trigger)
+
+        const readCookie = (cookieName: string) => {
+            if (typeof document === 'undefined') return null
+            const hit = document.cookie
+                .split('; ')
+                .find((entry) => entry.startsWith(`${cookieName}=`))
+            return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+        }
+
+        try {
+            const url = new URL(window.location.href)
+            const response = await fetch('/api/capi/instantmeeting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trigger,
+                    page_url: url.toString(),
+                    fbclid: url.searchParams.get('fbclid'),
+                    fbp: readCookie('_fbp'),
+                    fbc: readCookie('_fbc'),
+                    name: eventMeta.name ?? captureName,
+                    email: eventMeta.email ?? checkoutEmail,
+                    phone: (eventMeta.phone ?? checkoutPhone) || captureContact,
+                    diagnostic_score: eventMeta.diagnostic_score,
+                    diagnostic_verdict: eventMeta.diagnostic_verdict,
+                    landing_variant: 'real_estate_vsl',
+                    plan: 'starter',
+                }),
+            })
+
+            if (!response.ok) {
+                sentLandingFunnelEventsRef.current.delete(trigger)
+            }
+        } catch {
+            sentLandingFunnelEventsRef.current.delete(trigger)
+        }
+    }
+
     const handleSelect = (questionId: string, value: OptionValue) => {
-        setAnswers((prev) => ({ ...prev, [questionId]: value }))
+        const nextAnswers = { ...answers, [questionId]: value }
+
+        if (step === 0 && Object.keys(answers).length === 0) {
+            void sendLandingFunnelEvent('diagnostic_start')
+        }
+
+        if (step + 1 >= totalSteps) {
+            const diagnosticMeta = computeDiagnosticMeta(nextAnswers)
+            void sendLandingFunnelEvent('diagnostic_complete', diagnosticMeta)
+            void sendLandingFunnelEvent('checkout_opened', diagnosticMeta)
+        }
+
+        setAnswers(nextAnswers)
         setStep((s) => s + 1)
     }
 
@@ -194,6 +280,7 @@ export default function SellerLeadFunnel({
         setReceipt(null)
         setCheckoutError(null)
         setCheckoutSuccess(null)
+        sentLandingFunnelEventsRef.current = new Set()
     }
 
     const handleCapture = async (e: React.FormEvent) => {
@@ -214,6 +301,20 @@ export default function SellerLeadFunnel({
         }
     }
 
+    const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const nextReceipt = e.target.files?.[0] || null
+        setReceipt(nextReceipt)
+
+        if (nextReceipt) {
+            void sendLandingFunnelEvent('payment_info_added', {
+                ...computeDiagnosticMeta(answers),
+                name: captureName,
+                email: checkoutEmail,
+                phone: checkoutPhone || captureContact,
+            })
+        }
+    }
+
     const handleCheckout = async (e: React.FormEvent) => {
         e.preventDefault()
         setCheckoutError(null)
@@ -224,6 +325,7 @@ export default function SellerLeadFunnel({
         setSubmitting(true)
         try {
             const fd = new FormData()
+            const diagnosticMeta = computeDiagnosticMeta(answers)
             const readCookie = (name: string) => {
                 if (typeof document === 'undefined') return null
                 const hit = document.cookie.split('; ').find((c) => c.startsWith(name + '='))
@@ -244,6 +346,10 @@ export default function SellerLeadFunnel({
             const fbc = readCookie('_fbc')
             if (fbp) fd.append('fbp', fbp)
             if (fbc) fd.append('fbc', fbc)
+            fd.append('diagnostic_score', String(diagnosticMeta.diagnostic_score))
+            fd.append('diagnostic_verdict', diagnosticMeta.diagnostic_verdict)
+            fd.append('landing_variant', 'real_estate_vsl')
+            fd.append('plan', 'starter')
             const res = await fetch('/api/signup', { method: 'POST', body: fd })
             const data = await res.json()
             if (!res.ok) {
@@ -435,7 +541,7 @@ export default function SellerLeadFunnel({
                                         type="file"
                                         accept="image/*,application/pdf"
                                         style={{ display: 'none' }}
-                                        onChange={(e) => setReceipt(e.target.files?.[0] || null)}
+                                        onChange={handleReceiptChange}
                                     />
                                     <button
                                         type="button"

@@ -72,6 +72,8 @@ export default function LeadFormPage({ params }: Props) {
     const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const submittedRef = useRef(false)
+    const pageViewTrackedRef = useRef(false)
+    const leadFormStartTrackedRef = useRef(false)
 
     useEffect(() => {
         return () => {
@@ -214,6 +216,17 @@ export default function LeadFormPage({ params }: Props) {
     }, [current, answers])
 
     const updateAnswer = (q: PublicQuestion, v: string | string[]) => {
+        if (!leadFormStartTrackedRef.current) {
+            leadFormStartTrackedRef.current = true
+            if (typeof window !== 'undefined' && bundle?.form.slug) {
+                const key = `lead-form-capi-start:${bundle.form.slug}`
+                if (!window.sessionStorage.getItem(key)) {
+                    window.sessionStorage.setItem(key, '1')
+                    sendLeadFormEvent({ eventName: 'InstantMeetingLeadFormStart' })
+                }
+            }
+        }
+
         setAnswers((prev) => {
             const next = { ...prev, [q.id]: v }
             if (typeof window !== 'undefined' && slug) {
@@ -304,6 +317,48 @@ export default function LeadFormPage({ params }: Props) {
         }
     }
 
+    const readCookie = (name: string) => {
+        if (typeof document === 'undefined') return null
+        const hit = document.cookie
+            .split('; ')
+            .find((chunk) => chunk.startsWith(`${name}=`))
+        return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+    }
+
+    const sendLeadFormEvent = ({ eventName }: { eventName: 'PageView' | 'InstantMeetingLeadFormStart' }) => {
+        if (!bundle || typeof window === 'undefined') return
+        const payload = {
+            formSlug: bundle.form.slug,
+            eventName,
+            page_url: window.location.href,
+            fbclid: new URL(window.location.href).searchParams.get('fbclid'),
+            fbp: readCookie('_fbp'),
+            fbc: readCookie('_fbc'),
+        }
+
+        fetch('/api/leads/event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true,
+        }).catch(() => {
+            /* best-effort */
+        })
+    }
+
+    useEffect(() => {
+        if (!bundle || typeof window === 'undefined') return
+        if (pageViewTrackedRef.current) return
+
+        pageViewTrackedRef.current = true
+        const key = `lead-form-capi-pageview:${bundle.form.slug}`
+        if (window.sessionStorage.getItem(key)) return
+
+        window.sessionStorage.setItem(key, '1')
+        sendLeadFormEvent({ eventName: 'PageView' })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bundle?.form.slug])
+
     // Auto-submit when the last answer is valid. For single_choice we fire
     // immediately; for text-like answers we wait ~1.4s after the last
     // keystroke so the user can finish typing.
@@ -372,13 +427,6 @@ export default function LeadFormPage({ params }: Props) {
     const submit = async () => {
         if (!bundle || submitting) return
         setSubmitting(true)
-        const readCookie = (name: string) => {
-            if (typeof document === 'undefined') return null
-            const hit = document.cookie
-                .split('; ')
-                .find((chunk) => chunk.startsWith(`${name}=`))
-            return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
-        }
 
         // Persist identity fields for future forms (best effort)
         if (typeof window !== 'undefined') {

@@ -718,7 +718,7 @@ export default function LeadFormsPage() {
                 meta_capi_dataset_id: '',
                 meta_capi_test_event_code: '',
                 facebook_purchase_value: 699,
-                send_qualified_to_facebook: false,
+                send_qualified_to_facebook: true,
                 send_purchase_to_facebook: false,
                 questions: [newQuestion()],
             })
@@ -854,7 +854,7 @@ export default function LeadFormsPage() {
                 meta_capi_dataset_id: '',
                 meta_capi_test_event_code: '',
                 facebook_purchase_value: 699,
-                send_qualified_to_facebook: false,
+                send_qualified_to_facebook: true,
                 send_purchase_to_facebook: false,
                 questions: [],
             }
@@ -1068,7 +1068,7 @@ export default function LeadFormsPage() {
                         <label className={styles.checkbox}>
                             <input
                                 type="checkbox"
-                                checked={editing.send_qualified_to_facebook ?? false}
+                                checked={editing.send_qualified_to_facebook ?? true}
                                 onChange={(e) =>
                                     setEditing({
                                         ...editing,

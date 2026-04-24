@@ -45,6 +45,8 @@ export default function AdminPage() {
     const [pendingLoading, setPendingLoading] = useState(false)
     const [reviewingId, setReviewingId] = useState<string | null>(null)
     const [metaCapiAccessToken, setMetaCapiAccessToken] = useState('')
+    const [showMetaCapiAccessToken, setShowMetaCapiAccessToken] = useState(false)
+    const [metaCapiCopyMsg, setMetaCapiCopyMsg] = useState('')
     const [metaCapiDatasetId, setMetaCapiDatasetId] = useState('')
     const [metaCapiTestEventCode, setMetaCapiTestEventCode] = useState('')
     const [paymentPurchaseValue, setPaymentPurchaseValue] = useState(INSTANTMEETING_SOLD_VALUE_PHP)
@@ -96,6 +98,7 @@ export default function AdminPage() {
 
             const data = await res.json()
             setMetaCapiAccessToken(data.meta_capi_access_token || '')
+            setMetaCapiCopyMsg('')
             setMetaCapiDatasetId(data.meta_capi_dataset_id || '')
             setMetaCapiTestEventCode(data.meta_capi_test_event_code || '')
             setPaymentPurchaseValue(data.instantmeeting_payment_purchase_value_php || INSTANTMEETING_SOLD_VALUE_PHP)
@@ -145,6 +148,7 @@ export default function AdminPage() {
             }
 
             setMetaCapiAccessToken(data?.meta_capi_access_token || '')
+            setMetaCapiCopyMsg('')
             setMetaCapiDatasetId(data?.meta_capi_dataset_id || '')
             setMetaCapiTestEventCode(data?.meta_capi_test_event_code || '')
             setPaymentPurchaseValue(data?.instantmeeting_payment_purchase_value_php || INSTANTMEETING_SOLD_VALUE_PHP)
@@ -153,6 +157,18 @@ export default function AdminPage() {
             setPaymentSettingsError('Network error while saving payment funnel settings')
         } finally {
             setSavingPaymentSettings(false)
+        }
+    }
+
+    const copyMetaCapiAccessToken = async () => {
+        const token = metaCapiAccessToken.trim()
+        if (!token) return
+
+        try {
+            await navigator.clipboard.writeText(metaCapiAccessToken)
+            setMetaCapiCopyMsg('Access token copied.')
+        } catch {
+            setMetaCapiCopyMsg('Copy failed. Select the token and copy manually.')
         }
     }
 
@@ -270,12 +286,38 @@ export default function AdminPage() {
                     <div className={styles.paymentGrid}>
                         <div className={styles.formGroup}>
                             <label>Meta CAPI access token</label>
-                            <input
-                                type="password"
-                                value={metaCapiAccessToken}
-                                onChange={(e) => setMetaCapiAccessToken(e.target.value)}
-                                placeholder="Paste the InstantMeeting access token"
-                            />
+                            <div className={styles.secretInputWrap}>
+                                <input
+                                    type={showMetaCapiAccessToken ? 'text' : 'password'}
+                                    value={metaCapiAccessToken}
+                                    onChange={(e) => {
+                                        setMetaCapiAccessToken(e.target.value)
+                                        setMetaCapiCopyMsg('')
+                                    }}
+                                    placeholder="Paste the InstantMeeting access token"
+                                    autoComplete="off"
+                                />
+                                <div className={styles.secretActions}>
+                                    <button
+                                        type="button"
+                                        className={styles.secretBtn}
+                                        onClick={() => setShowMetaCapiAccessToken((shown) => !shown)}
+                                        aria-label={showMetaCapiAccessToken ? 'Hide Meta CAPI access token' : 'Show Meta CAPI access token'}
+                                    >
+                                        {showMetaCapiAccessToken ? 'Hide' : 'Show'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.secretBtn}
+                                        onClick={copyMetaCapiAccessToken}
+                                        disabled={!metaCapiAccessToken.trim()}
+                                        aria-label="Copy Meta CAPI access token"
+                                    >
+                                        Copy
+                                    </button>
+                                </div>
+                            </div>
+                            {metaCapiCopyMsg && <span className={styles.secretHint}>{metaCapiCopyMsg}</span>}
                         </div>
 
                         <div className={styles.formGroup}>
@@ -312,14 +354,34 @@ export default function AdminPage() {
 
                     <div className={styles.pipelineGrid}>
                         <div className={styles.pipelineStepCard}>
-                            <span className={styles.pipelineBadge}>unqualified</span>
+                            <span className={styles.pipelineBadge}>retarget</span>
                             <strong>Landing page visit</strong>
-                            <p>Send an unqualified event as soon as someone visits the InstantMeeting sales page.</p>
+                            <p>PageView fires for retargeting and diagnostics only — not purchase optimization.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>warm</span>
+                            <strong>Diagnostic started</strong>
+                            <p>InstantMeetingDiagnosticStart marks a warmer visitor once they answer the first question.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>intent</span>
+                            <strong>Diagnostic complete</strong>
+                            <p>InstantMeetingDiagnosticComplete includes score and verdict for quality enrichment.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>checkout</span>
+                            <strong>Checkout opened</strong>
+                            <p>InitiateCheckout fires when the payment checkout is shown after diagnostic completion.</p>
+                        </div>
+                        <div className={styles.pipelineStepCard}>
+                            <span className={styles.pipelineBadge}>payment</span>
+                            <strong>Receipt uploaded</strong>
+                            <p>AddPaymentInfo fires when the GCash receipt is selected — a strong paid-intent signal.</p>
                         </div>
                         <div className={styles.pipelineStepCard}>
                             <span className={styles.pipelineBadge}>lead</span>
                             <strong>Receipt submitted</strong>
-                            <p>Submitting a payment receipt fires the Lead event so Meta can optimize for review-ready signups.</p>
+                            <p>Lead fires after the signup is saved for review, so Meta can optimize for paid pending signups.</p>
                         </div>
                         <div className={styles.pipelineStepCard}>
                             <span className={`${styles.pipelineBadge} ${styles.pipelineSoldBadge}`}>sold</span>
@@ -331,11 +393,11 @@ export default function AdminPage() {
                     </div>
 
                     <div className={styles.paymentMetaRow}>
-                        <span>Events: PageView → Lead → Purchase</span>
+                        <span>Events: PageView → DiagnosticStart → DiagnosticComplete → InitiateCheckout → AddPaymentInfo → Lead → Purchase</span>
                         <span>Sold value: ₱{paymentPurchaseValue}</span>
                     </div>
 
-                    <p className={styles.paymentIntro}>Lead fires on receipt submission. Purchase uses the value you set after admin verification.</p>
+                    <p className={styles.paymentIntro}>Optimize for Lead/AddPaymentInfo first, then Purchase once enough verified sales accumulate.</p>
 
                     {paymentSettingsMsg && <p className={styles.successMsg}>{paymentSettingsMsg}</p>}
                     {paymentSettingsError && <p className={styles.errorMsg}>{paymentSettingsError}</p>}

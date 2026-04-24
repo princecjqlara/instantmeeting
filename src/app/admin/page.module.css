@@ -194,6 +194,48 @@
     border-color: #667eea;
 }
 
+.secretInputWrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem;
+    align-items: stretch;
+}
+
+.secretActions {
+    display: inline-flex;
+    gap: 0.4rem;
+}
+
+.secretBtn {
+    min-width: 58px;
+    padding: 0 0.7rem;
+    border: 1px solid rgba(102, 126, 234, 0.35);
+    border-radius: 8px;
+    background: rgba(102, 126, 234, 0.14);
+    color: #dbe4ff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+}
+
+.secretBtn:hover:not(:disabled) {
+    background: rgba(102, 126, 234, 0.24);
+    border-color: rgba(102, 126, 234, 0.55);
+}
+
+.secretBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.secretHint {
+    display: block;
+    margin-top: 0.35rem;
+    color: #93c5fd;
+    font-size: 0.78rem;
+}
+
 .createBtn {
     width: 100%;
     padding: 0.75rem;

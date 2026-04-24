@@ -263,10 +263,7 @@ export async function sendInstantMeetingPaymentMetaCapiEvent(
 
     const event = buildInstantMeetingMetaEvent({
         ...input,
-        valueOverride:
-            input.trigger === 'admin_verify'
-                ? input.valueOverride ?? settings.purchaseValue
-                : input.valueOverride,
+        valueOverride: input.valueOverride ?? settings.purchaseValue,
     })
 
     return sendInstantMeetingMetaCapiEventWithConfig(settings.config, event)

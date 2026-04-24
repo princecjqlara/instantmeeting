@@ -29,6 +29,14 @@ function normalizeOptionalText(v: unknown) {
     return typeof v === 'string' ? v.trim() || null : null
 }
 
+function normalizeOptionalNumber(v: unknown): number | null {
+    if (typeof v !== 'number' && typeof v !== 'string') return null
+    if (v === '') return null
+
+    const parsed = Number(v)
+    return Number.isFinite(parsed) ? Math.round(parsed) : null
+}
+
 function getClientIpAddress(req: NextRequest): string | null {
     const forwarded = req.headers.get('x-forwarded-for')
     if (forwarded) {
@@ -57,6 +65,10 @@ export async function POST(req: NextRequest) {
     const fbc = normalizeOptionalText(form.get('fbc'))
     const fbclid = normalizeOptionalText(form.get('fbclid'))
     const pageUrl = normalizeOptionalText(form.get('page_url')) || req.nextUrl.origin
+    const diagnosticScore = normalizeOptionalNumber(form.get('diagnostic_score'))
+    const diagnosticVerdict = normalizeOptionalText(form.get('diagnostic_verdict'))
+    const landingVariant = normalizeOptionalText(form.get('landing_variant'))
+    const plan = normalizeOptionalText(form.get('plan')) || 'starter'
 
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
         return NextResponse.json({ error: 'Valid email is required.' }, { status: 400 })
@@ -186,6 +198,10 @@ export async function POST(req: NextRequest) {
         fbp,
         fbc,
         fbclid,
+        diagnosticScore,
+        diagnosticVerdict,
+        landingVariant,
+        plan,
     })
 
     return NextResponse.json({

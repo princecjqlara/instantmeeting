@@ -54,7 +54,8 @@ ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_dataset_id TEXT;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_test_event_code TEXT;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS facebook_purchase_value INTEGER DEFAULT 699;
-ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT false;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT true;
+ALTER TABLE lead_forms ALTER COLUMN send_qualified_to_facebook SET DEFAULT true;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_purchase_to_facebook BOOLEAN DEFAULT false;
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS instantmeeting_payment_purchase_value_php INTEGER DEFAULT 699;

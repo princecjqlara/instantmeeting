@@ -2,17 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+    maybeSendLeadFormFunnelMetaEvent,
     maybeSendLeadFormQualifiedMetaEvent,
     maybeSendLeadFormPurchaseMetaEvent,
 } from '../src/lib/lead-form-qualified-capi.ts'
 
-test('qualified lead send skips when the form toggle is off', async () => {
+test('qualified lead send is automatic for legacy forms with Meta config even when the old toggle is false', async () => {
     let sendCalls = 0
 
     const result = await maybeSendLeadFormQualifiedMetaEvent(
         {
             supabase: {},
             leadForm: {
+                slug: 'property-buyer-qualification-form-2aaa9b',
                 meta_capi_access_token: 'token',
                 meta_capi_dataset_id: 'dataset',
                 send_qualified_to_facebook: false,
@@ -21,15 +23,17 @@ test('qualified lead send skips when the form toggle is off', async () => {
             eventSourceUrl: 'https://instantmeeting.ai/leads/demo',
         },
         {
+            claimSend: async () => ({ claimed: true, error: null }),
             sendWithConfig: async () => {
                 sendCalls += 1
                 return { sent: true }
             },
+            markLeadFlags: async () => ({ error: null }),
         }
     )
 
-    assert.deepEqual(result, { sent: false, reason: 'disabled' })
-    assert.equal(sendCalls, 0)
+    assert.deepEqual(result, { sent: true })
+    assert.equal(sendCalls, 1)
 })
 
 test('qualified lead send falls back to the form owner Meta config when the form has none', async () => {
@@ -111,6 +115,94 @@ test('qualified lead send claims before delivery to avoid duplicate sends', asyn
     ])
 })
 
+test('qualified lead event includes quality and form context custom data', async () => {
+    let sentPayload = null
+
+    const result = await maybeSendLeadFormQualifiedMetaEvent(
+        {
+            supabase: {},
+            leadForm: {
+                id: 'form-1',
+                slug: 'property-buyer-qualification-form-2aaa9b',
+                meta_capi_access_token: 'token',
+                meta_capi_dataset_id: 'dataset',
+                send_qualified_to_facebook: true,
+            },
+            lead: {
+                id: 'lead-1',
+                guest_email: 'lead@example.com',
+                qualification_score: 87,
+                qualification_verdict: 'qualified',
+            },
+            eventSourceUrl: 'https://instantmeeting.vercel.app/leads/property-buyer-qualification-form-2aaa9b',
+        },
+        {
+            claimSend: async () => ({ claimed: true, error: null }),
+            sendWithConfig: async (_config, payload) => {
+                sentPayload = payload
+                return { sent: true }
+            },
+            markLeadFlags: async () => ({ error: null }),
+        }
+    )
+
+    assert.deepEqual(result, { sent: true })
+    assert.equal(sentPayload.event_name, 'Lead')
+    assert.equal(sentPayload.custom_data.lead_score, 87)
+    assert.equal(sentPayload.custom_data.lead_verdict, 'qualified')
+    assert.equal(sentPayload.custom_data.lead_form_slug, 'property-buyer-qualification-form-2aaa9b')
+    assert.equal(sentPayload.custom_data.pipeline_stage, 'qualified')
+    assert.equal(sentPayload.custom_data.pipeline_trigger, 'qualified')
+})
+
+test('lead form funnel events support PageView, start, and schedule context', async () => {
+    const sentPayloads = []
+
+    for (const eventName of ['PageView', 'InstantMeetingLeadFormStart', 'Schedule']) {
+        const result = await maybeSendLeadFormFunnelMetaEvent(
+            {
+                supabase: {},
+                leadForm: {
+                    id: 'form-1',
+                    slug: 'property-buyer-qualification-form-2aaa9b',
+                    meta_capi_access_token: 'token',
+                    meta_capi_dataset_id: 'dataset',
+                },
+                eventName,
+                eventSourceUrl: 'https://instantmeeting.vercel.app/leads/property-buyer-qualification-form-2aaa9b',
+                lead: {
+                    id: 'lead-1',
+                    guest_email: 'lead@example.com',
+                    qualification_score: 87,
+                    qualification_verdict: 'qualified',
+                },
+            },
+            {
+                sendWithConfig: async (_config, payload) => {
+                    sentPayloads.push(payload)
+                    return { sent: true }
+                },
+            }
+        )
+
+        assert.deepEqual(result, { sent: true })
+    }
+
+    assert.deepEqual(sentPayloads.map((payload) => payload.event_name), [
+        'PageView',
+        'InstantMeetingLeadFormStart',
+        'Schedule',
+    ])
+    for (const payload of sentPayloads) {
+        assert.equal(payload.event_source_url, 'https://instantmeeting.vercel.app/leads/property-buyer-qualification-form-2aaa9b')
+        assert.equal(payload.custom_data.lead_form_slug, 'property-buyer-qualification-form-2aaa9b')
+    }
+    assert.equal(sentPayloads[0].custom_data.pipeline_stage, 'view')
+    assert.equal(sentPayloads[1].custom_data.pipeline_stage, 'started')
+    assert.equal(sentPayloads[2].custom_data.pipeline_stage, 'booked')
+    assert.equal(sentPayloads[2].custom_data.lead_score, 87)
+})
+
 test('qualified lead send releases its claim when delivery fails', async () => {
     let released = null
 
@@ -118,6 +210,7 @@ test('qualified lead send releases its claim when delivery fails', async () => {
         {
             supabase: {},
             leadForm: {
+                slug: 'property-buyer-qualification-form-2aaa9b',
                 meta_capi_access_token: 'token',
                 meta_capi_dataset_id: 'dataset',
                 send_qualified_to_facebook: true,
@@ -147,12 +240,19 @@ test('purchase send uses the form purchase value on sold when enabled', async ()
         {
             supabase: {},
             leadForm: {
+                slug: 'property-buyer-qualification-form-2aaa9b',
                 meta_capi_access_token: 'token',
                 meta_capi_dataset_id: 'dataset',
                 send_purchase_to_facebook: true,
                 facebook_purchase_value: 1250,
             },
-            lead: { id: 'lead-1', guest_name: 'Jane Doe', guest_email: 'lead@example.com' },
+            lead: {
+                id: 'lead-1',
+                guest_name: 'Jane Doe',
+                guest_email: 'lead@example.com',
+                qualification_score: 87,
+                qualification_verdict: 'qualified',
+            },
             eventSourceUrl: 'https://instantmeeting.ai/leads/demo',
         },
         {
@@ -169,6 +269,9 @@ test('purchase send uses the form purchase value on sold when enabled', async ()
     assert.equal(sentPayloads[0].event_name, 'Purchase')
     assert.equal(sentPayloads[0].custom_data.value, 1250)
     assert.equal(sentPayloads[0].custom_data.pipeline_trigger, 'sold')
+    assert.equal(sentPayloads[0].custom_data.lead_score, 87)
+    assert.equal(sentPayloads[0].custom_data.lead_verdict, 'qualified')
+    assert.equal(sentPayloads[0].custom_data.lead_form_slug, 'property-buyer-qualification-form-2aaa9b')
 })
 
 test('purchase send skips when a lead was already marked as purchased', async () => {

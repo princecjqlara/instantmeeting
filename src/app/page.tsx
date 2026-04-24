@@ -46,6 +46,8 @@ const TESTIMONIAL_VIDEOS = [
     },
 ] as const
 
+type InstantMeetingCheckoutClientTrigger = 'checkout_opened' | 'payment_info_added'
+
 export default function Home() {
     const { data: session, status } = useSession()
     const router = useRouter()
@@ -391,10 +393,64 @@ function SignupModal({
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const sentCheckoutEventsRef = useRef<Set<InstantMeetingCheckoutClientTrigger>>(new Set())
 
     const gcashNumber = process.env.NEXT_PUBLIC_GCASH_NUMBER || '0992 703 1276'
     const gcashName = process.env.NEXT_PUBLIC_GCASH_NAME || 'PR***E C* L.'
     const qrImage = process.env.NEXT_PUBLIC_GCASH_QR_URL || '/gcash-qr-crop.jpg'
+
+    const sendInstantMeetingCheckoutEvent = async (trigger: InstantMeetingCheckoutClientTrigger) => {
+        if (typeof window === 'undefined') return
+        if (sentCheckoutEventsRef.current.has(trigger)) return
+
+        sentCheckoutEventsRef.current.add(trigger)
+
+        const readCookie = (cookieName: string) => {
+            if (typeof document === 'undefined') return null
+            const hit = document.cookie
+                .split('; ')
+                .find((entry) => entry.startsWith(`${cookieName}=`))
+            return hit ? decodeURIComponent(hit.split('=').slice(1).join('=')) : null
+        }
+
+        try {
+            const url = new URL(window.location.href)
+            const response = await fetch('/api/capi/instantmeeting', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    trigger,
+                    page_url: url.toString(),
+                    fbclid: url.searchParams.get('fbclid'),
+                    fbp: readCookie('_fbp'),
+                    fbc: readCookie('_fbc'),
+                    name,
+                    email,
+                    phone,
+                    landing_variant: 'real_estate_vsl',
+                    plan: 'starter',
+                }),
+            })
+
+            if (!response.ok) {
+                sentCheckoutEventsRef.current.delete(trigger)
+            }
+        } catch {
+            sentCheckoutEventsRef.current.delete(trigger)
+        }
+    }
+
+    useEffect(() => {
+        void sendInstantMeetingCheckoutEvent('checkout_opened')
+    }, [])
+
+    const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const nextReceipt = e.target.files?.[0] || null
+        setReceipt(nextReceipt)
+        if (nextReceipt) {
+            void sendInstantMeetingCheckoutEvent('payment_info_added')
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -428,6 +484,8 @@ function SignupModal({
             const fbc = readCookie('_fbc')
             if (fbp) fd.append('fbp', fbp)
             if (fbc) fd.append('fbc', fbc)
+            fd.append('landing_variant', 'real_estate_vsl')
+            fd.append('plan', 'starter')
             const res = await fetch('/api/signup', { method: 'POST', body: fd })
             const data = await res.json()
             if (!res.ok) {
@@ -568,7 +626,7 @@ function SignupModal({
                                 type="file"
                                 accept="image/*,application/pdf"
                                 style={{ display: 'none' }}
-                                onChange={(e) => setReceipt(e.target.files?.[0] || null)}
+                                onChange={handleReceiptChange}
                             />
                             <button
                                 type="button"

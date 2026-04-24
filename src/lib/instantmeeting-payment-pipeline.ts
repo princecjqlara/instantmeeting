@@ -1,13 +1,35 @@
-export const INSTANTMEETING_PAYMENT_PIPELINE_STAGES = ['unqualified', 'sold'] as const
+export const INSTANTMEETING_PAYMENT_PIPELINE_STAGES = [
+    'landing_visit',
+    'diagnostic_started',
+    'diagnostic_completed',
+    'checkout_opened',
+    'payment_info_added',
+    'lead',
+    'sold',
+] as const
 export const INSTANTMEETING_SOLD_VALUE_PHP = 699
 
 export type InstantMeetingPaymentStage = (typeof INSTANTMEETING_PAYMENT_PIPELINE_STAGES)[number]
-export type InstantMeetingPaymentTrigger = 'website_visit' | 'payment_review_submit' | 'admin_verify'
+export type InstantMeetingPaymentTrigger =
+    | 'website_visit'
+    | 'diagnostic_start'
+    | 'diagnostic_complete'
+    | 'checkout_opened'
+    | 'payment_info_added'
+    | 'payment_review_submit'
+    | 'admin_verify'
 
 interface TriggerResolution {
     trigger: InstantMeetingPaymentTrigger
     pipelineStage: InstantMeetingPaymentStage
-    eventName: 'PageView' | 'Lead' | 'Purchase'
+    eventName:
+        | 'PageView'
+        | 'InstantMeetingDiagnosticStart'
+        | 'InstantMeetingDiagnosticComplete'
+        | 'InitiateCheckout'
+        | 'AddPaymentInfo'
+        | 'Lead'
+        | 'Purchase'
     value: number | null
 }
 
@@ -18,16 +40,44 @@ export function resolveInstantMeetingPaymentTrigger(
         case 'website_visit':
             return {
                 trigger,
-                pipelineStage: 'unqualified',
+                pipelineStage: 'landing_visit',
                 eventName: 'PageView',
-                value: null,
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
+            }
+        case 'diagnostic_start':
+            return {
+                trigger,
+                pipelineStage: 'diagnostic_started',
+                eventName: 'InstantMeetingDiagnosticStart',
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
+            }
+        case 'diagnostic_complete':
+            return {
+                trigger,
+                pipelineStage: 'diagnostic_completed',
+                eventName: 'InstantMeetingDiagnosticComplete',
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
+            }
+        case 'checkout_opened':
+            return {
+                trigger,
+                pipelineStage: 'checkout_opened',
+                eventName: 'InitiateCheckout',
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
+            }
+        case 'payment_info_added':
+            return {
+                trigger,
+                pipelineStage: 'payment_info_added',
+                eventName: 'AddPaymentInfo',
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
             }
         case 'payment_review_submit':
             return {
                 trigger,
-                pipelineStage: 'unqualified',
+                pipelineStage: 'lead',
                 eventName: 'Lead',
-                value: null,
+                value: INSTANTMEETING_SOLD_VALUE_PHP,
             }
         case 'admin_verify':
             return {

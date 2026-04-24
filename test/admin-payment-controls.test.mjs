@@ -16,6 +16,18 @@ test('admin page exposes InstantMeeting Meta CAPI settings and payment pipeline 
     assert.ok(source.includes("/api/admin/payment-settings"))
 })
 
+test('admin page lets organizers reveal, hide, and copy the Meta CAPI access token', () => {
+    const source = readFileSync(new URL('../src/app/admin/page.tsx', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('showMetaCapiAccessToken'))
+    assert.ok(source.includes("type={showMetaCapiAccessToken ? 'text' : 'password'}"))
+    assert.ok(source.includes('copyMetaCapiAccessToken'))
+    assert.ok(source.includes('navigator.clipboard.writeText(metaCapiAccessToken)'))
+    assert.ok(source.includes('Show Meta CAPI access token'))
+    assert.ok(source.includes('Hide Meta CAPI access token'))
+    assert.ok(source.includes('Copy Meta CAPI access token'))
+})
+
 test('admin payment settings route reads and writes the signed-in organizer payment owner', () => {
     const source = readFileSync(new URL('../src/app/api/admin/payment-settings/route.ts', import.meta.url), 'utf8')
 

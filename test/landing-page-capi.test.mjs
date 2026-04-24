@@ -12,6 +12,31 @@ test('landing page posts an InstantMeeting CAPI visit event once per session', (
     assert.ok(source.includes('_fbc'))
 })
 
+test('landing page and diagnostic checkout use the paid signup event ladder', () => {
+    const pageSource = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8')
+    const funnelSource = readFileSync(new URL('../src/components/SellerLeadFunnel.tsx', import.meta.url), 'utf8')
+    const routeSource = readFileSync(new URL('../src/app/api/capi/instantmeeting/route.ts', import.meta.url), 'utf8')
+    const signupSource = readFileSync(new URL('../src/app/api/signup/route.ts', import.meta.url), 'utf8')
+
+    assert.ok(routeSource.includes('sendInstantMeetingPaymentMetaCapiEvent'))
+    assert.ok(routeSource.includes('diagnostic_start'))
+    assert.ok(routeSource.includes('diagnostic_complete'))
+    assert.ok(routeSource.includes('checkout_opened'))
+    assert.ok(routeSource.includes('payment_info_added'))
+
+    assert.ok(funnelSource.includes("sendLandingFunnelEvent('diagnostic_start'"))
+    assert.ok(funnelSource.includes("sendLandingFunnelEvent('diagnostic_complete'"))
+    assert.ok(funnelSource.includes("sendLandingFunnelEvent('checkout_opened'"))
+    assert.ok(funnelSource.includes("sendLandingFunnelEvent('payment_info_added'"))
+    assert.ok(funnelSource.includes('diagnostic_score'))
+    assert.ok(funnelSource.includes('diagnostic_verdict'))
+
+    assert.ok(pageSource.includes("sendInstantMeetingCheckoutEvent('checkout_opened'"))
+    assert.ok(pageSource.includes("sendInstantMeetingCheckoutEvent('payment_info_added'"))
+    assert.ok(signupSource.includes('diagnostic_score'))
+    assert.ok(signupSource.includes('diagnostic_verdict'))
+})
+
 test('landing page only marks the CAPI visit after a confirmed send', () => {
     const source = readFileSync(new URL('../src/app/page.tsx', import.meta.url), 'utf8')
 

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { BookingField } from '@/lib/types'
 import { combineDateAndTimeInTimeZone } from '@/lib/zoned-scheduling'
+import { maybeSendLeadFormFunnelMetaEvent } from '@/lib/lead-form-qualified-capi'
 
 // Force dynamic to prevent static generation
 export const dynamic = 'force-dynamic'
@@ -13,11 +14,22 @@ function getSupabaseClient() {
     )
 }
 
+function getClientIpAddress(req: NextRequest): string | null {
+    const forwarded = req.headers.get('x-forwarded-for')
+    if (forwarded) {
+        const first = forwarded.split(',')[0]?.trim()
+        if (first) return first
+    }
+
+    const realIp = req.headers.get('x-real-ip')?.trim()
+    return realIp || null
+}
+
 // POST: Create a new meeting request from a guest
 export async function POST(req: NextRequest) {
     const supabase = getSupabaseClient()
     const body = await req.json()
-    const { hostId, guestName, guestEmail, guestPhone, note, date, time, customFields } = body
+    const { hostId, guestName, guestEmail, guestPhone, note, date, time, customFields, sourceGuestId, pageUrl, fbclid, fbp, fbc } = body
 
     if (!hostId || !guestName || !date || !time) {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -88,6 +100,51 @@ export async function POST(req: NextRequest) {
         custom_fields: Array.isArray(customFields) ? customFields : [],
         status: 'waiting'
     })
+
+    if (typeof sourceGuestId === 'string' && sourceGuestId.trim()) {
+        const { data: sourceGuest } = await supabase
+            .from('waiting_guests')
+            .select('id, guest_name, guest_email, guest_phone, qualification_score, qualification_verdict, lead_form_id')
+            .eq('id', sourceGuestId.trim())
+            .maybeSingle()
+
+        if (sourceGuest?.lead_form_id) {
+            const { data: leadForm } = await supabase
+                .from('lead_forms')
+                .select('*')
+                .eq('id', sourceGuest.lead_form_id)
+                .maybeSingle()
+
+            if (leadForm) {
+                after(() =>
+                    maybeSendLeadFormFunnelMetaEvent({
+                        supabase,
+                        leadForm,
+                        eventName: 'Schedule',
+                        eventSourceUrl:
+                            typeof pageUrl === 'string' && pageUrl.trim()
+                                ? pageUrl
+                                : `${req.nextUrl.origin}/leads/${leadForm.slug}`,
+                        lead: {
+                            id: sourceGuest.id,
+                            guest_name: sourceGuest.guest_name,
+                            guest_email: sourceGuest.guest_email,
+                            guest_phone: sourceGuest.guest_phone,
+                            qualification_score: sourceGuest.qualification_score,
+                            qualification_verdict: sourceGuest.qualification_verdict,
+                        },
+                        clientIpAddress: getClientIpAddress(req),
+                        clientUserAgent: req.headers.get('user-agent'),
+                        fbp: typeof fbp === 'string' ? fbp : null,
+                        fbc: typeof fbc === 'string' ? fbc : null,
+                        fbclid: typeof fbclid === 'string' ? fbclid : null,
+                    }).catch((sendError) => {
+                        console.error('Lead-form Schedule Meta CAPI send failed:', sendError)
+                    })
+                )
+            }
+        }
+    }
 
     return NextResponse.json(meeting)
 }

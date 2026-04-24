@@ -253,6 +253,8 @@ export async function POST(req: NextRequest) {
                     guest_name: resolvedName,
                     guest_email: resolvedEmail,
                     guest_phone: resolvedPhone,
+                    qualification_score: qualification.score,
+                    qualification_verdict: qualification.verdict,
                     meta_qualified_sent_at:
                         typeof existingLeadSession?.meta_qualified_sent_at === 'string'
                             ? existingLeadSession.meta_qualified_sent_at

@@ -502,6 +502,10 @@ export async function PATCH(req: NextRequest) {
                         guest_phone:
                             ('guest_phone' in patch ? (patch.guest_phone as string | null) : null) ??
                             ((ownedLead as { guest_phone?: string | null }).guest_phone ?? null),
+                        qualification_score:
+                            (ownedLead as { qualification_score?: number | null }).qualification_score ?? null,
+                        qualification_verdict:
+                            (ownedLead as { qualification_verdict?: string | null }).qualification_verdict ?? 'qualified',
                         meta_qualified_sent_at:
                             (ownedLead as { meta_qualified_sent_at?: string | null }).meta_qualified_sent_at ?? null,
                     },
@@ -537,6 +541,10 @@ export async function PATCH(req: NextRequest) {
                         guest_phone:
                             ('guest_phone' in patch ? (patch.guest_phone as string | null) : null) ??
                             ((ownedLead as { guest_phone?: string | null }).guest_phone ?? null),
+                        qualification_score:
+                            (ownedLead as { qualification_score?: number | null }).qualification_score ?? null,
+                        qualification_verdict:
+                            (ownedLead as { qualification_verdict?: string | null }).qualification_verdict ?? null,
                         meta_purchase_sent_at:
                             (ownedLead as { meta_purchase_sent_at?: string | null }).meta_purchase_sent_at ?? null,
                     },
