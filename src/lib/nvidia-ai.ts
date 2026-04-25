@@ -2,18 +2,28 @@
  * NVIDIA NIM API Integration
  *
  * Uses OpenAI-compatible endpoints at integrate.api.nvidia.com
- * - Chat: nvidia/llama-3.1-nemotron-70b-instruct
+ * - Chat: meta/llama-3.1-405b-instruct
  * - Embeddings: nvidia/nv-embedqa-e5-v5 (1024-dim)
  */
 
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
 const DEFAULT_CHAT_MODELS = [
     'meta/llama-3.1-405b-instruct',
-    'nvidia/llama-3.1-nemotron-70b-instruct',
+    'meta/llama-3.3-70b-instruct',
     'meta/llama-3.1-70b-instruct',
     'meta/llama-3.1-8b-instruct',
 ]
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5'
+
+class NvidiaChatError extends Error {
+    retriable: boolean
+
+    constructor(message: string, retriable: boolean) {
+        super(message)
+        this.name = 'NvidiaChatError'
+        this.retriable = retriable
+    }
+}
 
 function getApiKey(): string {
     const key = process.env.NVIDIA_API_KEY?.trim()
@@ -34,6 +44,12 @@ function getChatModels(): string[] {
 
 function shouldRetryChatRequest(status: number): boolean {
     return status === 429 || status >= 500
+}
+
+function isRetriableChatError(error: unknown): boolean {
+    if (error instanceof NvidiaChatError) return error.retriable
+    if (error instanceof Error && error.name === 'AbortError') return true
+    return true
 }
 
 /* ---------- Embeddings ---------- */
@@ -156,7 +172,10 @@ export async function chatCompletion(
                     continue
                 }
 
-                throw new Error(`Chat API error: ${response.status}`)
+                throw new NvidiaChatError(
+                    `Chat API error: ${response.status}`,
+                    shouldRetryChatRequest(response.status)
+                )
             }
 
             const data = await response.json()
@@ -164,7 +183,7 @@ export async function chatCompletion(
         } catch (error) {
             lastError = error instanceof Error ? error : new Error('Chat API request failed')
 
-            if (index >= models.length - 1) {
+            if (!isRetriableChatError(error) || index >= models.length - 1) {
                 throw lastError
             }
 
@@ -219,14 +238,17 @@ export async function chatCompletionStream(
                     continue
                 }
 
-                throw new Error(`Chat API error: ${response.status}`)
+                throw new NvidiaChatError(
+                    `Chat API error: ${response.status}`,
+                    shouldRetryChatRequest(response.status)
+                )
             }
 
             break
         } catch (error) {
             lastError = error instanceof Error ? error : new Error('Chat API request failed')
 
-            if (index >= models.length - 1) {
+            if (!isRetriableChatError(error) || index >= models.length - 1) {
                 throw lastError
             }
 
