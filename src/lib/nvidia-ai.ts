@@ -7,7 +7,12 @@
  */
 
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1'
-const CHAT_MODEL = 'meta/llama-3.1-8b-instruct'
+const DEFAULT_CHAT_MODELS = [
+    'meta/llama-3.1-405b-instruct',
+    'nvidia/llama-3.1-nemotron-70b-instruct',
+    'meta/llama-3.1-70b-instruct',
+    'meta/llama-3.1-8b-instruct',
+]
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5'
 
 function getApiKey(): string {
@@ -16,6 +21,19 @@ function getApiKey(): string {
         throw new Error('NVIDIA_API_KEY is not set in environment variables')
     }
     return key
+}
+
+function getChatModels(): string[] {
+    const configured = process.env.NVIDIA_CHAT_MODELS
+        ?.split(',')
+        .map((model) => model.trim())
+        .filter(Boolean)
+
+    return configured?.length ? configured : DEFAULT_CHAT_MODELS
+}
+
+function shouldRetryChatRequest(status: number): boolean {
+    return status === 429 || status >= 500
 }
 
 /* ---------- Embeddings ---------- */
@@ -105,33 +123,58 @@ export async function chatCompletion(
         stream?: false
     } = {}
 ): Promise<string> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
-    const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getApiKey()}`,
-        },
-        body: JSON.stringify({
-            model: CHAT_MODEL,
-            messages,
-            temperature: options.temperature ?? 0.6,
-            max_tokens: options.maxTokens ?? 1024,
-            stream: false,
-        }),
-        signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
+    const models = getChatModels()
+    let lastError: Error | null = null
 
-    if (!response.ok) {
-        const errBody = await response.text()
-        console.error('NVIDIA Chat API error:', response.status, errBody)
-        throw new Error(`Chat API error: ${response.status}`)
+    for (const [index, model] of models.entries()) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+        try {
+            const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${getApiKey()}`,
+                },
+                body: JSON.stringify({
+                    model,
+                    messages,
+                    temperature: options.temperature ?? 0.6,
+                    max_tokens: options.maxTokens ?? 1024,
+                    stream: false,
+                }),
+                signal: controller.signal,
+            })
+
+            if (!response.ok) {
+                const errBody = await response.text()
+                console.error('NVIDIA Chat API error:', response.status, errBody)
+
+                if (index < models.length - 1 && shouldRetryChatRequest(response.status)) {
+                    console.warn(`Retrying NVIDIA chat with fallback model: ${models[index + 1]}`)
+                    continue
+                }
+
+                throw new Error(`Chat API error: ${response.status}`)
+            }
+
+            const data = await response.json()
+            return data.choices[0].message.content as string
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error('Chat API request failed')
+
+            if (index >= models.length - 1) {
+                throw lastError
+            }
+
+            console.warn(`NVIDIA chat request failed for model ${model}, trying fallback model.`)
+        } finally {
+            clearTimeout(timeoutId)
+        }
     }
 
-    const data = await response.json()
-    return data.choices[0].message.content as string
+    throw lastError ?? new Error('Chat API request failed')
 }
 
 export async function chatCompletionStream(
@@ -141,29 +184,60 @@ export async function chatCompletionStream(
         maxTokens?: number
     } = {}
 ): Promise<ReadableStream<Uint8Array>> {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
-    const response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${getApiKey()}`,
-        },
-        body: JSON.stringify({
-            model: CHAT_MODEL,
-            messages,
-            temperature: options.temperature ?? 0.6,
-            max_tokens: options.maxTokens ?? 1024,
-            stream: true,
-        }),
-        signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
+    const models = getChatModels()
+    let response: Response | null = null
+    let lastError: Error | null = null
 
-    if (!response.ok) {
-        const errBody = await response.text()
-        console.error('NVIDIA Chat stream error:', response.status, errBody)
-        throw new Error(`Chat API error: ${response.status}`)
+    for (const [index, model] of models.entries()) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+        try {
+            response = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${getApiKey()}`,
+                },
+                body: JSON.stringify({
+                    model,
+                    messages,
+                    temperature: options.temperature ?? 0.6,
+                    max_tokens: options.maxTokens ?? 1024,
+                    stream: true,
+                }),
+                signal: controller.signal,
+            })
+
+            if (!response.ok) {
+                const errBody = await response.text()
+                console.error('NVIDIA Chat stream error:', response.status, errBody)
+
+                if (index < models.length - 1 && shouldRetryChatRequest(response.status)) {
+                    console.warn(`Retrying NVIDIA chat stream with fallback model: ${models[index + 1]}`)
+                    response = null
+                    continue
+                }
+
+                throw new Error(`Chat API error: ${response.status}`)
+            }
+
+            break
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error('Chat API request failed')
+
+            if (index >= models.length - 1) {
+                throw lastError
+            }
+
+            console.warn(`NVIDIA chat stream request failed for model ${model}, trying fallback model.`)
+        } finally {
+            clearTimeout(timeoutId)
+        }
+    }
+
+    if (!response) {
+        throw lastError ?? new Error('Chat API request failed')
     }
 
     if (!response.body) {
