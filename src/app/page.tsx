@@ -46,6 +46,14 @@ const TESTIMONIAL_VIDEOS = [
     },
 ] as const
 
+const VSL_CHAPTERS = [
+    { seconds: 0, label: '0:00', title: 'Is this system for me?' },
+    { seconds: 32, label: '0:32', title: 'How does the system work?' },
+    { seconds: 102, label: '1:42', title: "What's included in the package?" },
+    { seconds: 113, label: '1:53', title: 'What do I need to start?' },
+    { seconds: 121, label: '2:01', title: 'How to start?' },
+] as const
+
 type InstantMeetingCheckoutClientTrigger = 'checkout_opened' | 'payment_info_added'
 
 export default function Home() {
@@ -58,6 +66,22 @@ export default function Home() {
     const [password, setPassword] = useState('')
     const [loginError, setLoginError] = useState('')
     const [loggingIn, setLoggingIn] = useState(false)
+    const vslIframeRef = useRef<HTMLIFrameElement | null>(null)
+    const [activeChapter, setActiveChapter] = useState<number>(VSL_CHAPTERS[0].seconds)
+
+    const seekVslTo = (seconds: number) => {
+        const iframe = vslIframeRef.current
+        if (!iframe || !iframe.contentWindow) return
+        setActiveChapter(seconds)
+        iframe.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'seekTo', args: [seconds, true] }),
+            '*',
+        )
+        iframe.contentWindow.postMessage(
+            JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+            '*',
+        )
+    }
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -165,14 +189,37 @@ export default function Home() {
                     <span className={styles.heroGradient}> ma-convert mo lahat?</span>
                 </h1>
 
-                <div className={styles.vslWrap}>
-                    <video
-                        className={styles.vslVideo}
-                        src="/api/testimonials/testimonial-1"
-                        controls
-                        playsInline
-                        preload="metadata"
-                    />
+                <div className={styles.vslLayout}>
+                    <div className={styles.vslWrap}>
+                        <iframe
+                            ref={vslIframeRef}
+                            className={styles.vslVideo}
+                            src="https://www.youtube.com/embed/_ecmgj4l6Mc?rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+                            title="InstantMeeting VSL"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                        />
+                    </div>
+                    <aside className={styles.vslChapters} aria-label="Video chapters">
+                        <div className={styles.vslChaptersTitle}>Jump to a question</div>
+                        <ul className={styles.vslChapterList}>
+                            {VSL_CHAPTERS.map((chapter) => {
+                                const isActive = activeChapter === chapter.seconds
+                                return (
+                                    <li key={chapter.seconds}>
+                                        <button
+                                            type="button"
+                                            className={`${styles.vslChapter} ${isActive ? styles.vslChapterActive : ''}`}
+                                            onClick={() => seekVslTo(chapter.seconds)}
+                                        >
+                                            <span className={styles.vslChapterTime}>{chapter.label}</span>
+                                            <span className={styles.vslChapterText}>{chapter.title}</span>
+                                        </button>
+                                    </li>
+                                )
+                            })}
+                        </ul>
+                    </aside>
                 </div>
 
                 <p className={styles.heroSubtitle}>
