@@ -33,6 +33,8 @@ import {
 } from 'react-icons/fa'
 import styles from './VideoChat.module.css'
 
+type GuestMediaMode = 'audio_video' | 'audio_only' | 'video_only' | 'none' | 'muted_audio_video'
+
 interface VideoChatProps {
     /** Room ID for the video call (typically the meeting ID) */
     roomId: string
@@ -44,6 +46,8 @@ interface VideoChatProps {
     isHost?: boolean
     /** Called when the host sends a stop-welcome-audio signal (guest side) */
     onStopWelcomeAudio?: () => void
+    /** Initial media behavior for admitted lead-form guests. Hosts always open full media. */
+    guestMediaMode?: GuestMediaMode
 }
 
 /**
@@ -128,7 +132,14 @@ function VideoTile({
     )
 }
 
-export default function VideoChat({ roomId, displayName, onLeave, isHost = false, onStopWelcomeAudio }: VideoChatProps) {
+export default function VideoChat({
+    roomId,
+    displayName,
+    onLeave,
+    isHost = false,
+    onStopWelcomeAudio,
+    guestMediaMode = 'muted_audio_video',
+}: VideoChatProps) {
     const {
         localStream,
         remoteStreams,
@@ -157,7 +168,7 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
         stopGuestRecognition,
         clearGuestTranscript,
         sendStopWelcomeAudio,
-    } = useWebRTC(roomId, displayName, isHost)
+    } = useWebRTC(roomId, displayName, isHost, guestMediaMode)
 
     const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
     const hostLeaveEndedMeetingRef = useRef(false)
@@ -499,7 +510,8 @@ export default function VideoChat({ roomId, displayName, onLeave, isHost = false
             {!isHost && isMuted && !mediaPermissionError && (
                 <div className={styles.unmuteTip}>
                     <FaMicrophoneSlash className={styles.unmuteTipIcon} />
-                    <span>Your mic is muted — click <FaMicrophone style={{ verticalAlign: 'middle' }} /> to speak</span>
+                    <span className={styles.unmuteTipArrow} aria-hidden>↓</span>
+                    <span>Tap the microphone button below to talk.</span>
                 </div>
             )}
 

@@ -11,6 +11,8 @@ test('lead form editor exposes per-form Meta CAPI fields', () => {
     assert.ok(source.includes('Purchase value'))
     assert.ok(source.includes('Qualified sending to Facebook'))
     assert.ok(source.includes('Purchase sending to Facebook'))
+    assert.ok(source.includes('Qualified guest media'))
+    assert.ok(source.includes('Join with camera and microphone off'))
 })
 
 test('lead forms API persists per-form Meta CAPI fields', () => {
@@ -22,6 +24,8 @@ test('lead forms API persists per-form Meta CAPI fields', () => {
     assert.ok(source.includes('facebook_purchase_value'))
     assert.ok(source.includes('send_qualified_to_facebook'))
     assert.ok(source.includes('send_purchase_to_facebook'))
+    assert.ok(source.includes('qualified_media_mode'))
+    assert.ok(source.includes('normalizeQualifiedMediaMode'))
 })
 
 test('onboarding saves forms without ads setup fields', () => {

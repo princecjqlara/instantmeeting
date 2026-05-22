@@ -81,6 +81,8 @@ test('join route forwards guest context into room or waiting URLs', () => {
 
     assert.ok(source.includes('buildGuestRoomPath'))
     assert.ok(source.includes('buildGuestWaitingPath'))
+    assert.ok(source.includes('qualified_media_mode'))
+    assert.ok(source.includes('media: qualifiedMediaMode'))
 })
 
 test('join route keeps admitted guests in booking flow when team clock has nobody online', () => {

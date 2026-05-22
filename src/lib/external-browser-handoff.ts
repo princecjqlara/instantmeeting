@@ -71,7 +71,8 @@ export function normalizeGuestName(value: string | null | undefined): string | n
 export function buildGuestRoomPath(
     meetingId: string,
     guestId?: string | null,
-    guestName?: string | null
+    guestName?: string | null,
+    extraParams?: Record<string, string | null | undefined>
 ): string {
     const params = new URLSearchParams()
     const normalizedName = normalizeGuestName(guestName)
@@ -82,6 +83,12 @@ export function buildGuestRoomPath(
 
     if (normalizedName) {
         params.set('guestName', normalizedName)
+    }
+
+    for (const [key, value] of Object.entries(extraParams || {})) {
+        if (value?.trim()) {
+            params.set(key, value.trim())
+        }
     }
 
     const query = params.toString()

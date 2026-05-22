@@ -67,6 +67,17 @@ function normalizePurchaseValue(value: unknown) {
     return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 699
 }
 
+function normalizeQualifiedMediaMode(value: unknown) {
+    return (
+        value === 'audio_video' ||
+        value === 'audio_only' ||
+        value === 'video_only' ||
+        value === 'none'
+    )
+        ? value
+        : 'audio_video'
+}
+
 function slugify(input: string) {
     return (input || '')
         .toLowerCase()
@@ -138,6 +149,7 @@ export async function POST(req: NextRequest) {
         facebook_purchase_value,
         send_qualified_to_facebook,
         send_purchase_to_facebook,
+        qualified_media_mode,
         questions,
     } = body || {}
 
@@ -164,6 +176,7 @@ export async function POST(req: NextRequest) {
         facebook_purchase_value: normalizePurchaseValue(facebook_purchase_value),
         send_qualified_to_facebook: normalizeBooleanField(send_qualified_to_facebook, true),
         send_purchase_to_facebook: normalizeBooleanField(send_purchase_to_facebook, false),
+        qualified_media_mode: normalizeQualifiedMediaMode(qualified_media_mode),
         is_active: true,
     })
 
@@ -215,6 +228,7 @@ export async function PATCH(req: NextRequest) {
         'facebook_purchase_value',
         'send_qualified_to_facebook',
         'send_purchase_to_facebook',
+        'qualified_media_mode',
     ]
     for (const key of allowed) {
         if (!(key in updates)) continue
@@ -235,6 +249,11 @@ export async function PATCH(req: NextRequest) {
 
         if (key === 'send_qualified_to_facebook' || key === 'send_purchase_to_facebook') {
             patch[key] = normalizeBooleanField((updates as Record<string, unknown>)[key], false)
+            continue
+        }
+
+        if (key === 'qualified_media_mode') {
+            patch[key] = normalizeQualifiedMediaMode((updates as Record<string, unknown>)[key])
             continue
         }
 

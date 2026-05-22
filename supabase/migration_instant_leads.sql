@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS lead_forms (
     facebook_purchase_value INTEGER DEFAULT 699,
     send_qualified_to_facebook BOOLEAN DEFAULT true,
     send_purchase_to_facebook BOOLEAN DEFAULT false,
+    qualified_media_mode TEXT DEFAULT 'audio_video'
+        CHECK (qualified_media_mode IN ('audio_video','audio_only','video_only','none')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -29,6 +31,8 @@ ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS facebook_purchase_value INTEGER 
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT true;
 ALTER TABLE lead_forms ALTER COLUMN send_qualified_to_facebook SET DEFAULT true;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_purchase_to_facebook BOOLEAN DEFAULT false;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS qualified_media_mode TEXT DEFAULT 'audio_video'
+    CHECK (qualified_media_mode IN ('audio_video','audio_only','video_only','none'));
 
 CREATE INDEX IF NOT EXISTS idx_lead_forms_user ON lead_forms(user_id);
 CREATE INDEX IF NOT EXISTS idx_lead_forms_slug ON lead_forms(slug);

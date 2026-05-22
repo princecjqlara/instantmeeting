@@ -103,6 +103,7 @@ test('updateLeadFormWithCompat retries without optional missing Facebook toggle 
     const result = await updateLeadFormWithCompat(supabase, 'form-1', {
         title: 'Updated title',
         send_qualified_to_facebook: true,
+        qualified_media_mode: 'none',
     })
 
     assert.equal(result.error, null)
@@ -111,4 +112,5 @@ test('updateLeadFormWithCompat retries without optional missing Facebook toggle 
     assert.equal(attempts[0].send_qualified_to_facebook, true)
     assert.ok(!('send_qualified_to_facebook' in attempts[1]))
     assert.equal(attempts[1].title, 'Updated title')
+    assert.equal(attempts[1].qualified_media_mode, 'none')
 })

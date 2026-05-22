@@ -9,6 +9,7 @@ const OPTIONAL_LEAD_FORM_COLUMNS = new Set([
     'facebook_purchase_value',
     'send_qualified_to_facebook',
     'send_purchase_to_facebook',
+    'qualified_media_mode',
 ])
 
 type InsertResult<T> = {

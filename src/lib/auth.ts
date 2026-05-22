@@ -10,7 +10,46 @@ function getSupabaseClient() {
     )
 }
 
+async function recoverVerifiedSignupPasswordHash(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    userId: string,
+    email: string,
+    inputPassword: string
+) {
+    const { data: pending, error } = await supabase
+        .from('pending_signups')
+        .select('password_hash')
+        .eq('email', email)
+        .eq('status', 'verified')
+        .order('reviewed_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+    if (error || !pending?.password_hash) {
+        return null
+    }
+
+    const isValid = await isValidCredentialPassword(inputPassword, pending.password_hash)
+    if (!isValid) {
+        return null
+    }
+
+    const { error: updateError } = await supabase
+        .from('users')
+        .update({ password_hash: pending.password_hash })
+        .eq('id', userId)
+        .is('password_hash', null)
+
+    if (updateError) {
+        console.error('Failed to recover verified signup password hash:', updateError)
+    }
+
+    return pending.password_hash as string
+}
+
 export const authOptions: NextAuthOptions = {
+    useSecureCookies: process.env.NODE_ENV === 'production',
     providers: [
         CredentialsProvider({
             name: 'Email & Password',
@@ -34,13 +73,22 @@ export const authOptions: NextAuthOptions = {
                     throw new Error('Invalid email or password')
                 }
 
-                if (!user.password_hash) {
+                const passwordHash =
+                    user.password_hash ||
+                    await recoverVerifiedSignupPasswordHash(
+                        supabase,
+                        user.id,
+                        user.email,
+                        credentials.password
+                    )
+
+                if (!passwordHash) {
                     throw new Error('Account not configured. Contact your organizer.')
                 }
 
                 const isValid = await isValidCredentialPassword(
                     credentials.password,
-                    user.password_hash
+                    passwordHash
                 )
                 if (!isValid) {
                     throw new Error('Invalid email or password')

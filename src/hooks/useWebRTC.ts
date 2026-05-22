@@ -91,6 +91,8 @@ interface UseWebRTCReturn {
     sendStopWelcomeAudio: () => void
 }
 
+type InitialMediaMode = 'audio_video' | 'audio_only' | 'video_only' | 'none' | 'muted_audio_video'
+
 const MEDIA_INIT_TIMEOUT_MS = 15000
 const REALTIME_SUBSCRIBE_TIMEOUT_MS = 12000
 
@@ -113,7 +115,12 @@ type SignalMessage =
     | { type: 'stop-welcome-audio'; from: string }
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
-export function useWebRTC(roomId: string, displayName: string, isHost = false): UseWebRTCReturn {
+export function useWebRTC(
+    roomId: string,
+    displayName: string,
+    isHost = false,
+    initialMediaMode: InitialMediaMode = 'audio_video'
+): UseWebRTCReturn {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null)
     const [remoteStreams, setRemoteStreams] = useState<RemoteStream[]>([])
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -730,24 +737,37 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
          */
         const init = async () => {
             try {
-                // Step 1: Try to get local media stream (camera + microphone)
+                // Step 1: Try to get the initial local media requested by this room entry.
                 // If permission is denied or unavailable, join without media
                 let stream: MediaStream | null = null
-                if (navigator.mediaDevices?.getUserMedia) {
+                const mediaMode = isHost ? 'audio_video' : initialMediaMode
+                const shouldRequestAudio =
+                    mediaMode === 'audio_video' ||
+                    mediaMode === 'audio_only' ||
+                    mediaMode === 'muted_audio_video'
+                const shouldRequestVideo =
+                    mediaMode === 'audio_video' ||
+                    mediaMode === 'video_only' ||
+                    mediaMode === 'muted_audio_video'
+                if ((shouldRequestAudio || shouldRequestVideo) && navigator.mediaDevices?.getUserMedia) {
                     let mediaTimeoutId: ReturnType<typeof setTimeout> | null = null
                     try {
                         stream = await Promise.race([
                             navigator.mediaDevices.getUserMedia({
-                                video: {
-                                    width: { ideal: 1280 },
-                                    height: { ideal: 720 },
-                                    facingMode: 'user',
-                                },
-                                audio: {
-                                    echoCancellation: true,
-                                    noiseSuppression: true,
-                                    autoGainControl: true,
-                                },
+                                video: shouldRequestVideo
+                                    ? {
+                                        width: { ideal: 1280 },
+                                        height: { ideal: 720 },
+                                        facingMode: 'user',
+                                    }
+                                    : false,
+                                audio: shouldRequestAudio
+                                    ? {
+                                        echoCancellation: true,
+                                        noiseSuppression: true,
+                                        autoGainControl: true,
+                                    }
+                                    : false,
                             }),
                             new Promise<never>((_, reject) => {
                                 mediaTimeoutId = setTimeout(() => {
@@ -769,15 +789,19 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
                 if (stream) {
                     localStreamRef.current = stream
                     setLocalStream(stream)
+                    cameraTrackRef.current = stream.getVideoTracks()[0] ?? null
 
-                    // Guests join with mic muted by default
-                    if (!isHost) {
+                    // Guests only start muted when the selected media mode did not open the mic.
+                    if (!isHost && (mediaMode === 'muted_audio_video' || !shouldRequestAudio)) {
                         const audioTrack = stream.getAudioTracks()[0]
                         if (audioTrack) {
                             audioTrack.enabled = false
-                            setIsMuted(true)
                         }
+                        setIsMuted(true)
+                    } else {
+                        setIsMuted(!stream.getAudioTracks().some((track) => track.enabled))
                     }
+                    setIsCameraOff(!stream.getVideoTracks().some((track) => track.enabled))
                 } else {
                     // No media — mark camera and mic as off
                     setIsCameraOff(true)
@@ -1204,7 +1228,7 @@ export function useWebRTC(roomId: string, displayName: string, isHost = false): 
         return () => {
             cleanup()
         }
-    }, [roomId, displayName])
+    }, [roomId, displayName, isHost, initialMediaMode])
 
     // ─── Send Presentation Slide ─────────────────────────────────────────────
     const sendPresentation = useCallback((slide: PresentationSlideData | null) => {

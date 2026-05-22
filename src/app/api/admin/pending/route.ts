@@ -106,13 +106,23 @@ export async function PATCH(req: NextRequest) {
     // action === 'verify'
     const { data: alreadyUser } = await supabase
         .from('users')
-        .select('id')
+        .select('id, password_hash')
         .eq('email', pending.email)
         .maybeSingle()
 
     if (alreadyUser) {
-        // A user with this email already exists (e.g. they were created manually).
-        // Mark pending as verified without overwriting the password.
+        // A user with this email may already exist from an earlier/manual flow.
+        // Fill in the verified signup password only when the user is passwordless.
+        if (!alreadyUser.password_hash) {
+            const { error: passwordErr } = await supabase
+                .from('users')
+                .update({ password_hash: pending.password_hash })
+                .eq('id', alreadyUser.id)
+                .is('password_hash', null)
+
+            if (passwordErr) return NextResponse.json({ error: passwordErr.message }, { status: 500 })
+        }
+
         const { error: updateErr } = await supabase
             .from('pending_signups')
             .update({

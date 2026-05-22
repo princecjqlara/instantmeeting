@@ -17,6 +17,7 @@ test('compact lead-form and payment CAPI SQL can be run once idempotently', () =
     assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS pending_signups'))
     assert.ok(sql.includes('ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS meta_capi_access_token TEXT'))
     assert.ok(sql.includes('ALTER TABLE lead_forms ALTER COLUMN send_qualified_to_facebook SET DEFAULT true'))
+    assert.ok(sql.includes('ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS qualified_media_mode TEXT DEFAULT'))
     assert.ok(sql.includes('ALTER TABLE users ADD COLUMN IF NOT EXISTS instantmeeting_payment_purchase_value_php INTEGER DEFAULT 699'))
     assert.ok(sql.includes('ALTER TABLE waiting_guests ADD COLUMN IF NOT EXISTS meta_qualified_sent_at TIMESTAMPTZ'))
     assert.ok(sql.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_signups_email_pending'))

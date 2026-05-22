@@ -47,6 +47,7 @@ export interface LeadForm {
     ai_criteria?: string | null
     unqualified_message?: string | null
     fallback_to_waiting: boolean
+    qualified_media_mode?: QualifiedGuestMediaMode | null
     created_at: string
     updated_at: string
 }
@@ -63,6 +64,8 @@ export interface LeadAnswer {
 }
 
 export type LeadVerdict = 'qualified' | 'unqualified' | 'review'
+
+export type QualifiedGuestMediaMode = 'audio_video' | 'audio_only' | 'video_only' | 'none'
 
 export interface LeadQualificationResult {
     score: number

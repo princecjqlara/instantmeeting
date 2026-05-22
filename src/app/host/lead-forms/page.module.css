@@ -251,6 +251,13 @@
     letter-spacing: 0.06em;
 }
 
+.fieldHint {
+    margin: 6px 0 4px;
+    color: rgba(203, 213, 225, 0.68);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
 .input,
 .textarea {
     width: 100%;

@@ -30,6 +30,8 @@ test('admin pending route keeps reject disabled but uses the signed-in organizer
     assert.ok(source.includes('sendInstantMeetingPaymentMetaCapiEvent'))
     assert.ok(!source.includes("trigger: 'admin_reject'"))
     assert.ok(source.includes('organizerId: organizer.id'))
+    assert.ok(source.includes("select('id, password_hash')"))
+    assert.ok(source.includes(".is('password_hash', null)"))
 })
 
 test('signup route sends Lead when a receipt is submitted for review', () => {
@@ -38,4 +40,19 @@ test('signup route sends Lead when a receipt is submitted for review', () => {
     assert.ok(source.includes('sendInstantMeetingPaymentMetaCapiEvent'))
     assert.ok(source.includes("trigger: 'payment_review_submit'"))
     assert.ok(source.includes("status: 'pending'"))
+})
+
+test('auth recovers verified pending-signup passwords for existing passwordless users', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('recoverVerifiedSignupPasswordHash'))
+    assert.ok(source.includes("from('pending_signups')"))
+    assert.ok(source.includes(".eq('status', 'verified')"))
+    assert.ok(source.includes(".is('password_hash', null)"))
+})
+
+test('auth uses localhost-compatible cookies outside production', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes("useSecureCookies: process.env.NODE_ENV === 'production'"))
 })

@@ -24,8 +24,23 @@ import { consumeExternalBrowserHandoff, getGuestNameFromSearch } from '@/lib/ext
 import { shouldHostAutoEndMeetingWhenEmpty } from '@/lib/meeting-presence'
 import styles from './page.module.css'
 
+type QualifiedGuestMediaMode = 'audio_video' | 'audio_only' | 'video_only' | 'none' | 'muted_audio_video'
+
 interface RoomPageProps {
     params: Promise<{ roomId: string }>
+}
+
+function normalizeGuestMediaMode(value: string | null): QualifiedGuestMediaMode {
+    if (!value) return 'muted_audio_video'
+
+    return (
+        value === 'audio_video' ||
+        value === 'audio_only' ||
+        value === 'video_only' ||
+        value === 'none'
+    )
+        ? value
+        : 'muted_audio_video'
 }
 
 export default function RoomPage({ params }: RoomPageProps) {
@@ -36,6 +51,7 @@ export default function RoomPage({ params }: RoomPageProps) {
     const hasMarkedHostJoinedRef = useRef(false)
     const guestNameFromQuery = getGuestNameFromSearch(searchParams)
     const guestIdFromQuery = searchParams.get('guestId')?.trim() || null
+    const guestMediaMode = normalizeGuestMediaMode(searchParams.get('media'))
     const hostAutoEndRequestedRef = useRef(false)
 
     // Determine the user's display name
@@ -295,6 +311,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                     onLeave={handleLeave}
                     isHost={!!session?.user}
                     onStopWelcomeAudio={handleStopWelcomeAudio}
+                    guestMediaMode={guestMediaMode}
                 />
                 {session?.user && <GuestInfoPanel roomId={roomId} />}
             </>

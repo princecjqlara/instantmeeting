@@ -65,6 +65,7 @@ interface FullForm extends FormSummary {
     facebook_purchase_value?: number | null
     send_qualified_to_facebook?: boolean
     send_purchase_to_facebook?: boolean
+    qualified_media_mode?: 'audio_video' | 'audio_only' | 'video_only' | 'none'
     questions: Question[]
 }
 
@@ -720,6 +721,7 @@ export default function LeadFormsPage() {
                 facebook_purchase_value: 699,
                 send_qualified_to_facebook: true,
                 send_purchase_to_facebook: false,
+                qualified_media_mode: 'audio_video',
                 questions: [newQuestion()],
             })
             return
@@ -856,6 +858,7 @@ export default function LeadFormsPage() {
                 facebook_purchase_value: 699,
                 send_qualified_to_facebook: true,
                 send_purchase_to_facebook: false,
+                qualified_media_mode: 'audio_video',
                 questions: [],
             }
             return {
@@ -1023,6 +1026,26 @@ export default function LeadFormsPage() {
                             />{' '}
                             Send borderline leads to the normal waiting room for manual review
                         </label>
+                        <label className={styles.label}>Qualified guest media</label>
+                        <select
+                            className={styles.input}
+                            value={editing.qualified_media_mode || 'audio_video'}
+                            onChange={(e) =>
+                                setEditing({
+                                    ...editing,
+                                    qualified_media_mode: e.target.value as FullForm['qualified_media_mode'],
+                                })
+                            }
+                        >
+                            <option value="audio_video">Open camera and microphone</option>
+                            <option value="audio_only">Open microphone only</option>
+                            <option value="video_only">Open camera only</option>
+                            <option value="none">Join with camera and microphone off</option>
+                        </select>
+                        <p className={styles.fieldHint}>
+                            When media starts off, qualified guests still enter the meeting and see the
+                            microphone prompt so they can tap unmute to talk.
+                        </p>
                         <label className={styles.label}>Meta CAPI access token</label>
                         <input
                             className={styles.input}

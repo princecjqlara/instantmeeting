@@ -57,6 +57,8 @@ ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS facebook_purchase_value INTEGER 
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_qualified_to_facebook BOOLEAN DEFAULT true;
 ALTER TABLE lead_forms ALTER COLUMN send_qualified_to_facebook SET DEFAULT true;
 ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS send_purchase_to_facebook BOOLEAN DEFAULT false;
+ALTER TABLE lead_forms ADD COLUMN IF NOT EXISTS qualified_media_mode TEXT DEFAULT 'audio_video'
+    CHECK (qualified_media_mode IN ('audio_video','audio_only','video_only','none'));
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS instantmeeting_payment_purchase_value_php INTEGER DEFAULT 699;
 

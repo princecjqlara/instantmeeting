@@ -45,6 +45,17 @@ async function shouldRouteAdmittedGuestToBooking(
     return ['no_clocked_in', 'all_members_busy', 'lookup_failed'].includes(availability.reason)
 }
 
+function normalizeQualifiedMediaMode(value: unknown) {
+    return (
+        value === 'audio_video' ||
+        value === 'audio_only' ||
+        value === 'video_only' ||
+        value === 'none'
+    )
+        ? value
+        : 'audio_video'
+}
+
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ token: string }> }
@@ -54,7 +65,7 @@ export async function GET(
 
     const { data: guest } = await supabase
         .from('waiting_guests')
-        .select('id, meeting_id, status, guest_name')
+        .select('id, meeting_id, status, guest_name, lead_form_id')
         .eq('join_token', token)
         .single()
 
@@ -86,6 +97,23 @@ export async function GET(
 
     // Redirect to the in-app video room
     // google_meet_link now stores a relative path like /room/{meetingId}
-    const roomPath = buildGuestRoomPath(guest.meeting_id, guest.id, guest.guest_name)
+    let qualifiedMediaMode: string | null = null
+    if (guest.lead_form_id) {
+        const { data: form, error: formError } = await supabase
+            .from('lead_forms')
+            .select('qualified_media_mode')
+            .eq('id', guest.lead_form_id)
+            .maybeSingle()
+
+        if (formError) {
+            console.error('Lead form media mode lookup failed:', formError)
+        }
+
+        qualifiedMediaMode = normalizeQualifiedMediaMode(form?.qualified_media_mode)
+    }
+
+    const roomPath = buildGuestRoomPath(guest.meeting_id, guest.id, guest.guest_name, {
+        media: qualifiedMediaMode,
+    })
     return NextResponse.redirect(`${origin}${roomPath}`)
 }
