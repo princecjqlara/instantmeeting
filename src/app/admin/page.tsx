@@ -41,6 +41,7 @@ export default function AdminPage() {
     const [password, setPassword] = useState('')
     const [successMsg, setSuccessMsg] = useState('')
     const [errorMsg, setErrorMsg] = useState('')
+    const [resettingTenantId, setResettingTenantId] = useState<string | null>(null)
     const [pending, setPending] = useState<PendingSignup[]>([])
     const [pendingLoading, setPendingLoading] = useState(false)
     const [reviewingId, setReviewingId] = useState<string | null>(null)
@@ -227,6 +228,46 @@ export default function AdminPage() {
         }
     }
 
+    const handleResetPassword = async (tenant: Tenant) => {
+        const nextPassword = window.prompt(`Enter a new password for ${tenant.email}`)
+        if (nextPassword === null) return
+
+        const passwordValue = nextPassword.trim()
+        if (passwordValue.length < 6) {
+            alert('Password must be at least 6 characters')
+            return
+        }
+
+        setResettingTenantId(tenant.id)
+        setSuccessMsg('')
+        setErrorMsg('')
+
+        try {
+            const res = await fetch('/api/admin/tenants', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: tenant.email,
+                    name: tenant.name || '',
+                    password: passwordValue,
+                }),
+            })
+
+            const data = await res.json()
+            if (!res.ok) {
+                setErrorMsg(data.error || 'Failed to reset tenant password')
+                return
+            }
+
+            setSuccessMsg(`Password reset for "${data.email}".`)
+            await fetchTenants()
+        } catch {
+            setErrorMsg('Network error')
+        } finally {
+            setResettingTenantId(null)
+        }
+    }
+
     // Delete tenant
     const handleDelete = async (id: string, tenantEmail: string) => {
         if (!confirm(`Delete tenant "${tenantEmail}"? This cannot be undone.`)) return
@@ -405,7 +446,7 @@ export default function AdminPage() {
 
                 {/* Create Tenant Form */}
                 <div className={styles.createCard}>
-                    <h2>Create New Tenant</h2>
+                    <h2>Create or Reset Tenant</h2>
                     <form onSubmit={handleCreate}>
                         <div className={styles.formGroup}>
                             <label>Email *</label>
@@ -442,7 +483,7 @@ export default function AdminPage() {
                             className={styles.createBtn}
                             disabled={creating}
                         >
-                            {creating ? 'Creating...' : 'Create Tenant'}
+                            {creating ? 'Saving...' : 'Save Tenant Password'}
                         </button>
                         {successMsg && <p className={styles.successMsg}>{successMsg}</p>}
                         {errorMsg && <p className={styles.errorMsg}>{errorMsg}</p>}
@@ -559,12 +600,22 @@ export default function AdminPage() {
                                         <div className={styles.tenantName}>{tenant.name || 'Unnamed'}</div>
                                         <div className={styles.tenantEmail}>{tenant.email}</div>
                                     </div>
-                                    <button
-                                        className={styles.deleteBtn}
-                                        onClick={() => handleDelete(tenant.id, tenant.email)}
-                                    >
-                                        Delete
-                                    </button>
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                        <button
+                                            className={styles.createBtn}
+                                            onClick={() => handleResetPassword(tenant)}
+                                            disabled={resettingTenantId === tenant.id}
+                                            type="button"
+                                        >
+                                            {resettingTenantId === tenant.id ? 'Resetting...' : 'Reset password'}
+                                        </button>
+                                        <button
+                                            className={styles.deleteBtn}
+                                            onClick={() => handleDelete(tenant.id, tenant.email)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
                                 </div>
                             ))
                         )}

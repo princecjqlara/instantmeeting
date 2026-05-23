@@ -44,3 +44,12 @@ test('admin page auto-refreshes pending payments and tenants', () => {
     assert.ok(source.includes('fetchTenants()'))
     assert.ok(source.includes('clearInterval'))
 })
+
+test('admin page lets organizers reset existing tenant passwords', () => {
+    const source = readFileSync(new URL('../src/app/admin/page.tsx', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('handleResetPassword'))
+    assert.ok(source.includes('Reset password'))
+    assert.ok(source.includes("method: 'POST'"))
+    assert.ok(source.includes('email: tenant.email'))
+})
