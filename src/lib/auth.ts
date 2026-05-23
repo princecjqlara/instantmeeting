@@ -94,7 +94,8 @@ async function recoverVerifiedSignupPasswordHash(
     supabase: ReturnType<typeof getSupabaseClient>,
     userId: string,
     email: string,
-    inputPassword: string
+    inputPassword: string,
+    replaceExistingHash = false
 ) {
     const verifiedPending = await findMatchingVerifiedPendingSignup(
         supabase,
@@ -106,11 +107,16 @@ async function recoverVerifiedSignupPasswordHash(
         return null
     }
 
-    const { error: updateError } = await supabase
+    let updateQuery = supabase
         .from('users')
         .update({ password_hash: verifiedPending.password_hash })
         .eq('id', userId)
-        .is('password_hash', null)
+
+    if (!replaceExistingHash) {
+        updateQuery = updateQuery.is('password_hash', null)
+    }
+
+    const { error: updateError } = await updateQuery
 
     if (updateError) {
         console.error('Failed to recover verified signup password hash:', updateError)
@@ -208,6 +214,26 @@ export const authOptions: NextAuthOptions = {
                         passwordHash
                     )
                     if (!isValid) {
+                        const recoveredPasswordHash = user.password_hash
+                            ? await recoverVerifiedSignupPasswordHash(
+                                supabase,
+                                user.id,
+                                credentials.email,
+                                credentials.password,
+                                true
+                            )
+                            : null
+
+                        if (recoveredPasswordHash) {
+                            return {
+                                id: user.id,
+                                email: user.email,
+                                name: user.name,
+                                image: user.avatar_url,
+                                role: user.role,
+                            }
+                        }
+
                         continue
                     }
 

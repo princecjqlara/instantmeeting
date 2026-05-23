@@ -77,6 +77,14 @@ test('auth tries every verified pending-signup password for duplicate approvals'
     assert.ok(source.includes('return signup'))
 })
 
+test('auth repairs existing users whose stored hash differs from verified signup password', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('replaceExistingHash = false'))
+    assert.ok(source.includes('if (!replaceExistingHash)'))
+    assert.ok(source.includes('true'))
+})
+
 test('auth uses localhost-compatible cookies outside production', () => {
     const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
 
