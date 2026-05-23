@@ -3,11 +3,42 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { createClient } from '@supabase/supabase-js'
 import { isValidCredentialPassword } from '@/lib/password-auth'
 
+type CredentialUser = {
+    id: string
+    email: string
+    name: string | null
+    avatar_url: string | null
+    password_hash: string | null
+    role: string | null
+}
+
 function getSupabaseClient() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
+}
+
+function normalizeCredentialEmail(email: string) {
+    return email.toLowerCase().trim()
+}
+
+async function findCredentialUsers(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string
+): Promise<CredentialUser[]> {
+    const normalizedEmail = normalizeCredentialEmail(email)
+    const { data, error } = await supabase
+        .from('users')
+        .select('id, email, name, avatar_url, password_hash, role')
+        .ilike('email', normalizedEmail)
+        .limit(10)
+
+    if (error || !data) {
+        return []
+    }
+
+    return data.filter((user) => normalizeCredentialEmail(user.email) === normalizedEmail)
 }
 
 async function recoverVerifiedSignupPasswordHash(
@@ -16,28 +47,32 @@ async function recoverVerifiedSignupPasswordHash(
     email: string,
     inputPassword: string
 ) {
+    const normalizedEmail = normalizeCredentialEmail(email)
     const { data: pending, error } = await supabase
         .from('pending_signups')
-        .select('password_hash')
-        .eq('email', email)
+        .select('email, password_hash')
+        .ilike('email', normalizedEmail)
         .eq('status', 'verified')
         .order('reviewed_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+        .limit(10)
 
-    if (error || !pending?.password_hash) {
+    const verifiedPending = pending?.find(
+        (signup) => normalizeCredentialEmail(signup.email) === normalizedEmail
+    )
+
+    if (error || !verifiedPending?.password_hash) {
         return null
     }
 
-    const isValid = await isValidCredentialPassword(inputPassword, pending.password_hash)
+    const isValid = await isValidCredentialPassword(inputPassword, verifiedPending.password_hash)
     if (!isValid) {
         return null
     }
 
     const { error: updateError } = await supabase
         .from('users')
-        .update({ password_hash: pending.password_hash })
+        .update({ password_hash: verifiedPending.password_hash })
         .eq('id', userId)
         .is('password_hash', null)
 
@@ -45,7 +80,7 @@ async function recoverVerifiedSignupPasswordHash(
         console.error('Failed to recover verified signup password hash:', updateError)
     }
 
-    return pending.password_hash as string
+    return verifiedPending.password_hash as string
 }
 
 export const authOptions: NextAuthOptions = {
@@ -63,44 +98,49 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 const supabase = getSupabaseClient()
-                const { data: user, error } = await supabase
-                    .from('users')
-                    .select('id, email, name, avatar_url, password_hash, role')
-                    .eq('email', credentials.email.toLowerCase().trim())
-                    .single()
+                const users = await findCredentialUsers(supabase, credentials.email)
 
-                if (error || !user) {
+                if (users.length === 0) {
                     throw new Error('Invalid email or password')
                 }
 
-                const passwordHash =
-                    user.password_hash ||
-                    await recoverVerifiedSignupPasswordHash(
-                        supabase,
-                        user.id,
-                        user.email,
-                        credentials.password
-                    )
+                for (const user of users) {
+                    const passwordHash =
+                        user.password_hash ||
+                        await recoverVerifiedSignupPasswordHash(
+                            supabase,
+                            user.id,
+                            credentials.email,
+                            credentials.password
+                        )
 
-                if (!passwordHash) {
+                    if (!passwordHash) {
+                        continue
+                    }
+
+                    const isValid = await isValidCredentialPassword(
+                        credentials.password,
+                        passwordHash
+                    )
+                    if (!isValid) {
+                        continue
+                    }
+
+                    return {
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        image: user.avatar_url,
+                        role: user.role,
+                    }
+                }
+
+                const hasConfiguredAccount = users.some((user) => Boolean(user.password_hash))
+                if (!hasConfiguredAccount) {
                     throw new Error('Account not configured. Contact your organizer.')
                 }
 
-                const isValid = await isValidCredentialPassword(
-                    credentials.password,
-                    passwordHash
-                )
-                if (!isValid) {
-                    throw new Error('Invalid email or password')
-                }
-
-                return {
-                    id: user.id,
-                    email: user.email,
-                    name: user.name,
-                    image: user.avatar_url,
-                    role: user.role,
-                }
+                throw new Error('Invalid email or password')
             },
         }),
     ],

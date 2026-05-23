@@ -51,6 +51,15 @@ test('auth recovers verified pending-signup passwords for existing passwordless 
     assert.ok(source.includes(".is('password_hash', null)"))
 })
 
+test('auth resolves existing users by normalized email instead of case-sensitive equality', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('normalizeCredentialEmail'))
+    assert.ok(source.includes(".ilike('email', normalizedEmail)"))
+    assert.ok(source.includes('normalizeCredentialEmail(user.email) === normalizedEmail'))
+    assert.ok(!source.includes(".eq('email', credentials.email.toLowerCase().trim())"))
+})
+
 test('auth uses localhost-compatible cookies outside production', () => {
     const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
 
