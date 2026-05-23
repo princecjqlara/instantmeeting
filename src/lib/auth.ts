@@ -12,6 +12,12 @@ type CredentialUser = {
     role: string | null
 }
 
+type VerifiedPendingSignup = {
+    email: string
+    name: string | null
+    password_hash: string
+}
+
 function getSupabaseClient() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,27 +47,41 @@ async function findCredentialUsers(
     return data.filter((user) => normalizeCredentialEmail(user.email) === normalizedEmail)
 }
 
-async function recoverVerifiedSignupPasswordHash(
+async function findVerifiedPendingSignup(
     supabase: ReturnType<typeof getSupabaseClient>,
-    userId: string,
-    email: string,
-    inputPassword: string
-) {
+    email: string
+): Promise<VerifiedPendingSignup | null> {
     const normalizedEmail = normalizeCredentialEmail(email)
-    const { data: pending, error } = await supabase
+    const { data, error } = await supabase
         .from('pending_signups')
-        .select('email, password_hash')
+        .select('email, name, password_hash')
         .ilike('email', normalizedEmail)
         .eq('status', 'verified')
         .order('reviewed_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(10)
 
-    const verifiedPending = pending?.find(
-        (signup) => normalizeCredentialEmail(signup.email) === normalizedEmail
-    )
+    if (error || !data) {
+        return null
+    }
 
-    if (error || !verifiedPending?.password_hash) {
+    return data.find(
+        (signup) =>
+            normalizeCredentialEmail(signup.email) === normalizedEmail &&
+            typeof signup.password_hash === 'string' &&
+            signup.password_hash.length > 0
+    ) || null
+}
+
+async function recoverVerifiedSignupPasswordHash(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    userId: string,
+    email: string,
+    inputPassword: string
+) {
+    const verifiedPending = await findVerifiedPendingSignup(supabase, email)
+
+    if (!verifiedPending?.password_hash) {
         return null
     }
 
@@ -83,6 +103,40 @@ async function recoverVerifiedSignupPasswordHash(
     return verifiedPending.password_hash as string
 }
 
+async function provisionVerifiedSignupUser(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    inputPassword: string
+): Promise<CredentialUser | null> {
+    const verifiedPending = await findVerifiedPendingSignup(supabase, email)
+    if (!verifiedPending) {
+        return null
+    }
+
+    const isValid = await isValidCredentialPassword(inputPassword, verifiedPending.password_hash)
+    if (!isValid) {
+        return null
+    }
+
+    const { data: user, error } = await supabase
+        .from('users')
+        .insert({
+            email: normalizeCredentialEmail(verifiedPending.email),
+            name: verifiedPending.name,
+            password_hash: verifiedPending.password_hash,
+            role: 'tenant',
+        })
+        .select('id, email, name, avatar_url, password_hash, role')
+        .single()
+
+    if (error || !user) {
+        console.error('Failed to provision verified signup user during login:', error)
+        return null
+    }
+
+    return user
+}
+
 export const authOptions: NextAuthOptions = {
     useSecureCookies: process.env.NODE_ENV === 'production',
     providers: [
@@ -101,6 +155,22 @@ export const authOptions: NextAuthOptions = {
                 const users = await findCredentialUsers(supabase, credentials.email)
 
                 if (users.length === 0) {
+                    const provisionedUser = await provisionVerifiedSignupUser(
+                        supabase,
+                        credentials.email,
+                        credentials.password
+                    )
+
+                    if (provisionedUser) {
+                        return {
+                            id: provisionedUser.id,
+                            email: provisionedUser.email,
+                            name: provisionedUser.name,
+                            image: provisionedUser.avatar_url,
+                            role: provisionedUser.role,
+                        }
+                    }
+
                     throw new Error('Invalid email or password')
                 }
 

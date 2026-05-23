@@ -60,6 +60,15 @@ test('auth resolves existing users by normalized email instead of case-sensitive
     assert.ok(!source.includes(".eq('email', credentials.email.toLowerCase().trim())"))
 })
 
+test('auth provisions verified pending signups that are missing a users row', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('provisionVerifiedSignupUser'))
+    assert.ok(source.includes("role: 'tenant'"))
+    assert.ok(source.includes('.insert({'))
+    assert.ok(source.includes('const provisionedUser = await provisionVerifiedSignupUser'))
+})
+
 test('auth uses localhost-compatible cookies outside production', () => {
     const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
 
