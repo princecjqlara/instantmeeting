@@ -69,6 +69,14 @@ test('auth provisions verified pending signups that are missing a users row', ()
     assert.ok(source.includes('const provisionedUser = await provisionVerifiedSignupUser'))
 })
 
+test('auth tries every verified pending-signup password for duplicate approvals', () => {
+    const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
+
+    assert.ok(source.includes('findMatchingVerifiedPendingSignup'))
+    assert.ok(source.includes('for (const signup of verifiedSignups)'))
+    assert.ok(source.includes('return signup'))
+})
+
 test('auth uses localhost-compatible cookies outside production', () => {
     const source = readFileSync(new URL('../src/lib/auth.ts', import.meta.url), 'utf8')
 

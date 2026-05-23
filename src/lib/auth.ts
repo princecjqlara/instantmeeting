@@ -50,7 +50,7 @@ async function findCredentialUsers(
 async function findVerifiedPendingSignup(
     supabase: ReturnType<typeof getSupabaseClient>,
     email: string
-): Promise<VerifiedPendingSignup | null> {
+): Promise<VerifiedPendingSignup[]> {
     const normalizedEmail = normalizeCredentialEmail(email)
     const { data, error } = await supabase
         .from('pending_signups')
@@ -62,15 +62,32 @@ async function findVerifiedPendingSignup(
         .limit(10)
 
     if (error || !data) {
-        return null
+        return []
     }
 
-    return data.find(
+    return data.filter(
         (signup) =>
             normalizeCredentialEmail(signup.email) === normalizedEmail &&
             typeof signup.password_hash === 'string' &&
             signup.password_hash.length > 0
-    ) || null
+    )
+}
+
+async function findMatchingVerifiedPendingSignup(
+    supabase: ReturnType<typeof getSupabaseClient>,
+    email: string,
+    inputPassword: string
+): Promise<VerifiedPendingSignup | null> {
+    const verifiedSignups = await findVerifiedPendingSignup(supabase, email)
+
+    for (const signup of verifiedSignups) {
+        const isValid = await isValidCredentialPassword(inputPassword, signup.password_hash)
+        if (isValid) {
+            return signup
+        }
+    }
+
+    return null
 }
 
 async function recoverVerifiedSignupPasswordHash(
@@ -79,14 +96,13 @@ async function recoverVerifiedSignupPasswordHash(
     email: string,
     inputPassword: string
 ) {
-    const verifiedPending = await findVerifiedPendingSignup(supabase, email)
+    const verifiedPending = await findMatchingVerifiedPendingSignup(
+        supabase,
+        email,
+        inputPassword
+    )
 
     if (!verifiedPending?.password_hash) {
-        return null
-    }
-
-    const isValid = await isValidCredentialPassword(inputPassword, verifiedPending.password_hash)
-    if (!isValid) {
         return null
     }
 
@@ -108,13 +124,12 @@ async function provisionVerifiedSignupUser(
     email: string,
     inputPassword: string
 ): Promise<CredentialUser | null> {
-    const verifiedPending = await findVerifiedPendingSignup(supabase, email)
+    const verifiedPending = await findMatchingVerifiedPendingSignup(
+        supabase,
+        email,
+        inputPassword
+    )
     if (!verifiedPending) {
-        return null
-    }
-
-    const isValid = await isValidCredentialPassword(inputPassword, verifiedPending.password_hash)
-    if (!isValid) {
         return null
     }
 
